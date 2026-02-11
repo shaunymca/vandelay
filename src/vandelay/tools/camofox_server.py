@@ -133,9 +133,16 @@ class CamofoxServer:
 
     def _npm_install(self) -> None:
         """Install camofox-browser into the install directory."""
+        import os
+
         npm = self._npm_bin()
         if not npm.exists():
             raise RuntimeError(f"npm not found at {npm}")
+
+        # Put managed Node.js on PATH so npm's #!/usr/bin/env node shebang works
+        env = os.environ.copy()
+        node_dir = str(self._node_bin().parent)
+        env["PATH"] = node_dir + os.pathsep + env.get("PATH", "")
 
         result = subprocess.run(
             [str(npm), "install", _NPM_PACKAGE],
@@ -143,6 +150,7 @@ class CamofoxServer:
             text=True,
             timeout=300,
             cwd=str(self.install_dir),
+            env=env,
         )
         if result.returncode != 0:
             raise RuntimeError(
