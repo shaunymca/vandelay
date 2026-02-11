@@ -1,0 +1,133 @@
+"""FastAPI application factory with AgentOS integration."""
+
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
+
+from fastapi import FastAPI
+
+from agno.os import AgentOS
+
+from vandelay import __version__
+from vandelay.agents.factory import create_agent
+from vandelay.channels.router import ChannelRouter
+from vandelay.core import AppStateAgentProvider, ChatService
+from vandelay.memory.setup import create_db
+from vandelay.server.lifespan import lifespan
+from vandelay.server.routes.health import health_router
+from vandelay.server.routes.ws import ws_router
+
+if TYPE_CHECKING:
+    from vandelay.config.settings import Settings
+
+logger = logging.getLogger("vandelay.server")
+
+
+def create_app(settings: Settings) -> FastAPI:
+    """Build the FastAPI application with AgentOS integration.
+
+    1. Creates a base FastAPI app with our custom lifespan
+    2. Creates the shared agent and db, stores on app.state
+    3. Creates ChatService with lazy AgentProvider (fixes hot-reload)
+    4. Registers our custom routes (health, websocket)
+    5. Conditionally registers Telegram and WhatsApp channels
+    6. Wraps with AgentOS for playground UI and agent management API
+    """
+    base_app = FastAPI(
+        title=f"Vandelay ({settings.agent_name})",
+        version=__version__,
+        description="Always-on AI assistant powered by Agno",
+        lifespan=lifespan,
+    )
+
+    # Create shared agent and db with hot-reload support
+    def _reload_agent() -> None:
+        """Recreate the agent in-place after tool changes."""
+        logger.info("Hot-reloading agent (tool config changed)")
+        new_agent = create_agent(settings, reload_callback=_reload_agent)
+        base_app.state.agent = new_agent
+        # Update AgentOS reference if possible
+        nonlocal agent
+        agent = new_agent
+
+    agent = create_agent(settings, reload_callback=_reload_agent)
+    db = create_db(settings)
+
+    # ChatService resolves agent lazily — hot-reload swaps app.state.agent
+    # and every subsequent ChatService call picks up the new instance.
+    agent_provider = AppStateAgentProvider(base_app.state)
+    chat_service = ChatService(agent_provider)
+
+    # Channel router for managing adapters
+    channel_router = ChannelRouter()
+    agentos_interfaces = []
+
+    # --- Telegram ---
+    if settings.channels.telegram_enabled:
+        token = settings.channels.telegram_bot_token
+        if token:
+            from vandelay.channels.telegram import TelegramAdapter
+            from vandelay.server.routes.telegram import telegram_router
+
+            tg_adapter = TelegramAdapter(
+                bot_token=token,
+                chat_service=chat_service,
+                chat_id=settings.channels.telegram_chat_id,
+            )
+            channel_router.register(tg_adapter)
+            base_app.state.telegram_adapter = tg_adapter
+            base_app.include_router(telegram_router)
+            logger.info("Telegram channel enabled")
+        else:
+            logger.warning(
+                "Telegram enabled but no bot token configured — skipping"
+            )
+
+    # --- WhatsApp ---
+    if settings.channels.whatsapp_enabled:
+        token = settings.channels.whatsapp_access_token
+        phone_id = settings.channels.whatsapp_phone_number_id
+        if token and phone_id:
+            from agno.os.interfaces.whatsapp import Whatsapp
+
+            from vandelay.channels.whatsapp import WhatsAppAdapter
+
+            wa_adapter = WhatsAppAdapter(
+                access_token=token,
+                phone_number_id=phone_id,
+            )
+            channel_router.register(wa_adapter)
+
+            # AgentOS Whatsapp interface handles webhooks
+            wa_interface = Whatsapp(agent=agent, prefix="/whatsapp")
+            agentos_interfaces.append(wa_interface)
+            logger.info("WhatsApp channel enabled")
+        else:
+            logger.warning(
+                "WhatsApp enabled but missing access_token or phone_number_id — skipping"
+            )
+
+    # Store on app.state for access from route handlers and lifespan
+    base_app.state.agent = agent
+    base_app.state.settings = settings
+    base_app.state.db = db
+    base_app.state.channel_router = channel_router
+    base_app.state.chat_service = chat_service
+
+    # Register our custom routes before AgentOS
+    base_app.include_router(health_router)
+    base_app.include_router(ws_router)
+
+    # Integrate with AgentOS — adds playground, session,
+    # memory, knowledge, and metrics routes automatically.
+    agent_os = AgentOS(
+        name=f"vandelay-{settings.agent_name}",
+        agents=[agent],
+        db=db,
+        interfaces=agentos_interfaces or None,
+        base_app=base_app,
+        on_route_conflict="preserve_base_app",
+    )
+
+    return agent_os.get_app()

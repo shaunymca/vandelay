@@ -1,0 +1,21 @@
+[Unit]
+Description=Vandelay AI Assistant
+After=network.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=%h/.vandelay
+ExecStart=%h/.local/bin/vandelay start --server
+Restart=on-failure
+RestartSec=10
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=-%h/.vandelay/.env
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=%h/.vandelay %h/workspace /tmp
+
+[Install]
+WantedBy=multi-user.target

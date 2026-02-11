@@ -1,0 +1,267 @@
+"""Telegram channel adapter — polling (local) or webhooks (public URL)."""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from typing import TYPE_CHECKING, Any, Optional
+
+import httpx
+
+from vandelay.channels.base import ChannelAdapter, IncomingMessage, OutgoingMessage
+
+if TYPE_CHECKING:
+    from vandelay.core.chat_service import ChatService
+
+logger = logging.getLogger("vandelay.channels.telegram")
+
+TELEGRAM_API = "https://api.telegram.org"
+
+
+class TelegramAdapter(ChannelAdapter):
+    """Telegram bot adapter with auto-detection: polling or webhooks.
+
+    - No webhook_url configured → uses long-polling (works locally)
+    - webhook_url configured → registers webhook with Telegram (needs public HTTPS)
+    """
+
+    channel_name = "telegram"
+
+    def __init__(
+        self,
+        bot_token: str,
+        chat_service: ChatService,
+        chat_id: str = "",
+        webhook_url: str = "",
+    ) -> None:
+        self.bot_token = bot_token
+        self.chat_service = chat_service
+        self.chat_id = chat_id
+        self.webhook_url = webhook_url
+        self._bot_username: Optional[str] = None
+        self._polling_task: Optional[asyncio.Task] = None
+        self._stop_event = asyncio.Event()
+
+    # ------------------------------------------------------------------
+    # Lifecycle
+    # ------------------------------------------------------------------
+
+    async def start(self) -> None:
+        """Start the Telegram adapter — polling or webhook mode."""
+        # Fetch bot info
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(f"{TELEGRAM_API}/bot{self.bot_token}/getMe")
+                data = resp.json()
+                if data.get("ok"):
+                    self._bot_username = data["result"].get("username")
+                    logger.info("Telegram bot: @%s", self._bot_username)
+                else:
+                    logger.error("Telegram getMe failed: %s", data)
+                    return
+        except Exception as exc:
+            logger.error("Could not connect to Telegram: %s", exc)
+            return
+
+        if self.webhook_url:
+            # Webhook mode — Telegram pushes updates to us
+            await self._set_webhook(self.webhook_url)
+            logger.info("Telegram running in webhook mode")
+        else:
+            # Polling mode — we pull updates from Telegram
+            # First, remove any stale webhook
+            await self._delete_webhook()
+            self._stop_event.clear()
+            self._polling_task = asyncio.create_task(
+                self._poll_loop(), name="telegram-polling"
+            )
+            logger.info("Telegram running in polling mode")
+
+    async def stop(self) -> None:
+        """Stop the adapter — cancel polling or remove webhook."""
+        if self._polling_task and not self._polling_task.done():
+            self._stop_event.set()
+            self._polling_task.cancel()
+            try:
+                await self._polling_task
+            except asyncio.CancelledError:
+                pass
+            self._polling_task = None
+            logger.info("Telegram polling stopped")
+
+        if self.webhook_url:
+            await self._delete_webhook()
+
+    # ------------------------------------------------------------------
+    # Polling
+    # ------------------------------------------------------------------
+
+    async def _poll_loop(self) -> None:
+        """Long-poll Telegram's getUpdates endpoint."""
+        offset = 0
+        timeout = 30  # seconds — Telegram long-poll timeout
+
+        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout + 10)) as client:
+            while not self._stop_event.is_set():
+                try:
+                    resp = await client.get(
+                        f"{TELEGRAM_API}/bot{self.bot_token}/getUpdates",
+                        params={
+                            "offset": offset,
+                            "timeout": timeout,
+                            "allowed_updates": '["message"]',
+                        },
+                    )
+                    data = resp.json()
+
+                    if not data.get("ok"):
+                        logger.error("Telegram getUpdates error: %s", data)
+                        await asyncio.sleep(5)
+                        continue
+
+                    for update in data.get("result", []):
+                        offset = update["update_id"] + 1
+                        try:
+                            await self.handle_update(update)
+                        except Exception as exc:
+                            logger.error(
+                                "Error handling Telegram update: %s",
+                                exc,
+                                exc_info=True,
+                            )
+
+                except asyncio.CancelledError:
+                    raise
+                except httpx.ReadTimeout:
+                    # Normal — long poll timed out with no updates
+                    continue
+                except Exception as exc:
+                    logger.error("Telegram poll error: %s", exc)
+                    await asyncio.sleep(5)
+
+    # ------------------------------------------------------------------
+    # Outbound
+    # ------------------------------------------------------------------
+
+    async def send(self, message: OutgoingMessage) -> None:
+        """Send a text message to a Telegram chat."""
+        chat_id = message.session_id.removeprefix("tg:")
+        if not chat_id:
+            chat_id = self.chat_id
+        if not chat_id:
+            logger.warning("No chat_id for outbound Telegram message")
+            return
+
+        await self._send_text(chat_id, message.text)
+
+    async def _send_text(self, chat_id: str, text: str) -> None:
+        """Send text via Telegram Bot API (chunked at 4096 chars)."""
+        max_len = 4096
+        chunks = [text[i : i + max_len] for i in range(0, len(text), max_len)]
+
+        async with httpx.AsyncClient() as client:
+            for chunk in chunks:
+                try:
+                    await client.post(
+                        f"{TELEGRAM_API}/bot{self.bot_token}/sendMessage",
+                        json={"chat_id": chat_id, "text": chunk},
+                    )
+                except Exception as exc:
+                    logger.error("Telegram send failed: %s", exc)
+
+    async def _send_typing(self, chat_id: str) -> None:
+        """Send 'typing...' chat action so the user knows we're working."""
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    f"{TELEGRAM_API}/bot{self.bot_token}/sendChatAction",
+                    json={"chat_id": chat_id, "action": "typing"},
+                )
+        except Exception as exc:
+            logger.debug("Failed to send typing action: %s", exc)
+
+    # ------------------------------------------------------------------
+    # Inbound (called from webhook route or polling loop)
+    # ------------------------------------------------------------------
+
+    async def handle_update(self, update_data: dict[str, Any]) -> None:
+        """Process a Telegram Update and respond."""
+        message = update_data.get("message")
+        if not message:
+            return
+
+        text = message.get("text", "")
+        if not text:
+            return
+
+        chat_id = str(message["chat"]["id"])
+        user = message.get("from", {})
+        user_id = str(user.get("id", ""))
+        session_id = f"tg:{chat_id}"
+
+        logger.info("Telegram message from %s in %s: %s", user_id, chat_id, text[:80])
+
+        incoming = IncomingMessage(
+            text=text,
+            session_id=session_id,
+            user_id=user_id,
+            channel="telegram",
+            raw=update_data,
+        )
+
+        result = await self.chat_service.run(
+            incoming,
+            typing=lambda: self._send_typing(chat_id),
+        )
+
+        if result.error:
+            await self._send_text(chat_id, f"Error: {result.error}")
+        elif result.content:
+            await self._send_text(chat_id, result.content)
+        else:
+            await self._send_text(chat_id, "(no response)")
+
+    # ------------------------------------------------------------------
+    # Webhook helpers
+    # ------------------------------------------------------------------
+
+    async def _set_webhook(self, url: str) -> None:
+        """Register the webhook URL with Telegram."""
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    f"{TELEGRAM_API}/bot{self.bot_token}/setWebhook",
+                    json={"url": url},
+                )
+                result = resp.json()
+                if result.get("ok"):
+                    logger.info("Telegram webhook set to %s", url)
+                else:
+                    logger.error("Telegram setWebhook failed: %s", result)
+        except Exception as exc:
+            logger.error("Failed to set Telegram webhook: %s", exc)
+
+    async def _delete_webhook(self) -> None:
+        """Remove any existing webhook."""
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    f"{TELEGRAM_API}/bot{self.bot_token}/deleteWebhook"
+                )
+                if resp.json().get("ok"):
+                    logger.debug("Telegram webhook cleared")
+        except Exception as exc:
+            logger.warning("Failed to remove Telegram webhook: %s", exc)
+
+    @property
+    def bot_username(self) -> Optional[str]:
+        return self._bot_username
+
+    @property
+    def mode(self) -> str:
+        """Current operating mode."""
+        if self.webhook_url:
+            return "webhook"
+        if self._polling_task and not self._polling_task.done():
+            return "polling"
+        return "stopped"

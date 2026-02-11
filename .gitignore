@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE / Dev tools
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude Code (user-specific permissions & session data)
+.claude/
+.mcp.json
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Project data (databases, user state)
+*.db
+*.sqlite
+*.sqlite3
+browser_profile/
+
+# User config (generated at runtime)
+config.json
+tool_registry.json
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+nul
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Logs
+*.log
+
+# Temp files
+tmp_*.json
+*.tmp
