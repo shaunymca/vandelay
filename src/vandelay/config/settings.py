@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     team: TeamConfig = Field(default_factory=TeamConfig)
 
     # --- Top-level settings ---
-    agent_name: str = "Claw"
+    agent_name: str = "Art"
     user_id: str = ""  # Email or identifier — shared across all channels
     timezone: str = "UTC"
     db_url: str = ""  # empty = use SQLite at default path

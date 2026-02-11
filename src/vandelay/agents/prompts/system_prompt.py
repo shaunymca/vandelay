@@ -49,7 +49,7 @@ def _build_tool_catalog(settings: Settings) -> str:
 
 
 def build_system_prompt(
-    agent_name: str = "Claw",
+    agent_name: str = "Art",
     workspace_dir: Path | None = None,
     settings: Settings | None = None,
 ) -> str:

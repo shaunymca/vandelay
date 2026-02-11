@@ -264,7 +264,7 @@ def _detect_system_timezone() -> str | None:
     return None
 
 
-def _configure_agent_name(default: str = "Claw") -> str:
+def _configure_agent_name(default: str = "Art") -> str:
     """Let user name their agent."""
     name = questionary.text(
         "What should your agent be called?",
@@ -785,7 +785,7 @@ def run_headless_onboarding() -> Settings:
         "VANDELAY_MODEL_ID",
         MODEL_PROVIDERS.get(provider, {}).get("default_model", "claude-sonnet-4-5-20250929"),
     )
-    agent_name = os.environ.get("VANDELAY_AGENT_NAME", "Claw")
+    agent_name = os.environ.get("VANDELAY_AGENT_NAME", "Art")
     timezone = os.environ.get("VANDELAY_TIMEZONE", "UTC")
     safety_mode = os.environ.get("VANDELAY_SAFETY_MODE", "confirm")
     user_id = os.environ.get("VANDELAY_USER_ID", "")

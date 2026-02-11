@@ -71,7 +71,7 @@ class TestRunHeadlessOnboarding:
             ):
                 settings = run_headless_onboarding()
                 assert settings.model.provider == "anthropic"
-                assert settings.agent_name == "Claw"
+                assert settings.agent_name == "Art"
                 assert settings.timezone == "UTC"
                 assert settings.safety.mode == "confirm"
 

@@ -11,7 +11,7 @@ def test_default_settings(tmp_path):
     fake_config = tmp_path / "config.json"
     with patch("vandelay.config.settings.CONFIG_FILE", fake_config):
         s = Settings()
-        assert s.agent_name == "Claw"
+        assert s.agent_name == "Art"
         assert s.model.provider == "anthropic"
         assert s.safety.mode == "confirm"
 
