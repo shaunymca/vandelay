@@ -347,9 +347,27 @@ class ToolRegistry:
         Returns (class_name, class_object). class_object is None if the module
         could not be imported (missing deps).
         """
-        # First, try importing the module
+        import io
+        import logging
+        import sys
+        import warnings
+
+        # Suppress warnings and stderr noise during discovery imports —
+        # many Agno tool modules print warnings about missing optional deps
+        # (googlemaps, webex, reportlab, etc.) even when not enabled.
         try:
-            mod = importlib.import_module(full_path)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                old_stderr = sys.stderr
+                old_log_level = logging.root.level
+                sys.stderr = io.StringIO()
+                logging.disable(logging.CRITICAL)
+                try:
+                    mod = importlib.import_module(full_path)
+                finally:
+                    sys.stderr = old_stderr
+                    logging.disable(old_log_level)
+
             # Look for classes ending in "Tools" (the Agno convention)
             candidates = [
                 name for name in dir(mod)

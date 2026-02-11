@@ -315,24 +315,17 @@ def _channel_summary(settings: Settings) -> str:
 
 def _configure_channels(channel_cfg: ChannelConfig) -> ChannelConfig:
     """Interactive channel setup for Telegram and/or WhatsApp."""
-    channels = questionary.checkbox(
-        "Which messaging channels would you like to enable?",
-        choices=[
-            questionary.Choice(title="Telegram", value="telegram"),
-            questionary.Choice(title="WhatsApp", value="whatsapp"),
-            questionary.Choice(title="None (skip)", value="none"),
-        ],
-    ).ask()
-
-    if channels is None:
-        raise KeyboardInterrupt
-
-    if "none" in channels or not channels:
-        console.print("  [dim]Channels skipped — configure later with /config[/dim]")
-        return channel_cfg
 
     # --- Telegram ---
-    if "telegram" in channels:
+    setup_telegram = questionary.confirm(
+        "Set up Telegram?",
+        default=False,
+    ).ask()
+
+    if setup_telegram is None:
+        raise KeyboardInterrupt
+
+    if setup_telegram:
         console.print()
         console.print("  [bold]Telegram Setup[/bold]")
         console.print("  [dim]Get your bot token from @BotFather on Telegram[/dim]")
@@ -355,7 +348,15 @@ def _configure_channels(channel_cfg: ChannelConfig) -> ChannelConfig:
             console.print("  [yellow]⚠[/yellow] No token — Telegram skipped")
 
     # --- WhatsApp ---
-    if "whatsapp" in channels:
+    setup_whatsapp = questionary.confirm(
+        "Set up WhatsApp?",
+        default=False,
+    ).ask()
+
+    if setup_whatsapp is None:
+        raise KeyboardInterrupt
+
+    if setup_whatsapp:
         console.print()
         console.print("  [bold]WhatsApp Setup[/bold]")
         console.print("  [dim]You need a Meta Business app with WhatsApp API access[/dim]")
