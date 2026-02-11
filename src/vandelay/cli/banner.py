@@ -4,11 +4,9 @@ from rich.console import Console
 from rich.text import Text
 
 WORDMARK = """\
-    __   __            _      _
-    \\ \\ / /__ _ _ _  __| |___ | |__ _ _  _
-     \\ V / _` | ' \\/ _` / -_)| / _` | || |
-      \\_/\\__,_|_||_\\__,_\\___||_\\__,_|\\_, |
-                                      |__/"""
+    ╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦  ╔═╗╦ ╦
+    ╚╗╔╝╠═╣║║║ ║║║╣ ║  ╠═╣╚╦╝
+     ╚╝ ╩ ╩╝╚╝═╩╝╚═╝╩═╝╩ ╩ ╩"""
 
 TAGLINE = "The employee who doesn't exist."
 
