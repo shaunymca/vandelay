@@ -14,7 +14,7 @@ from vandelay.config.constants import VANDELAY_HOME
 logger = logging.getLogger("vandelay.tools.camofox_server")
 
 _DEFAULT_INSTALL_DIR = VANDELAY_HOME / "camofox"
-_NODE_VERSION = "22"  # Node 22 LTS
+_NODE_VERSION = "22.22.0"  # Node 22 LTS — nodeenv requires full version
 _NPM_PACKAGE = "@anthropic-ai/camofox-browser"
 _HEALTH_URL = "http://localhost:9377/health"
 _HEALTH_TIMEOUT = 30  # seconds
