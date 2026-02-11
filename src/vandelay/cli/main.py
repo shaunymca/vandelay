@@ -8,7 +8,8 @@ import typer
 from rich.console import Console
 
 from vandelay import __version__
-
+from vandelay.cli.cron_commands import app as cron_app
+from vandelay.cli.knowledge_commands import app as knowledge_app
 from vandelay.cli.tools_commands import app as tools_app
 
 app = typer.Typer(
@@ -18,6 +19,8 @@ app = typer.Typer(
     rich_markup_mode="rich",
 )
 app.add_typer(tools_app, name="tools")
+app.add_typer(cron_app, name="cron")
+app.add_typer(knowledge_app, name="knowledge")
 console = Console()
 
 # Background server state
@@ -37,15 +40,30 @@ def version_callback(
 
 
 @app.command()
-def onboard():
+def onboard(
+    non_interactive: bool = typer.Option(
+        False, "--non-interactive", "-n",
+        help="Headless setup from environment variables (for PaaS/CI)",
+    ),
+):
     """Run the interactive setup wizard."""
-    from vandelay.cli.onboard import run_onboarding
+    if non_interactive:
+        from vandelay.cli.onboard import run_headless_onboarding
 
-    try:
-        settings = run_onboarding()
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Setup cancelled.[/yellow]")
-        raise typer.Exit(1)
+        try:
+            settings = run_headless_onboarding()
+        except ValueError as e:
+            console.print(f"[red]Headless onboarding failed: {e}[/red]")
+            raise typer.Exit(1) from None
+        console.print(f"[green]\u2713[/green] Headless onboarding complete — {settings.agent_name}")
+    else:
+        from vandelay.cli.onboard import run_onboarding
+
+        try:
+            settings = run_onboarding()
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Setup cancelled.[/yellow]")
+            raise typer.Exit(1) from None
 
     # Drop straight into chat after onboarding
     asyncio.run(_run_with_server(settings))
@@ -59,13 +77,31 @@ def start(
     ),
 ):
     """Start your agent with the API server and terminal chat."""
+    import os
+
     from vandelay.config.settings import Settings, get_settings
 
     if not Settings.config_exists():
-        console.print("[yellow]No config found.[/yellow] Run [bold]vandelay onboard[/bold] first.")
-        raise typer.Exit(1)
+        # Auto-onboard if VANDELAY_AUTO_ONBOARD=1 is set (PaaS use case)
+        if os.environ.get("VANDELAY_AUTO_ONBOARD", "").lower() in ("1", "true", "yes"):
+            from vandelay.cli.onboard import run_headless_onboarding
 
-    settings = get_settings()
+            try:
+                settings = run_headless_onboarding()
+                console.print(
+                    f"[green]\u2713[/green] Auto-onboarded — {settings.agent_name}"
+                )
+            except ValueError as e:
+                console.print(f"[red]Auto-onboarding failed: {e}[/red]")
+                raise typer.Exit(1) from None
+        else:
+            console.print(
+                "[yellow]No config found.[/yellow] "
+                "Run [bold]vandelay onboard[/bold] first."
+            )
+            raise typer.Exit(1)
+    else:
+        settings = get_settings()
 
     if server_only:
         _start_server_foreground(settings)
@@ -101,6 +137,8 @@ def _show_status(settings, server_running: bool = False) -> None:
     if settings.channels.whatsapp_enabled:
         channels.append("WhatsApp")
     console.print(f"  [bold]Channels:[/bold]  {', '.join(channels) if channels else 'Terminal only'}")
+    knowledge_str = "enabled" if settings.knowledge.enabled else "disabled"
+    console.print(f"  [bold]Knowledge:[/bold] {knowledge_str}")
 
     if server_running or _server_handle.get("running"):
         host = settings.server.host

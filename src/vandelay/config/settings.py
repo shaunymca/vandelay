@@ -13,6 +13,7 @@ from vandelay.config.constants import VANDELAY_HOME, CONFIG_FILE, DB_DIR, DEFAUL
 from vandelay.config.models import (
     ChannelConfig,
     HeartbeatConfig,
+    KnowledgeConfig,
     ModelConfig,
     SafetyConfig,
     ServerConfig,
@@ -42,6 +43,7 @@ class Settings(BaseSettings):
     channels: ChannelConfig = Field(default_factory=ChannelConfig)
     heartbeat: HeartbeatConfig = Field(default_factory=HeartbeatConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
+    knowledge: KnowledgeConfig = Field(default_factory=KnowledgeConfig)
 
     # --- Top-level settings ---
     agent_name: str = "Claw"

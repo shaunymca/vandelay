@@ -41,23 +41,47 @@ def create_app(settings: Settings) -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Create scheduler engine (before agent, so tools can be wired)
+    from vandelay.scheduler.engine import SchedulerEngine
+    from vandelay.scheduler.store import CronJobStore
+
+    # ChatService resolves agent lazily, so we create a temporary provider first
+    # and wire the real engine after ChatService exists.
+    cron_store = CronJobStore()
+    db = create_db(settings)
+
     # Create shared agent and db with hot-reload support
+    # (scheduler_engine set after ChatService is created below)
+    scheduler_engine = None  # forward ref, set after ChatService
+
     def _reload_agent() -> None:
         """Recreate the agent in-place after tool changes."""
         logger.info("Hot-reloading agent (tool config changed)")
-        new_agent = create_agent(settings, reload_callback=_reload_agent)
+        new_agent = create_agent(
+            settings,
+            reload_callback=_reload_agent,
+            scheduler_engine=scheduler_engine,
+        )
         base_app.state.agent = new_agent
         # Update AgentOS reference if possible
         nonlocal agent
         agent = new_agent
 
     agent = create_agent(settings, reload_callback=_reload_agent)
-    db = create_db(settings)
 
     # ChatService resolves agent lazily — hot-reload swaps app.state.agent
     # and every subsequent ChatService call picks up the new instance.
     agent_provider = AppStateAgentProvider(base_app.state)
     chat_service = ChatService(agent_provider)
+
+    # Now create the scheduler engine with the real ChatService and
+    # recreate the agent so it gets SchedulerTools wired in.
+    scheduler_engine = SchedulerEngine(settings, chat_service, cron_store)
+    agent = create_agent(
+        settings,
+        reload_callback=_reload_agent,
+        scheduler_engine=scheduler_engine,
+    )
 
     # Channel router for managing adapters
     channel_router = ChannelRouter()
@@ -114,6 +138,7 @@ def create_app(settings: Settings) -> FastAPI:
     base_app.state.db = db
     base_app.state.channel_router = channel_router
     base_app.state.chat_service = chat_service
+    base_app.state.scheduler_engine = scheduler_engine
 
     # Register our custom routes before AgentOS
     base_app.include_router(health_router)

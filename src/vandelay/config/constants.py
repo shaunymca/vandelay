@@ -73,4 +73,14 @@ MODEL_PROVIDERS = {
         "api_key_label": None,
         "api_key_help": None,
     },
+    "openrouter": {
+        "name": "OpenRouter",
+        "env_key": "OPENROUTER_API_KEY",
+        "token_env_key": None,
+        "default_model": "anthropic/claude-sonnet-4-5-20250929",
+        "token_label": None,
+        "token_help": None,
+        "api_key_label": "OpenRouter API key",
+        "api_key_help": "Get your API key from openrouter.ai/keys",
+    },
 }

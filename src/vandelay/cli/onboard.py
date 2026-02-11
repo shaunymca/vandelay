@@ -13,6 +13,7 @@ from vandelay.config.constants import MODEL_PROVIDERS
 from vandelay.config.models import (
     ChannelConfig,
     HeartbeatConfig,
+    KnowledgeConfig,
     ModelConfig,
     SafetyConfig,
     ServerConfig,
@@ -383,6 +384,34 @@ def _configure_channels(channel_cfg: ChannelConfig) -> ChannelConfig:
     return channel_cfg
 
 
+def _configure_knowledge(provider: str) -> bool:
+    """Ask if user wants to enable knowledge/RAG."""
+    # Anthropic has no embeddings — warn the user
+    no_embedder_providers = {"anthropic"}
+    if provider in no_embedder_providers:
+        console.print(
+            f"  [dim]{provider} doesn't have a native embeddings API.[/dim]"
+        )
+        console.print(
+            "  [dim]You'll need an OpenAI, Google, or Ollama API key for embeddings.[/dim]"
+        )
+
+    enabled = questionary.confirm(
+        "Enable knowledge/RAG? (lets the agent search your documents)",
+        default=False,
+    ).ask()
+
+    if enabled is None:
+        raise KeyboardInterrupt
+
+    if enabled:
+        console.print("  [green]\u2713[/green] Knowledge enabled — add documents with: vandelay knowledge add <path>")
+    else:
+        console.print("  [dim]Knowledge skipped — enable later with /config or in config.json[/dim]")
+
+    return enabled
+
+
 def run_config_menu(settings: Settings) -> Settings:
     """Interactive config editor — pick a section to change."""
     while True:
@@ -421,6 +450,10 @@ def run_config_menu(settings: Settings) -> Settings:
                 questionary.Choice(
                     title=f"Channels        [{_channel_summary(settings)}]",
                     value="channels",
+                ),
+                questionary.Choice(
+                    title=f"Knowledge       [{'enabled' if settings.knowledge.enabled else 'disabled'}]",
+                    value="knowledge",
                 ),
                 questionary.Choice(
                     title="Back to chat",
@@ -469,6 +502,10 @@ def run_config_menu(settings: Settings) -> Settings:
         elif section == "channels":
             settings.channels = _configure_channels(settings.channels)
             console.print(f"  [green]✓[/green] Channels: {_channel_summary(settings)}")
+
+        elif section == "knowledge":
+            enabled = _configure_knowledge(settings.model.provider)
+            settings.knowledge.enabled = enabled
 
         settings.save()
         console.print(f"  [dim]Config saved.[/dim]")
@@ -543,36 +580,36 @@ def run_onboarding() -> Settings:
     console.print()
 
     # Step 1: Identity
-    console.print("[bold]1/7[/bold] — Identity")
+    console.print("[bold]1/8[/bold] — Identity")
     agent_name = _configure_agent_name()
     user_id = _configure_user_id()
     console.print()
 
     # Step 2: Model provider
-    console.print("[bold]2/7[/bold] — AI Model")
+    console.print("[bold]2/8[/bold] — AI Model")
     provider, model_id = _select_provider()
     auth_method = _configure_auth(provider)
     console.print()
 
     # Step 3: Safety mode
-    console.print("[bold]3/7[/bold] — Safety")
+    console.print("[bold]3/8[/bold] — Safety")
     safety_mode = _select_safety_mode()
     console.print()
 
     # Step 4: Timezone
-    console.print("[bold]4/7[/bold] — Timezone")
+    console.print("[bold]4/8[/bold] — Timezone")
     timezone = _select_timezone()
     console.print(f"  [green]✓[/green] Timezone set to {timezone}")
     console.print()
 
     # Step 5: Browser Tools
-    console.print("[bold]5/7[/bold] — Browser Tools")
+    console.print("[bold]5/8[/bold] — Browser Tools")
     enabled_tools: list[str] = []
     enabled_tools = _configure_browser_tools(enabled_tools)
     console.print()
 
     # Step 6: Workspace
-    console.print("[bold]6/7[/bold] — Workspace")
+    console.print("[bold]6/8[/bold] — Workspace")
     ws = init_workspace()
     console.print(f"  [green]✓[/green] Workspace initialized at {ws}")
     console.print()
@@ -581,8 +618,13 @@ def run_onboarding() -> Settings:
     _populate_user_md(ws, timezone=timezone)
 
     # Step 7: Messaging channels
-    console.print("[bold]7/7[/bold] — Messaging Channels")
+    console.print("[bold]7/8[/bold] — Messaging Channels")
     channel_cfg = _configure_channels(ChannelConfig())
+    console.print()
+
+    # Step 8: Knowledge base
+    console.print("[bold]8/8[/bold] — Knowledge Base")
+    knowledge_enabled = _configure_knowledge(provider)
     console.print()
 
     # Build settings
@@ -595,6 +637,7 @@ def run_onboarding() -> Settings:
         channels=channel_cfg,
         heartbeat=HeartbeatConfig(timezone=timezone),
         server=ServerConfig(),
+        knowledge=KnowledgeConfig(enabled=knowledge_enabled),
         workspace_dir=str(ws),
         enabled_tools=enabled_tools,
     )
@@ -605,6 +648,7 @@ def run_onboarding() -> Settings:
     console.print()
     channels_str = _channel_summary(settings) or "Terminal only"
     browser_str = _browser_tools_summary(enabled_tools) or "none"
+    knowledge_str = "enabled" if knowledge_enabled else "disabled"
     console.print(
         Panel.fit(
             f"[bold green]Setup complete![/bold green]\n\n"
@@ -613,10 +657,100 @@ def run_onboarding() -> Settings:
             f"Safety: {safety_mode}\n"
             f"Timezone: {timezone}\n"
             f"Browser: {browser_str}\n"
-            f"Channels: {channels_str}\n\n"
+            f"Channels: {channels_str}\n"
+            f"Knowledge: {knowledge_str}\n\n"
             f"Launching chat...",
             border_style="green",
         )
     )
 
+    return settings
+
+
+def _headless_channels() -> ChannelConfig:
+    """Auto-detect channel configuration from environment variables."""
+    cfg = ChannelConfig()
+
+    telegram_token = os.environ.get("TELEGRAM_TOKEN", "")
+    telegram_chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+    if telegram_token:
+        cfg.telegram_enabled = True
+        cfg.telegram_bot_token = telegram_token
+        cfg.telegram_chat_id = telegram_chat_id
+
+    wa_token = os.environ.get("WHATSAPP_ACCESS_TOKEN", "")
+    wa_phone = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
+    if wa_token and wa_phone:
+        cfg.whatsapp_enabled = True
+        cfg.whatsapp_access_token = wa_token
+        cfg.whatsapp_phone_number_id = wa_phone
+        cfg.whatsapp_verify_token = os.environ.get("WHATSAPP_VERIFY_TOKEN", "vandelay-verify")
+        cfg.whatsapp_app_secret = os.environ.get("WHATSAPP_APP_SECRET", "")
+
+    return cfg
+
+
+def run_headless_onboarding() -> Settings:
+    """Non-interactive setup from environment variables.
+
+    Designed for PaaS/CI deployments (Railway, Render, etc.) where interactive
+    prompts aren't available. All configuration comes from env vars:
+
+    Required:
+      - ``VANDELAY_MODEL_PROVIDER`` (default: "anthropic")
+      - The provider's API key env var (e.g. ``ANTHROPIC_API_KEY``)
+
+    Optional:
+      - ``VANDELAY_MODEL_ID`` — override default model
+      - ``VANDELAY_AGENT_NAME`` — agent display name (default: "Claw")
+      - ``VANDELAY_TIMEZONE`` — timezone (default: "UTC")
+      - ``VANDELAY_SAFETY_MODE`` — trust | confirm | tiered (default: "confirm")
+      - ``VANDELAY_USER_ID`` — user identifier
+      - ``VANDELAY_KNOWLEDGE_ENABLED`` — "1" or "true" to enable knowledge/RAG
+      - ``TELEGRAM_TOKEN`` + ``TELEGRAM_CHAT_ID`` — enable Telegram
+      - ``WHATSAPP_ACCESS_TOKEN`` + ``WHATSAPP_PHONE_NUMBER_ID`` — enable WhatsApp
+    """
+    provider = os.environ.get("VANDELAY_MODEL_PROVIDER", "anthropic")
+    model_id = os.environ.get(
+        "VANDELAY_MODEL_ID",
+        MODEL_PROVIDERS.get(provider, {}).get("default_model", "claude-sonnet-4-5-20250929"),
+    )
+    agent_name = os.environ.get("VANDELAY_AGENT_NAME", "Claw")
+    timezone = os.environ.get("VANDELAY_TIMEZONE", "UTC")
+    safety_mode = os.environ.get("VANDELAY_SAFETY_MODE", "confirm")
+    user_id = os.environ.get("VANDELAY_USER_ID", "")
+
+    # Validate provider
+    if provider not in MODEL_PROVIDERS:
+        raise ValueError(
+            f"Unknown provider: {provider}. "
+            f"Choose from: {list(MODEL_PROVIDERS.keys())}"
+        )
+
+    # Validate API key is available
+    env_key = MODEL_PROVIDERS[provider].get("env_key")
+    if env_key and not os.environ.get(env_key):
+        raise ValueError(f"{env_key} must be set for provider '{provider}'")
+
+    # Knowledge
+    knowledge_raw = os.environ.get("VANDELAY_KNOWLEDGE_ENABLED", "").lower()
+    knowledge_enabled = knowledge_raw in ("1", "true", "yes")
+
+    # Build settings
+    ws = init_workspace()
+
+    settings = Settings(
+        agent_name=agent_name,
+        user_id=user_id,
+        timezone=timezone,
+        model=ModelConfig(provider=provider, model_id=model_id, auth_method="api_key"),
+        safety=SafetyConfig(mode=safety_mode),
+        channels=_headless_channels(),
+        heartbeat=HeartbeatConfig(timezone=timezone),
+        server=ServerConfig(),
+        knowledge=KnowledgeConfig(enabled=knowledge_enabled),
+        workspace_dir=str(ws),
+    )
+
+    settings.save()
     return settings

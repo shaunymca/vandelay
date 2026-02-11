@@ -58,6 +58,11 @@ async def lifespan(app: FastAPI):
     # Inject channel credentials into env vars
     _inject_channel_env_vars(settings)
 
+    # Start scheduler engine
+    scheduler_engine = getattr(app.state, "scheduler_engine", None)
+    if scheduler_engine is not None:
+        await scheduler_engine.start()
+
     # Start all registered channel adapters
     channel_router = getattr(app.state, "channel_router", None)
     if channel_router and channel_router.active_channels:
@@ -89,6 +94,10 @@ async def lifespan(app: FastAPI):
     yield
 
     # --- Shutdown ---
+    # Stop scheduler engine
+    if getattr(app.state, "scheduler_engine", None) is not None:
+        await app.state.scheduler_engine.stop()
+
     # Stop Camofox server
     if getattr(app.state, "camofox_server", None) is not None:
         try:

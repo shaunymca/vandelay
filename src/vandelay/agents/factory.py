@@ -47,6 +47,16 @@ def _get_model(settings: Settings):
 
         return Ollama(id=model_id)
 
+    if provider == "openrouter":
+        from agno.models.openai import OpenAIChat
+
+        api_key = os.environ.get("OPENROUTER_API_KEY")
+        return OpenAIChat(
+            id=model_id,
+            api_key=api_key,
+            base_url="https://openrouter.ai/api/v1",
+        )
+
     raise ValueError(f"Unknown model provider: {provider}")
 
 
@@ -64,6 +74,7 @@ def _get_tools(settings: Settings) -> list:
 def create_agent(
     settings: Settings,
     reload_callback: Callable[[], None] | None = None,
+    scheduler_engine: object | None = None,
 ) -> Agent:
     """Build the main Agno Agent with memory, storage, and instructions.
 
@@ -71,6 +82,8 @@ def create_agent(
         settings: Application settings.
         reload_callback: Called by ToolManagementTools after enable/disable
             to trigger an agent hot-reload. If None, a no-op is used.
+        scheduler_engine: Optional SchedulerEngine instance. When provided,
+            SchedulerTools are added to the agent's toolkit.
     """
     from pathlib import Path
 
@@ -93,6 +106,17 @@ def create_agent(
     )
     tools.append(tool_mgmt)
 
+    # Include scheduler tools when engine is available
+    if scheduler_engine is not None:
+        from vandelay.tools.scheduler import SchedulerTools
+
+        tools.append(SchedulerTools(engine=scheduler_engine))
+
+    # Knowledge/RAG
+    from vandelay.knowledge.setup import create_knowledge
+
+    knowledge = create_knowledge(settings)
+
     agent = Agent(
         id="vandelay-main",
         name=settings.agent_name,
@@ -101,6 +125,8 @@ def create_agent(
         db=db,
         instructions=instructions,
         tools=tools or None,
+        knowledge=knowledge,
+        search_knowledge=knowledge is not None,
         markdown=True,
         add_history_to_context=True,
         num_history_runs=5,

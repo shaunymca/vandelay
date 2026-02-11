@@ -64,3 +64,19 @@ class ServerConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
     secret_key: str = "change-me-to-a-random-string"
+
+
+class EmbedderConfig(BaseModel):
+    """Explicit embedder override. When empty, auto-matches model provider."""
+
+    provider: str = ""  # openai | google | ollama | "" (auto)
+    model: str = ""  # e.g. "text-embedding-3-small"
+    api_key: str = ""  # only if different from model provider
+    base_url: str = ""  # custom endpoint
+
+
+class KnowledgeConfig(BaseModel):
+    """Knowledge/RAG settings."""
+
+    enabled: bool = False
+    embedder: EmbedderConfig = Field(default_factory=EmbedderConfig)
