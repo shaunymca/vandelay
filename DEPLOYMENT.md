@@ -31,7 +31,7 @@ This guide covers local development, PaaS deployment (Railway), and VPS deployme
 ### Setup
 
 ```bash
-git clone https://github.com/yourusername/vandelay.git
+git clone https://github.com/shaunymca/vandelay.git
 cd vandelay
 uv sync
 uv run vandelay onboard
@@ -66,7 +66,7 @@ uv run pytest tests/ -v
 ### 1. Push to GitHub
 
 ```bash
-git remote add origin https://github.com/yourusername/vandelay.git
+git remote add origin https://github.com/shaunymca/vandelay.git
 git push -u origin master
 ```
 
@@ -203,7 +203,7 @@ sudo apt install -y python3.11 python3.11-venv
 ### 4. Deploy Vandelay
 
 ```bash
-git clone https://github.com/yourusername/vandelay.git ~/vandelay
+git clone https://github.com/shaunymca/vandelay.git ~/vandelay
 cd ~/vandelay
 uv sync
 

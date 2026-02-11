@@ -65,7 +65,7 @@ Add Telegram, WhatsApp, shell access with safety guardrails, scheduled tasks, an
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/yourusername/vandelay.git
+git clone https://github.com/shaunymca/vandelay.git
 cd vandelay
 uv sync
 
