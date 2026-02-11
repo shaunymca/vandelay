@@ -164,8 +164,8 @@ class ToolManager:
                 mod = importlib.import_module(entry.module_path)
                 cls = getattr(mod, entry.class_name)
                 instances.append(cls())
-            except (ImportError, AttributeError) as e:
-                # Skip tools that can't be loaded (missing deps)
+            except Exception as e:
+                # Skip tools that can't be loaded (missing deps, missing API keys, etc.)
                 import logging
                 logging.getLogger("vandelay.tools").warning(
                     "Could not load tool %s: %s", tool_name, e

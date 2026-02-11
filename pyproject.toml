@@ -28,6 +28,7 @@ dependencies = [
     "nodeenv>=1.9",
     "watchfiles>=1.0",
     "fastembed>=0.4",
+    "ddgs>=9.10.0",
 ]
 
 [project.optional-dependencies]

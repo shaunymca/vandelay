@@ -27,6 +27,16 @@ _BASE_METHODS = frozenset({
     "close", "connect", "get_async_functions", "get_functions", "register",
 })
 
+# Class name overrides for tools with non-standard naming conventions.
+# Used when the module can't be imported (missing deps) and the convention-based
+# fallback (module_name → ModuleNameTools) would guess wrong.
+_CLASS_NAME_OVERRIDES: dict[str, str] = {
+    "duckduckgo": "DuckDuckGoTools",
+    "csv_toolkit": "CsvTools",
+    "google_bigquery": "BigQueryTools",
+    "yfinance": "YFinanceTools",
+}
+
 # Hand-curated category map — everything else defaults to "other"
 _CATEGORY_MAP: dict[str, str] = {
     # Web search & scraping
@@ -389,6 +399,10 @@ class ToolRegistry:
         except Exception:
             # Module couldn't be imported (missing deps) — fall back to name convention
             pass
+
+        # Check overrides first (for tools with non-standard class names)
+        if module_name in _CLASS_NAME_OVERRIDES:
+            return _CLASS_NAME_OVERRIDES[module_name], None
 
         # Convention-based fallback: shell → ShellTools
         parts = module_name.split("_")
