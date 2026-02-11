@@ -82,7 +82,7 @@ async def lifespan(app: FastAPI):
             else:
                 logger.warning(
                     "Camofox is enabled but not installed. "
-                    "Run: vandelay tools enable camofox"
+                    "Run: vandelay tools add camofox"
                 )
                 camofox_server = None
         except Exception:

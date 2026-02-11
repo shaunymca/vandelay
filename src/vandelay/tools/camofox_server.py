@@ -90,7 +90,7 @@ class CamofoxServer:
     def install(self) -> None:
         """Create isolated Node.js env and install camofox-browser.
 
-        This is called during onboarding or `tools enable camofox`, not at runtime.
+        This is called during onboarding or `tools add camofox`, not at runtime.
         """
         self.install_dir.mkdir(parents=True, exist_ok=True)
 
@@ -167,7 +167,7 @@ class CamofoxServer:
 
         if not self.is_installed():
             raise RuntimeError(
-                "Camofox is not installed. Run: vandelay tools enable camofox"
+                "Camofox is not installed. Run: vandelay tools add camofox"
             )
 
         camofox_bin = self._camofox_bin()

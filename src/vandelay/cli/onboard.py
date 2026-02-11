@@ -613,7 +613,7 @@ def _configure_browser_tools(enabled_tools: list[str]) -> list[str]:
     if "none" in choices or not choices:
         console.print(
             "  [dim]Browser tools skipped"
-            " — enable later with: vandelay tools enable[/dim]"
+            " — enable later with: vandelay tools add[/dim]"
         )
         return enabled_tools
 
@@ -632,7 +632,7 @@ def _configure_browser_tools(enabled_tools: list[str]) -> list[str]:
             console.print("  [green]✓[/green] Camofox installed and enabled")
         except Exception as e:
             console.print(f"  [red]✗[/red] Camofox setup failed: {e}")
-            console.print("  [dim]You can retry later with: vandelay tools enable camofox[/dim]")
+            console.print("  [dim]You can retry later with: vandelay tools add camofox[/dim]")
 
     return enabled_tools
 
