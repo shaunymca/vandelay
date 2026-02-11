@@ -139,7 +139,11 @@ class ToolManager:
     def instantiate_tools(self, enabled_tools: list[str], settings: Settings | None = None) -> list:
         """Create Toolkit instances for all enabled tools. Returns list of Agno Toolkit objects."""
         import importlib
+        import io
+        import logging
+        import sys
 
+        logger = logging.getLogger("vandelay.tools")
         instances = []
 
         for tool_name in enabled_tools:
@@ -163,13 +167,19 @@ class ToolManager:
 
                 mod = importlib.import_module(entry.module_path)
                 cls = getattr(mod, entry.class_name)
-                instances.append(cls())
+
+                # Suppress noisy stdout/stderr from Agno toolkit constructors
+                # (e.g. "newspaper4k not installed" prints before raising)
+                old_stdout, old_stderr = sys.stdout, sys.stderr
+                sys.stdout = io.StringIO()
+                sys.stderr = io.StringIO()
+                try:
+                    instances.append(cls())
+                finally:
+                    sys.stdout, sys.stderr = old_stdout, old_stderr
             except Exception as e:
                 # Skip tools that can't be loaded (missing deps, missing API keys, etc.)
-                import logging
-                logging.getLogger("vandelay.tools").warning(
-                    "Could not load tool %s: %s", tool_name, e
-                )
+                logger.debug("Skipping tool %s: %s", tool_name, e)
 
         return instances
 
