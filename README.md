@@ -18,7 +18,7 @@ An always-on AI agent that works so you don't have to.
 [![Tests](https://img.shields.io/badge/tests-109%20passed-brightgreen.svg)]()
 [![Powered by Agno](https://img.shields.io/badge/powered%20by-Agno-red.svg)](https://github.com/agno-agi/agno)
 
-[Quick Start](#-quick-start) &bull; [Features](#-features) &bull; [CLI Reference](#-cli-reference) &bull; [How-To Guide](#-how-to-guide) &bull; [Roadmap](#-roadmap)
+[Features](#-features) &bull; [Get Started](#-get-started) &bull; [CLI Reference](#-cli-reference) &bull; [How-To Guide](#-how-to-guide) &bull; [Deploy](#-deploy) &bull; [Roadmap](#-roadmap)
 
 </div>
 
@@ -49,15 +49,46 @@ Built from scratch on the Agno framework.
 
 ---
 
-## &#x1f680; Quick Start
+## &#x1f680; Get Started
+
+### Prerequisites
+
+- **Python 3.11+** — [download](https://www.python.org/downloads/)
+- **[uv](https://docs.astral.sh/uv/)** — `curl -LsSf https://astral.sh/uv/install.sh | sh` (or `pip install uv`)
+- **An API key** from [Anthropic](https://console.anthropic.com/), [OpenAI](https://platform.openai.com/), [Google](https://aistudio.google.com/), or a local [Ollama](https://ollama.com/) install
+
+### Install & run
 
 ```bash
-git clone https://github.com/yourusername/vandelay.git && cd vandelay
+# 1. Clone and install
+git clone https://github.com/yourusername/vandelay.git
+cd vandelay
 uv sync
+
+# 2. Run the setup wizard (model, API key, safety mode, tools, channels)
 uv run vandelay onboard
+
+# 3. Launch the agent
+uv run vandelay start
 ```
 
-That's it. No upfront commitment, no vendor lock-in. The wizard walks you through model selection, API keys, safety mode, browser tools, and messaging channels — then drops you into a live chat session.
+The onboard wizard walks you through 7 steps — identity, model, auth, safety mode, browser tools, workspace, and messaging channels. Config is saved to `~/.vandelay/config.json` and can be changed anytime with `/config` in chat.
+
+After `vandelay start`, you get:
+- **Terminal chat** — talk to your agent directly in the console
+- **FastAPI server** on `http://localhost:8000` — REST API + AgentOS playground at `/docs`
+- **WebSocket** at `/ws/terminal` — real-time streaming chat
+- **Webhooks** for Telegram and WhatsApp (if configured)
+
+### Verify it works
+
+```bash
+# Check health
+curl http://localhost:8000/health
+
+# Run tests
+uv run pytest tests/ -v
+```
 
 ---
 
@@ -126,22 +157,9 @@ Each layer is a sealed compartment — memory, tools, and channels operate indep
 ## &#x1f4d6; How-To Guide
 
 <details>
-<summary><strong>1. Prerequisites & Installation</strong></summary>
+<summary><strong>1. Extra Model Providers</strong></summary>
 
-### Requirements
-- **Python 3.11+**
-- **[uv](https://docs.astral.sh/uv/)** (recommended) or pip
-- An API key from Anthropic, OpenAI, Google, or a local Ollama install
-
-### Install
-
-```bash
-git clone https://github.com/yourusername/vandelay.git
-cd vandelay
-uv sync
-```
-
-For extra model providers:
+The base install includes all providers. If you only want specific ones:
 
 ```bash
 uv sync --extra anthropic    # Claude
@@ -315,44 +333,9 @@ ws.send(JSON.stringify({ text: "Hello!", session_id: "my-session" }));
 </details>
 
 <details>
-<summary><strong>9. Deploying to a Server (systemd)</strong></summary>
+<summary><strong>9. Deployment</strong></summary>
 
-### Quick deploy
-
-```bash
-# Copy service file
-sudo cp systemd/vandelay.service /etc/systemd/system/vandelay@.service
-
-# Enable and start (replace 'youruser' with your username)
-sudo systemctl enable vandelay@youruser
-sudo systemctl start vandelay@youruser
-
-# Check logs
-journalctl -u vandelay@youruser -f
-```
-
-### What the service does
-- Runs `vandelay start --server` as a background daemon
-- Auto-restarts on failure (10s delay) — it never needs a pep talk
-- Reads config from `~/.vandelay/`
-- Applies systemd hardening (NoNewPrivileges, ProtectSystem)
-
-### Reverse proxy (nginx)
-
-```nginx
-server {
-    listen 443 ssl;
-    server_name vandelay.yourdomain.com;
-
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-    }
-}
-```
+See the full **[Deployment Guide](DEPLOYMENT.md)** for Railway setup, VPS provisioning, Tailscale security, webhook routing, and production hardening.
 
 </details>
 
@@ -418,6 +401,19 @@ Edit these files directly — this is how you master the art of shaping your age
 All `VANDELAY_*` variables override settings from `~/.vandelay/config.json`.
 
 </details>
+
+---
+
+## &#x1f682; Deploy
+
+Vandelay has shell access and browser control — powerful when it's yours, dangerous when it's exposed. The **[Deployment Guide](DEPLOYMENT.md)** covers everything:
+
+| Path | Best For | Guide Section |
+|------|----------|---------------|
+| **Railway** | Quick setup, no server management | [Railway guide](DEPLOYMENT.md#part-2-deploy-to-railway) |
+| **VPS + Tailscale** | Full control, zero public attack surface | [VPS guide](DEPLOYMENT.md#part-3-deploy-to-a-vps) |
+
+The recommended production path is **VPS + Tailscale** — your agent runs 24/7 behind an encrypted mesh VPN with no ports exposed to the internet. The guide includes Tailscale setup, firewall hardening, webhook routing via Tailscale Funnel, SSH lockdown, and a pre-deployment security checklist.
 
 ---
 
