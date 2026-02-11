@@ -14,9 +14,31 @@ if TYPE_CHECKING:
     from vandelay.config.settings import Settings
 
 
+def _load_env() -> None:
+    """Load ~/.vandelay/.env into os.environ so API keys are always available."""
+    import os
+
+    from vandelay.config.constants import VANDELAY_HOME
+
+    env_path = VANDELAY_HOME / ".env"
+    if not env_path.exists():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key, value = key.strip(), value.strip()
+        # Don't overwrite existing env vars (env vars take priority)
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
 def _get_model(settings: Settings):
     """Instantiate the correct Agno model class from settings."""
     import os
+
+    _load_env()
 
     provider = settings.model.provider
     model_id = settings.model.model_id
