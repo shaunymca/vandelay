@@ -23,6 +23,7 @@ env/
 # Claude Code (user-specific permissions & session data)
 .claude/
 .mcp.json
+CLAUDE.md
 
 # Environment & secrets
 .env
