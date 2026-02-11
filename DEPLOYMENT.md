@@ -216,6 +216,16 @@ uv run vandelay start --server
 
 ### 5. Install as a system service
 
+On headless servers (Lightsail, EC2, etc.), enable lingering first so user-level systemd services work without an active SSH session:
+
+```bash
+sudo loginctl enable-linger vandelay
+export XDG_RUNTIME_DIR=/run/user/$(id -u)
+echo 'export XDG_RUNTIME_DIR=/run/user/$(id -u)' >> ~/.bashrc
+```
+
+Then install and start the service:
+
 ```bash
 uv run vandelay daemon install
 uv run vandelay daemon start
