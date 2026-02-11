@@ -26,11 +26,11 @@ An always-on AI agent that works so you don't have to.
 
 ## What is Vandelay?
 
-Most agent frameworks ask you to feel your way through a maze of config files, scattered docs, and half-working integrations. We felt that pain too — and found that the real problem wasn't the AI, it was everything around it.
+Vandelay is an always-on AI agent built on [Agno](https://github.com/agno-agi/agno) — the framework that handles models, memory, tools, and teams so you don't have to wire them yourself.
 
-Vandelay is a **deploy-and-forget AI agent platform** built on [Agno](https://github.com/agno-agi/agno). One command to set up. One command to add any of **70+ tools**. Persistent memory across sessions. Telegram, WhatsApp, and terminal access. Browser control. Shell execution with safety guardrails. An always-on agent that handles the work while you handle the rest.
+Agno ships with **70+ prebuilt tool integrations** (search, email, Slack, GitHub, databases, browsers, and more). Vandelay wraps all of that into a single CLI — one command to set up, one command to add any tool. Connect it to [AgentOS](https://os.agno.com) and you get a full management UI with chat, session history, memory, knowledge search, and token monitoring out of the box.
 
-Built from scratch on the Agno framework.
+Add Telegram, WhatsApp, shell access with safety guardrails, scheduled tasks, and a daemon service — and you have a personal AI agent that runs 24/7 on your own infrastructure.
 
 ---
 
