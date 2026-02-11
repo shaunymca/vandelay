@@ -25,10 +25,9 @@ def _get_model(settings: Settings):
     if provider == "anthropic":
         from agno.models.anthropic import Claude
 
-        if auth_method == "token":
-            token = os.environ.get("ANTHROPIC_AUTH_TOKEN")
-            return Claude(id=model_id, auth_token=token)
-        return Claude(id=model_id)
+        # Anthropic only supports API keys (no OAuth/token auth)
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        return Claude(id=model_id, api_key=api_key) if api_key else Claude(id=model_id)
 
     if provider == "openai":
         from agno.models.openai import OpenAIChat

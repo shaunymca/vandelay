@@ -36,10 +36,10 @@ MODEL_PROVIDERS = {
     "anthropic": {
         "name": "Anthropic (Claude)",
         "env_key": "ANTHROPIC_API_KEY",
-        "token_env_key": "ANTHROPIC_AUTH_TOKEN",
+        "token_env_key": None,
         "default_model": "claude-sonnet-4-5-20250929",
-        "token_label": "Anthropic token (paste setup-token)",
-        "token_help": "Run `claude setup-token` elsewhere, then paste the token here",
+        "token_label": None,
+        "token_help": None,
         "api_key_label": "Anthropic API key",
         "api_key_help": "Get your API key from console.anthropic.com/settings/keys",
     },

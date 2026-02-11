@@ -18,7 +18,8 @@ def create_embedder(settings: Settings) -> Any | None:
     Resolution order:
       1. Explicit ``knowledge.embedder.provider`` → use that provider
       2. Derive from ``model.provider`` (openai→OpenAI, google→Gemini, etc.)
-      3. Return ``None`` when no embedder can be created
+      3. Providers without an embedding API (anthropic) fall back to fastembed
+      4. Return ``None`` when no embedder can be created
 
     Returns:
         An Agno Embedder instance, or ``None`` if unavailable.
@@ -28,12 +29,12 @@ def create_embedder(settings: Settings) -> Any | None:
 
     builder = _EMBEDDER_BUILDERS.get(provider)
     if builder is None:
-        logger.warning(
-            "No embedder available for provider '%s'. "
-            "Knowledge requires an embedder. Set knowledge.embedder.provider in config.",
+        # Provider has no embedder (e.g. anthropic) — try fastembed as fallback
+        logger.info(
+            "No native embedder for provider '%s'. Trying local fastembed fallback.",
             provider,
         )
-        return None
+        return _build_fastembed(settings)
 
     return builder(settings)
 
@@ -46,7 +47,7 @@ def create_embedder(settings: Settings) -> Any | None:
 def _build_openai(settings: Settings) -> Any | None:
     ecfg = settings.knowledge.embedder
     try:
-        from agno.embedder.openai import OpenAIEmbedder
+        from agno.knowledge.embedder.openai import OpenAIEmbedder
     except ImportError:
         logger.warning("openai package not installed — cannot create OpenAI embedder.")
         return None
@@ -65,7 +66,7 @@ def _build_openai(settings: Settings) -> Any | None:
 def _build_google(settings: Settings) -> Any | None:
     ecfg = settings.knowledge.embedder
     try:
-        from agno.embedder.google import GeminiEmbedder
+        from agno.knowledge.embedder.google import GeminiEmbedder
     except ImportError:
         logger.warning("google-genai package not installed — cannot create Gemini embedder.")
         return None
@@ -82,7 +83,7 @@ def _build_google(settings: Settings) -> Any | None:
 def _build_ollama(settings: Settings) -> Any | None:
     ecfg = settings.knowledge.embedder
     try:
-        from agno.embedder.ollama import OllamaEmbedder
+        from agno.knowledge.embedder.ollama import OllamaEmbedder
     except ImportError:
         logger.warning("ollama package not installed — cannot create Ollama embedder.")
         return None
@@ -95,23 +96,41 @@ def _build_ollama(settings: Settings) -> Any | None:
     return OllamaEmbedder(**kwargs)
 
 
+def _build_fastembed(settings: Settings) -> Any | None:
+    """Local embedder via fastembed — no API key required."""
+    ecfg = settings.knowledge.embedder
+    try:
+        from agno.knowledge.embedder.fastembed import FastEmbedEmbedder
+    except ImportError:
+        logger.warning(
+            "fastembed package not installed — cannot create local embedder. "
+            "Install with: uv add fastembed"
+        )
+        return None
+
+    kwargs: dict[str, Any] = {}
+    if ecfg.model:
+        kwargs["id"] = ecfg.model
+    # Default: BAAI/bge-small-en-v1.5 (384 dims, fast, no API key)
+    return FastEmbedEmbedder(**kwargs)
+
+
 def _build_openrouter(settings: Settings) -> Any | None:
-    """OpenRouter doesn't have its own embedder — fall back to OpenAI if available."""
+    """OpenRouter doesn't have its own embedder — fall back to OpenAI or fastembed."""
     if settings.knowledge.embedder.provider == "openrouter":
         # Explicit request for openrouter embedder — not supported
         logger.warning(
             "OpenRouter does not provide an embeddings API. "
-            "Set knowledge.embedder.provider to 'openai', 'google', or 'ollama'."
+            "Trying fastembed fallback."
         )
-        return None
-    # Auto-resolution path: try OpenAI if API key is available
+        return _build_fastembed(settings)
+    # Auto-resolution path: try OpenAI if API key is available, else fastembed
     if os.environ.get("OPENAI_API_KEY"):
         return _build_openai(settings)
-    logger.warning(
-        "OpenRouter model detected but no OPENAI_API_KEY for embeddings. "
-        "Set knowledge.embedder.provider in config."
+    logger.info(
+        "OpenRouter model detected, no OPENAI_API_KEY. Using local fastembed embedder."
     )
-    return None
+    return _build_fastembed(settings)
 
 
 _EMBEDDER_BUILDERS = {
@@ -119,5 +138,6 @@ _EMBEDDER_BUILDERS = {
     "google": _build_google,
     "ollama": _build_ollama,
     "openrouter": _build_openrouter,
-    # anthropic intentionally omitted — no embeddings API
+    "fastembed": _build_fastembed,
+    # anthropic intentionally omitted — falls through to fastembed in create_embedder()
 }

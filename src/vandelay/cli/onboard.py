@@ -392,14 +392,15 @@ def _configure_channels(channel_cfg: ChannelConfig) -> ChannelConfig:
 
 def _configure_knowledge(provider: str) -> bool:
     """Ask if user wants to enable knowledge/RAG."""
-    # Anthropic has no embeddings — warn the user
+    # Anthropic has no embeddings — let user know we'll use local embedder
     no_embedder_providers = {"anthropic"}
     if provider in no_embedder_providers:
         console.print(
             f"  [dim]{provider} doesn't have a native embeddings API.[/dim]"
         )
         console.print(
-            "  [dim]You'll need an OpenAI, Google, or Ollama API key for embeddings.[/dim]"
+            "  [dim]A local embedder (fastembed) will be used"
+            " automatically — no extra API key needed.[/dim]"
         )
 
     enabled = questionary.confirm(

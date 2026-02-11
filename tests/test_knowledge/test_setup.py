@@ -35,10 +35,11 @@ class TestCreateKnowledge:
         assert create_knowledge(settings) is None
 
     def test_no_embedder_returns_none(self):
-        """When no embedder can be created (anthropic), returns None."""
+        """When no embedder can be created, returns None."""
         settings = _make_settings(provider="anthropic")
-        result = create_knowledge(settings)
-        assert result is None
+        with patch("vandelay.knowledge.setup.create_embedder", return_value=None):
+            result = create_knowledge(settings)
+            assert result is None
 
     @patch("vandelay.knowledge.setup.create_embedder")
     def test_embedder_none_returns_none(self, mock_create_embedder):
