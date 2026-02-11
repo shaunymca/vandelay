@@ -6,7 +6,7 @@ import importlib
 import json
 import pkgutil
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -183,7 +183,11 @@ _CUSTOM_TOOLS: dict[str, dict[str, Any]] = {
     "camofox": {
         "module_path": "vandelay.tools.camofox",
         "class_name": "CamofoxTools",
-        "description": "Anti-detection browser with accessibility snapshots and stable element refs. Methods: create_tab, snapshot, click, type_text, navigate, scroll, screenshot, get_links, close_tab, list_tabs",
+        "description": (
+            "Anti-detection browser with accessibility snapshots and stable element refs."
+            " Methods: create_tab, snapshot, click, type_text, navigate, scroll,"
+            " screenshot, get_links, close_tab, list_tabs"
+        ),
         "category": "browser",
         "pip_dependencies": [],  # npm-managed, not pip
     },
@@ -308,7 +312,7 @@ class ToolRegistry:
 
         self._cache = RegistryCache(
             tools=tools,
-            refreshed_at=datetime.now(timezone.utc).isoformat(),
+            refreshed_at=datetime.now(UTC).isoformat(),
             agno_version=agno_version,
         )
         self._save()

@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import platform
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -114,7 +113,7 @@ class CamofoxServer:
         except ImportError:
             raise RuntimeError(
                 "nodeenv is not installed. Run: uv add nodeenv"
-            )
+            ) from None
 
         result = subprocess.run(
             [
@@ -232,7 +231,7 @@ class CamofoxServer:
             self._process.terminate()
             try:
                 await asyncio.wait_for(self._process.wait(), timeout=10)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning("Camofox didn't exit gracefully, killing...")
                 self._process.kill()
                 await self._process.wait()

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Awaitable, Callable, Optional, Protocol
+from collections.abc import AsyncIterator, Awaitable, Callable
+from dataclasses import dataclass
+from typing import Protocol
 
 from agno.run.agent import RunEvent
 
@@ -23,8 +24,8 @@ class ChatResponse:
     """Result of a non-streaming agent run."""
 
     content: str = ""
-    run_id: Optional[str] = None
-    error: Optional[str] = None
+    run_id: str | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -35,7 +36,7 @@ class StreamChunk:
     content: str = ""
     tool_name: str = ""
     tool_status: str = ""
-    run_id: Optional[str] = None
+    run_id: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -73,7 +74,7 @@ class ChatService:
     def __init__(
         self,
         agent_provider: AgentProvider,
-        middleware: Optional[list[ChatMiddleware]] = None,
+        middleware: list[ChatMiddleware] | None = None,
     ) -> None:
         self._get_agent = agent_provider
         self._middleware = middleware or []
@@ -83,7 +84,7 @@ class ChatService:
     async def run(
         self,
         message: IncomingMessage,
-        typing: Optional[Callable[[], Awaitable[None]]] = None,
+        typing: Callable[[], Awaitable[None]] | None = None,
     ) -> ChatResponse:
         """Run the agent and return the full response."""
         agent = self._get_agent()
@@ -121,7 +122,7 @@ class ChatService:
     async def run_stream(
         self,
         message: IncomingMessage,
-        typing: Optional[Callable[[], Awaitable[None]]] = None,
+        typing: Callable[[], Awaitable[None]] | None = None,
     ) -> AsyncIterator[StreamChunk]:
         """Stream agent response as ``StreamChunk`` events."""
         agent = self._get_agent()
@@ -139,7 +140,7 @@ class ChatService:
             )
 
             full_content = ""
-            run_id: Optional[str] = None
+            run_id: str | None = None
 
             async for chunk in run_response:
                 event_type = getattr(chunk, "event", "")

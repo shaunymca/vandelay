@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import uuid
@@ -115,10 +116,8 @@ async def terminal_websocket(websocket: WebSocket) -> None:
     except Exception as e:
         logger.error("WebSocket error: %s", e, exc_info=True)
         if websocket.client_state == WebSocketState.CONNECTED:
-            try:
+            with contextlib.suppress(Exception):
                 await conn.send_event("error", error=str(e))
-            except Exception:
-                pass
 
 
 async def _handle_chat(

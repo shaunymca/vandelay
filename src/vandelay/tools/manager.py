@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import subprocess
-import sys
 from typing import TYPE_CHECKING, Any
 
 from vandelay.tools.registry import ToolEntry, ToolRegistry

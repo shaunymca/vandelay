@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import FastAPI
 
@@ -89,11 +89,33 @@ async def lifespan(app: FastAPI):
             logger.exception("Failed to start Camofox server")
             camofox_server = None
 
-    app.state.started_at = datetime.now(timezone.utc)
+    # Start file watcher for auto-restart (opt-in via env var)
+    file_watcher = None
+    if os.environ.get("VANDELAY_AUTO_RESTART", "").lower() in ("1", "true", "yes"):
+        try:
+            from pathlib import Path as _Path
+
+            from vandelay.config.constants import CONFIG_FILE, WORKSPACE_DIR
+            from vandelay.process.watcher import FileWatcher
+
+            src_dir = _Path(__file__).resolve().parent.parent  # src/vandelay/
+            watch_paths = [src_dir, CONFIG_FILE.parent, WORKSPACE_DIR]
+            file_watcher = FileWatcher(watch_paths=watch_paths)
+            file_watcher.start()
+            app.state.file_watcher = file_watcher
+            logger.info("Auto-restart file watcher enabled.")
+        except Exception:
+            logger.exception("Failed to start file watcher")
+
+    app.state.started_at = datetime.now(UTC)
 
     yield
 
     # --- Shutdown ---
+    # Stop file watcher
+    if file_watcher is not None:
+        file_watcher.stop()
+
     # Stop scheduler engine
     if getattr(app.state, "scheduler_engine", None) is not None:
         await app.state.scheduler_engine.stop()

@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Optional
 
 from vandelay.config.constants import CRON_FILE
 from vandelay.scheduler.models import CronJob, JobType
@@ -19,7 +18,7 @@ class CronJobStore:
     Uses atomic writes (write to .tmp, then replace) to prevent corruption.
     """
 
-    def __init__(self, path: Optional[Path] = None) -> None:
+    def __init__(self, path: Path | None = None) -> None:
         self._path = path or CRON_FILE
         self._jobs: dict[str, CronJob] = {}
         self.load()
@@ -56,7 +55,7 @@ class CronJobStore:
         self.save()
         return job
 
-    def get(self, job_id: str) -> Optional[CronJob]:
+    def get(self, job_id: str) -> CronJob | None:
         """Retrieve a job by ID."""
         return self._jobs.get(job_id)
 

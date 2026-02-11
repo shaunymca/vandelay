@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass
@@ -13,9 +12,9 @@ class IncomingMessage:
 
     text: str
     session_id: str
-    user_id: Optional[str] = None
+    user_id: str | None = None
     channel: str = ""  # "websocket", "telegram", "whatsapp", etc.
-    raw: Optional[dict] = field(default=None, repr=False)
+    raw: dict | None = field(default=None, repr=False)
     metadata: dict = field(default_factory=dict)
 
 
@@ -47,6 +46,5 @@ class ChannelAdapter(ABC):
         """Start listening for incoming messages (if applicable)."""
         ...
 
-    async def stop(self) -> None:
+    async def stop(self) -> None:  # noqa: B027
         """Graceful shutdown (optional override)."""
-        pass

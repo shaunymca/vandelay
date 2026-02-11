@@ -80,3 +80,12 @@ class KnowledgeConfig(BaseModel):
 
     enabled: bool = False
     embedder: EmbedderConfig = Field(default_factory=EmbedderConfig)
+
+
+class TeamConfig(BaseModel):
+    """Agent Team settings (opt-in supervisor mode)."""
+
+    enabled: bool = False
+    members: list[str] = Field(
+        default_factory=lambda: ["browser", "system", "scheduler", "knowledge"]
+    )

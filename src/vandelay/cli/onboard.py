@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import UTC
 from pathlib import Path
 
 import questionary
@@ -127,7 +128,9 @@ def _configure_auth(provider: str) -> str:
         console.print(f"  [dim]{info['token_help']}[/dim]")
         value = questionary.password("  Paste token:").ask()
         if not value:
-            console.print(f"  [yellow]⚠[/yellow] No token provided — set {token_env_key} in .env later")
+            console.print(
+                f"  [yellow]⚠[/yellow] No token provided — set {token_env_key} in .env later"
+            )
             return "token"
         os.environ[token_env_key] = value
         _write_env_key(token_env_key, value)
@@ -230,7 +233,7 @@ def _select_timezone(default: str = "UTC") -> str:
 def _detect_system_timezone() -> str | None:
     """Try to detect the system timezone. Returns None if unavailable."""
     try:
-        from datetime import datetime, timezone
+        from datetime import datetime
         from zoneinfo import ZoneInfo  # noqa: F401
 
         # On Python 3.9+ we can try tzlocal or fall back to UTC offset
@@ -247,7 +250,7 @@ def _detect_system_timezone() -> str | None:
             return tz_env
 
         # Fallback: compute UTC offset and map to common name
-        local_offset = datetime.now(timezone.utc).astimezone().utcoffset()
+        local_offset = datetime.now(UTC).astimezone().utcoffset()
         if local_offset is not None:
             hours = int(local_offset.total_seconds() // 3600)
             offset_map = {
@@ -293,7 +296,9 @@ def _populate_user_md(workspace_dir: Path, timezone: str = "UTC") -> None:
     if user_md.exists():
         content = user_md.read_text(encoding="utf-8")
         # Fill in the timezone placeholder
-        if "**Timezone:**" in content and "**Timezone:** " not in content.replace("**Timezone:**\n", ""):
+        has_placeholder = "**Timezone:**" in content
+        already_set = "**Timezone:** " in content.replace("**Timezone:**\n", "")
+        if has_placeholder and not already_set:
             content = content.replace("**Timezone:**", f"**Timezone:** {timezone}")
             user_md.write_text(content, encoding="utf-8")
 
@@ -405,11 +410,47 @@ def _configure_knowledge(provider: str) -> bool:
         raise KeyboardInterrupt
 
     if enabled:
-        console.print("  [green]\u2713[/green] Knowledge enabled — add documents with: vandelay knowledge add <path>")
+        console.print(
+            "  [green]\u2713[/green] Knowledge enabled"
+            " — add docs with: vandelay knowledge add <path>"
+        )
     else:
-        console.print("  [dim]Knowledge skipped — enable later with /config or in config.json[/dim]")
+        console.print(
+            "  [dim]Knowledge skipped — enable later with /config or config.json[/dim]"
+        )
 
     return enabled
+
+
+def _offer_daemon_install() -> None:
+    """Offer to install as a system service (Linux/macOS only)."""
+    from vandelay.cli.daemon import install_daemon_service, is_daemon_supported
+
+    if not is_daemon_supported():
+        return
+
+    console.print()
+    install = questionary.confirm(
+        "Install Vandelay as a system service? (starts on boot, auto-restarts)",
+        default=False,
+    ).ask()
+
+    if install is None:
+        return  # Ctrl+C — skip gracefully, don't abort onboarding
+
+    if install:
+        success = install_daemon_service()
+        if success:
+            console.print(
+                "  [dim]Start the service anytime with:"
+                " vandelay daemon start[/dim]"
+            )
+    else:
+        console.print(
+            "  [dim]You can install later with:"
+            " vandelay daemon install[/dim]"
+        )
+    console.print()
 
 
 def run_config_menu(settings: Settings) -> Settings:
@@ -424,7 +465,8 @@ def run_config_menu(settings: Settings) -> Settings:
                     value="name",
                 ),
                 questionary.Choice(
-                    title=f"Model           [{settings.model.provider} / {settings.model.model_id}]",
+                    title=f"Model           [{settings.model.provider} / "
+                          f"{settings.model.model_id}]",
                     value="model",
                 ),
                 questionary.Choice(
@@ -452,8 +494,13 @@ def run_config_menu(settings: Settings) -> Settings:
                     value="channels",
                 ),
                 questionary.Choice(
-                    title=f"Knowledge       [{'enabled' if settings.knowledge.enabled else 'disabled'}]",
+                    title=f"Knowledge       "
+                          f"[{'enabled' if settings.knowledge.enabled else 'disabled'}]",
                     value="knowledge",
+                ),
+                questionary.Choice(
+                    title=f"Team mode       [{'enabled' if settings.team.enabled else 'disabled'}]",
+                    value="team",
                 ),
                 questionary.Choice(
                     title="Back to chat",
@@ -467,12 +514,15 @@ def run_config_menu(settings: Settings) -> Settings:
 
         if section == "name":
             settings.agent_name = _configure_agent_name(default=settings.agent_name)
-            console.print(f"  [green]✓[/green] Agent name set to [bold]{settings.agent_name}[/bold]")
+            name = settings.agent_name
+            console.print(f"  [green]✓[/green] Agent name set to [bold]{name}[/bold]")
 
         elif section == "model":
             provider, model_id = _select_provider()
             auth_method = _configure_auth(provider)
-            settings.model = ModelConfig(provider=provider, model_id=model_id, auth_method=auth_method)
+            settings.model = ModelConfig(
+                provider=provider, model_id=model_id, auth_method=auth_method,
+            )
             console.print(f"  [green]✓[/green] Model set to {provider} / {model_id}")
 
         elif section == "auth":
@@ -497,7 +547,8 @@ def run_config_menu(settings: Settings) -> Settings:
 
         elif section == "browser":
             settings.enabled_tools = _configure_browser_tools(list(settings.enabled_tools))
-            console.print(f"  [green]✓[/green] Browser: {_browser_tools_summary(settings.enabled_tools)}")
+            browser = _browser_tools_summary(settings.enabled_tools)
+            console.print(f"  [green]✓[/green] Browser: {browser}")
 
         elif section == "channels":
             settings.channels = _configure_channels(settings.channels)
@@ -507,8 +558,18 @@ def run_config_menu(settings: Settings) -> Settings:
             enabled = _configure_knowledge(settings.model.provider)
             settings.knowledge.enabled = enabled
 
+        elif section == "team":
+            toggle = questionary.confirm(
+                "Enable team mode? (routes queries to specialist agents)",
+                default=settings.team.enabled,
+            ).ask()
+            if toggle is not None:
+                settings.team.enabled = toggle
+                state = "enabled" if toggle else "disabled"
+                console.print(f"  [green]\u2713[/green] Team mode {state}")
+
         settings.save()
-        console.print(f"  [dim]Config saved.[/dim]")
+        console.print("  [dim]Config saved.[/dim]")
 
     return settings
 
@@ -534,7 +595,7 @@ def _configure_browser_tools(enabled_tools: list[str]) -> list[str]:
                 checked=True,
             ),
             questionary.Choice(
-                title="Camofox (Experimental) — Anti-detection browser with accessibility snapshots",
+                title="Camofox (Experimental) — Anti-detection browser with a11y snapshots",
                 value="camofox",
             ),
             questionary.Choice(
@@ -548,7 +609,10 @@ def _configure_browser_tools(enabled_tools: list[str]) -> list[str]:
         raise KeyboardInterrupt
 
     if "none" in choices or not choices:
-        console.print("  [dim]Browser tools skipped — enable later with: vandelay tools enable[/dim]")
+        console.print(
+            "  [dim]Browser tools skipped"
+            " — enable later with: vandelay tools enable[/dim]"
+        )
         return enabled_tools
 
     if "crawl4ai" in choices:
@@ -644,11 +708,15 @@ def run_onboarding() -> Settings:
 
     # Persist
     settings.save()
-    console.print(f"  [green]✓[/green] Config saved to {settings.model_config.get('env_prefix', '~/.vandelay/config.json')}")
+    config_path = settings.model_config.get("env_prefix", "~/.vandelay/config.json")
+    console.print(f"  [green]✓[/green] Config saved to {config_path}")
     console.print()
     channels_str = _channel_summary(settings) or "Terminal only"
     browser_str = _browser_tools_summary(enabled_tools) or "none"
     knowledge_str = "enabled" if knowledge_enabled else "disabled"
+    # Optional: daemon service (Linux/macOS only)
+    _offer_daemon_install()
+
     console.print(
         Panel.fit(
             f"[bold green]Setup complete![/bold green]\n\n"

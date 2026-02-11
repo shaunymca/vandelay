@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
-from agno.tools import Toolkit, tool
+from agno.tools import Toolkit
 
 from vandelay.tools.manager import ToolManager
-from vandelay.tools.registry import ToolRegistry
 
 if TYPE_CHECKING:
     from vandelay.config.settings import Settings

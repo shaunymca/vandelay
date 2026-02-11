@@ -86,7 +86,7 @@ def list_tools(
     if not category:
         cats = sorted(set(t["category"] for t in tools))
         console.print(f"  [dim]Categories: {', '.join(cats)}[/dim]")
-        console.print(f"  [dim]Filter: vandelay tools list --category search[/dim]\n")
+        console.print("  [dim]Filter: vandelay tools list --category search[/dim]\n")
 
 
 @app.command("add")
@@ -123,7 +123,7 @@ def add_tool(
     else:
         console.print(f"  [dim]{name} is already enabled.[/dim]")
 
-    console.print(f"  [dim]Restart your agent to activate the tool.[/dim]")
+    console.print("  [dim]Restart your agent to activate the tool.[/dim]")
 
 
 @app.command("remove")
@@ -150,7 +150,7 @@ def remove_tool(
         else:
             console.print(f"  [yellow]⚠[/yellow] {result.message}")
 
-    console.print(f"  [dim]Restart your agent for changes to take effect.[/dim]")
+    console.print("  [dim]Restart your agent for changes to take effect.[/dim]")
 
 
 @app.command("refresh")
@@ -189,6 +189,8 @@ def tool_info(
     console.print(f"  [bold]Category:[/bold]   {entry.category}")
     console.print(f"  [bold]Built-in:[/bold]   {'yes' if entry.is_builtin else 'no'}")
     console.print(f"  [bold]Deps:[/bold]       {', '.join(entry.pip_dependencies) or 'none'}")
-    console.print(f"  [bold]Installed:[/bold]  {'[green]yes[/green]' if installed else '[red]no[/red]'}")
-    console.print(f"  [bold]Enabled:[/bold]    {'[green]yes[/green]' if enabled else '[dim]no[/dim]'}")
+    inst = "[green]yes[/green]" if installed else "[red]no[/red]"
+    enab = "[green]yes[/green]" if enabled else "[dim]no[/dim]"
+    console.print(f"  [bold]Installed:[/bold]  {inst}")
+    console.print(f"  [bold]Enabled:[/bold]    {enab}")
     console.print()

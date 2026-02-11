@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import secrets
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Optional
+from datetime import UTC, datetime
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class JobType(str, Enum):
+class JobType(StrEnum):
     """Classification of cron jobs."""
 
     USER = "user"
@@ -32,8 +31,8 @@ class CronJob(BaseModel):
     job_type: JobType = JobType.USER
     enabled: bool = True
     timezone: str = "UTC"
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    last_run: Optional[datetime] = None
-    next_run: Optional[datetime] = None
-    last_result: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    last_run: datetime | None = None
+    next_run: datetime | None = None
+    last_result: str | None = None
     run_count: int = 0

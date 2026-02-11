@@ -51,5 +51,5 @@ def print_agent_ready(console: Console, agent_name: str, version: str) -> None:
     console.print(f"    [dim italic]{TAGLINE}[/dim italic]")
     console.print()
     console.print(f"  [bold red]{agent_name}[/bold red] [dim]v{version}[/dim]")
-    console.print(f"  [dim]Type /help for commands[/dim]")
+    console.print("  [dim]Type /help for commands[/dim]")
     console.print()

@@ -5,12 +5,11 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from agno.os import AgentOS
 from fastapi import FastAPI
 
-from agno.os import AgentOS
-
 from vandelay import __version__
-from vandelay.agents.factory import create_agent
+from vandelay.agents.factory import create_agent, create_team
 from vandelay.channels.router import ChannelRouter
 from vandelay.core import AppStateAgentProvider, ChatService
 from vandelay.memory.setup import create_db
@@ -50,24 +49,29 @@ def create_app(settings: Settings) -> FastAPI:
     cron_store = CronJobStore()
     db = create_db(settings)
 
-    # Create shared agent and db with hot-reload support
+    # Create shared agent/team and db with hot-reload support
     # (scheduler_engine set after ChatService is created below)
     scheduler_engine = None  # forward ref, set after ChatService
+    team_mode = settings.team.enabled
+
+    def _build_agent_or_team(**extra_kwargs):
+        """Create either an Agent or Team based on settings."""
+        if team_mode:
+            return create_team(settings, **extra_kwargs)
+        return create_agent(settings, **extra_kwargs)
 
     def _reload_agent() -> None:
-        """Recreate the agent in-place after tool changes."""
-        logger.info("Hot-reloading agent (tool config changed)")
-        new_agent = create_agent(
-            settings,
+        """Recreate the agent/team in-place after tool changes."""
+        logger.info("Hot-reloading %s (tool config changed)", "team" if team_mode else "agent")
+        new_agent = _build_agent_or_team(
             reload_callback=_reload_agent,
             scheduler_engine=scheduler_engine,
         )
         base_app.state.agent = new_agent
-        # Update AgentOS reference if possible
         nonlocal agent
         agent = new_agent
 
-    agent = create_agent(settings, reload_callback=_reload_agent)
+    agent = _build_agent_or_team(reload_callback=_reload_agent)
 
     # ChatService resolves agent lazily — hot-reload swaps app.state.agent
     # and every subsequent ChatService call picks up the new instance.
@@ -75,10 +79,9 @@ def create_app(settings: Settings) -> FastAPI:
     chat_service = ChatService(agent_provider)
 
     # Now create the scheduler engine with the real ChatService and
-    # recreate the agent so it gets SchedulerTools wired in.
+    # recreate the agent/team so it gets SchedulerTools wired in.
     scheduler_engine = SchedulerEngine(settings, chat_service, cron_store)
-    agent = create_agent(
-        settings,
+    agent = _build_agent_or_team(
         reload_callback=_reload_agent,
         scheduler_engine=scheduler_engine,
     )
@@ -146,13 +149,18 @@ def create_app(settings: Settings) -> FastAPI:
 
     # Integrate with AgentOS — adds playground, session,
     # memory, knowledge, and metrics routes automatically.
-    agent_os = AgentOS(
+    agentos_kwargs: dict = dict(
         name=f"vandelay-{settings.agent_name}",
-        agents=[agent],
         db=db,
         interfaces=agentos_interfaces or None,
         base_app=base_app,
         on_route_conflict="preserve_base_app",
     )
+    if team_mode:
+        agentos_kwargs["teams"] = [agent]
+    else:
+        agentos_kwargs["agents"] = [agent]
+
+    agent_os = AgentOS(**agentos_kwargs)
 
     return agent_os.get_app()

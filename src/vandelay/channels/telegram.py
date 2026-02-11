@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -38,8 +39,8 @@ class TelegramAdapter(ChannelAdapter):
         self.chat_service = chat_service
         self.chat_id = chat_id
         self.webhook_url = webhook_url
-        self._bot_username: Optional[str] = None
-        self._polling_task: Optional[asyncio.Task] = None
+        self._bot_username: str | None = None
+        self._polling_task: asyncio.Task | None = None
         self._stop_event = asyncio.Event()
 
     # ------------------------------------------------------------------
@@ -82,10 +83,8 @@ class TelegramAdapter(ChannelAdapter):
         if self._polling_task and not self._polling_task.done():
             self._stop_event.set()
             self._polling_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._polling_task
-            except asyncio.CancelledError:
-                pass
             self._polling_task = None
             logger.info("Telegram polling stopped")
 
@@ -254,7 +253,7 @@ class TelegramAdapter(ChannelAdapter):
             logger.warning("Failed to remove Telegram webhook: %s", exc)
 
     @property
-    def bot_username(self) -> Optional[str]:
+    def bot_username(self) -> str | None:
         return self._bot_username
 
     @property

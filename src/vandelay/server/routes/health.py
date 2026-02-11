@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
@@ -35,8 +35,8 @@ class StatusResponse(BaseModel):
 @health_router.get("/health", response_model=HealthResponse)
 async def health_check(request: Request) -> HealthResponse:
     settings = request.app.state.settings
-    started_at = getattr(request.app.state, "started_at", datetime.now(timezone.utc))
-    uptime = (datetime.now(timezone.utc) - started_at).total_seconds()
+    started_at = getattr(request.app.state, "started_at", datetime.now(UTC))
+    uptime = (datetime.now(UTC) - started_at).total_seconds()
     return HealthResponse(
         status="ok",
         agent_name=settings.agent_name,
@@ -48,7 +48,7 @@ async def health_check(request: Request) -> HealthResponse:
 @health_router.get("/status", response_model=StatusResponse)
 async def status(request: Request) -> StatusResponse:
     settings = request.app.state.settings
-    started_at = getattr(request.app.state, "started_at", datetime.now(timezone.utc))
+    started_at = getattr(request.app.state, "started_at", datetime.now(UTC))
 
     # Show actually registered channels (not just enabled in config)
     channel_router = getattr(request.app.state, "channel_router", None)

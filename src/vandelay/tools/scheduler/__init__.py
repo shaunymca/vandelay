@@ -71,7 +71,7 @@ class SchedulerTools(Toolkit):
             return (
                 f"Scheduled '{result.name}' (ID: {result.id}). "
                 f"Cron: {result.cron_expression} ({result.timezone}). "
-                f"Next run: {result.next_run.strftime('%Y-%m-%d %H:%M UTC') if result.next_run else 'pending'}."
+                f"Next run: {result.next_run.strftime('%Y-%m-%d %H:%M UTC') if result.next_run else 'pending'}."  # noqa: E501
             )
         except Exception as exc:
             return f"Failed to schedule job: {exc}"
@@ -121,7 +121,7 @@ class SchedulerTools(Toolkit):
             f"- **Status**: {'enabled' if job.enabled else 'paused'}",
             f"- **Timezone**: {job.timezone}",
             f"- **Created**: {job.created_at.strftime('%Y-%m-%d %H:%M')}",
-            f"- **Last run**: {job.last_run.strftime('%Y-%m-%d %H:%M') if job.last_run else 'never'}",
+            f"- **Last run**: {job.last_run.strftime('%Y-%m-%d %H:%M') if job.last_run else 'never'}",  # noqa: E501
             f"- **Next run**: {job.next_run.strftime('%Y-%m-%d %H:%M') if job.next_run else 'N/A'}",
             f"- **Run count**: {job.run_count}",
         ]
@@ -158,7 +158,7 @@ class SchedulerTools(Toolkit):
             return f"Job '{job_id}' not found."
         return (
             f"Resumed '{job.name}' (ID: {job.id}). "
-            f"Next run: {job.next_run.strftime('%Y-%m-%d %H:%M UTC') if job.next_run else 'pending'}."
+            f"Next run: {job.next_run.strftime('%Y-%m-%d %H:%M UTC') if job.next_run else 'pending'}."  # noqa: E501
         )
 
     def delete_scheduled_job(self, job_id: str) -> str:

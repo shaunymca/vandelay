@@ -49,7 +49,10 @@ MODEL_PROVIDERS = {
         "token_env_key": "OPENAI_AUTH_TOKEN",
         "default_model": "gpt-4o",
         "token_label": "OpenAI token (paste session token)",
-        "token_help": "Use the API key from your ChatGPT Plus/Pro subscription at platform.openai.com/api-keys",
+        "token_help": (
+            "Use the API key from your ChatGPT Plus/Pro subscription"
+            " at platform.openai.com/api-keys"
+        ),
         "api_key_label": "OpenAI API key",
         "api_key_help": "Get your API key from platform.openai.com/api-keys",
     },

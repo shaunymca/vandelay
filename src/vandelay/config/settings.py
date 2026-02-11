@@ -9,7 +9,13 @@ from pathlib import Path
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from vandelay.config.constants import VANDELAY_HOME, CONFIG_FILE, DB_DIR, DEFAULT_DB_FILE, WORKSPACE_DIR
+from vandelay.config.constants import (
+    CONFIG_FILE,
+    DB_DIR,
+    DEFAULT_DB_FILE,
+    VANDELAY_HOME,
+    WORKSPACE_DIR,
+)
 from vandelay.config.models import (
     ChannelConfig,
     HeartbeatConfig,
@@ -17,6 +23,7 @@ from vandelay.config.models import (
     ModelConfig,
     SafetyConfig,
     ServerConfig,
+    TeamConfig,
 )
 
 
@@ -44,6 +51,7 @@ class Settings(BaseSettings):
     heartbeat: HeartbeatConfig = Field(default_factory=HeartbeatConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
     knowledge: KnowledgeConfig = Field(default_factory=KnowledgeConfig)
+    team: TeamConfig = Field(default_factory=TeamConfig)
 
     # --- Top-level settings ---
     agent_name: str = "Claw"

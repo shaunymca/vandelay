@@ -51,7 +51,7 @@ def _build_tool_catalog(settings: Settings) -> str:
 def build_system_prompt(
     agent_name: str = "Claw",
     workspace_dir: Path | None = None,
-    settings: "Settings | None" = None,
+    settings: Settings | None = None,
 ) -> str:
     """Assemble the full system prompt from workspace markdown files.
 

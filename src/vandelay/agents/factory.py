@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from agno.agent import Agent
 
@@ -134,3 +135,77 @@ def create_agent(
     )
 
     return agent
+
+
+def create_team(
+    settings: Settings,
+    reload_callback: Callable[[], None] | None = None,
+    scheduler_engine: object | None = None,
+) -> Any:
+    """Build an Agno Team with specialist members for supervisor mode.
+
+    The Team wraps specialist agents and routes queries to the right one.
+    Falls back to the supervisor (main model) for general queries.
+
+    Returns an object duck-type compatible with Agent (same arun interface).
+    """
+    from pathlib import Path
+
+    from agno.team import Team
+
+    from vandelay.agents.specialists.agents import SPECIALIST_FACTORIES
+    from vandelay.knowledge.setup import create_knowledge
+    from vandelay.tools.tool_management import ToolManagementTools
+
+    db = create_db(settings)
+    model = _get_model(settings)
+    workspace_dir = Path(settings.workspace_dir)
+    instructions = build_system_prompt(
+        agent_name=settings.agent_name,
+        workspace_dir=workspace_dir,
+        settings=settings,
+    )
+    knowledge = create_knowledge(settings)
+
+    # Build specialist members
+    members = []
+    for member_name in settings.team.members:
+        factory = SPECIALIST_FACTORIES.get(member_name)
+        if factory is None:
+            continue
+
+        kwargs: dict = dict(
+            model=model,
+            db=db,
+            knowledge=knowledge,
+            settings=settings,
+        )
+        # Scheduler specialist needs the engine
+        if member_name == "scheduler" and scheduler_engine is not None:
+            kwargs["scheduler_engine"] = scheduler_engine
+
+        members.append(factory(**kwargs))
+
+    # Supervisor keeps tool management for enable/disable
+    tool_mgmt = ToolManagementTools(
+        settings=settings,
+        reload_callback=reload_callback,
+    )
+
+    team = Team(
+        id="vandelay-team",
+        name=settings.agent_name,
+        mode="coordinate",
+        members=members,
+        model=model,
+        db=db,
+        knowledge=knowledge,
+        search_knowledge=knowledge is not None,
+        instructions=instructions,
+        tools=[tool_mgmt],
+        respond_directly=True,
+        update_memory_on_run=True,
+        markdown=True,
+    )
+
+    return team

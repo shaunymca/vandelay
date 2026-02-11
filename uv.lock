@@ -1919,6 +1919,7 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "typer" },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "watchfiles" },
 ]
 
 [package.optional-dependencies]
@@ -1980,6 +1981,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = ">=2.0.46" },
     { name = "typer", specifier = ">=0.15" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
+    { name = "watchfiles", specifier = ">=1.0" },
 ]
 provides-extras = ["anthropic", "openai", "google", "ollama", "postgres", "all"]
 

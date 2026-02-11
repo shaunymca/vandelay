@@ -1,46 +1,32 @@
-# Vandelay Deployment Guide
+# Deployment Guide
 
-Vandelay gives your agent shell access, browser control, and persistent memory. That's powerful — and dangerous if exposed to the public internet. This guide covers two deployment paths and the security hardening that makes either one production-ready.
+This guide covers local development, PaaS deployment (Railway), and VPS deployment with network isolation (Tailscale).
 
-**Rule of thumb:** If someone can reach your Vandelay server, they can tell your agent to run shell commands with your user's permissions. Never expose it without authentication and network isolation.
+> **Important:** Vandelay exposes an API that can execute shell commands. Always deploy behind authentication and network isolation in production.
 
 ---
 
 ## Table of Contents
 
-- [Choose Your Path](#choose-your-path)
-- [Part 1: Local Development](#part-1-local-development)
-- [Part 2: Deploy to Railway](#part-2-deploy-to-railway)
-- [Part 3: Deploy to a VPS](#part-3-deploy-to-a-vps)
-- [Part 4: Secure with Tailscale](#part-4-secure-with-tailscale)
-- [Part 5: Expose Webhooks Safely](#part-5-expose-webhooks-safely)
-- [Part 6: Harden Everything](#part-6-harden-everything)
-- [Part 7: Monitoring & Maintenance](#part-7-monitoring--maintenance)
+- [Local Development](#local-development)
+- [Deploy to Railway](#deploy-to-railway)
+- [Deploy to a VPS](#deploy-to-a-vps)
+- [Network Isolation with Tailscale](#network-isolation-with-tailscale)
+- [Webhook Configuration](#webhook-configuration)
+- [Security Hardening](#security-hardening)
+- [AgentOS Control Panel](#agentos-control-panel)
+- [Monitoring & Maintenance](#monitoring--maintenance)
 - [Quick Reference](#quick-reference)
 
 ---
 
-## Choose Your Path
-
-| Path | Best For | Cost | Complexity |
-|------|----------|------|------------|
-| **Railway** | Quick setup, no server management | ~$5-20/mo | Low |
-| **VPS + Tailscale** | Full control, maximum security | ~$4-20/mo | Medium |
-| **Local only** | Development and testing | Free | None |
-
-**Recommended for production:** VPS + Tailscale. Railway is great for getting started fast, but a VPS with Tailscale gives you full control and zero public attack surface.
-
----
-
-## Part 1: Local Development
-
-For development and personal use on your own machine. No deployment needed.
+## Local Development
 
 ### Prerequisites
 
 - Python 3.11+
 - [uv](https://docs.astral.sh/uv/) (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
-- An API key from Anthropic, OpenAI, Google, or a local Ollama install
+- An API key from Anthropic, OpenAI, Google, OpenRouter, or a local Ollama install
 
 ### Setup
 
@@ -52,12 +38,17 @@ uv run vandelay onboard
 uv run vandelay start
 ```
 
-The onboard wizard walks you through model selection, API keys, safety mode, browser tools, and messaging channels. After setup:
+The onboard wizard walks you through 8 steps: identity, model, safety mode, timezone, browser tools, workspace, channels, and knowledge base.
 
-- **Terminal chat** at the console prompt
-- **FastAPI server** at `http://localhost:8000`
-- **AgentOS playground** at `http://localhost:8000/docs`
-- **WebSocket** at `ws://localhost:8000/ws/terminal`
+After setup, the following services are available:
+
+| Service | URL |
+|---------|-----|
+| Terminal chat | Console prompt |
+| FastAPI server | `http://localhost:8000` |
+| API docs | `http://localhost:8000/docs` |
+| WebSocket | `ws://localhost:8000/ws/terminal` |
+| AgentOS | [os.agno.com](https://os.agno.com) (connect your endpoint) |
 
 ### Verify
 
@@ -66,13 +57,11 @@ curl http://localhost:8000/health
 uv run pytest tests/ -v
 ```
 
-This is fine for local use — everything binds to `localhost` and never touches the internet. The risk starts when you deploy to a server.
-
 ---
 
-## Part 2: Deploy to Railway
+## Deploy to Railway
 
-Railway is a PaaS that deploys directly from GitHub. No servers to manage, no SSH, no firewall rules. Good for getting Vandelay running quickly.
+[Railway](https://railway.app) is a PaaS that deploys from GitHub with no server management required.
 
 ### 1. Push to GitHub
 
@@ -90,7 +79,7 @@ git push -u origin master
 
 ### 3. Set environment variables
 
-In your Railway project, go to **Variables** and add:
+In **Variables**, add:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
@@ -100,9 +89,9 @@ In your Railway project, go to **Variables** and add:
 | `VANDELAY_PORT` | Yes | Set to `${{PORT}}` (Railway's dynamic port) |
 | `VANDELAY_HOST` | No | Defaults to `0.0.0.0` |
 | `VANDELAY_SECRET_KEY` | Recommended | JWT signing key for API auth |
-| `TELEGRAM_BOT_TOKEN` | No | For Telegram channel |
+| `TELEGRAM_TOKEN` | No | Telegram bot token |
 | `TELEGRAM_CHAT_ID` | No | Lock bot to one chat |
-| `WHATSAPP_ACCESS_TOKEN` | No | For WhatsApp channel |
+| `WHATSAPP_ACCESS_TOKEN` | No | WhatsApp Cloud API token |
 | `WHATSAPP_PHONE_NUMBER_ID` | No | WhatsApp phone number ID |
 
 *At least one model provider key is required.*
@@ -115,19 +104,19 @@ In **Settings** > **Deploy** > **Start Command**:
 vandelay start --server
 ```
 
-This runs the FastAPI server in headless mode — no terminal chat, just API + WebSocket + webhooks.
+This runs in headless mode (API + WebSocket + webhooks, no terminal chat).
 
 ### 5. Add persistent storage
 
-Without a volume, your agent's memory and config reset on every deploy.
+Attach a volume to preserve state across deploys:
 
-1. In your Railway project, click **New** > **Volume**
+1. Click **New** > **Volume**
 2. Set the mount path to `/root/.vandelay`
 3. Attach it to your Vandelay service
 
-This preserves the SQLite database, workspace templates, config, and cron jobs across deployments.
+This persists the SQLite database, workspace templates, config, and cron jobs.
 
-### 6. Custom domain
+### 6. Custom domain (optional)
 
 1. **Settings** > **Networking** > **Custom Domain**
 2. Add your domain (e.g., `vandelay.yourdomain.com`)
@@ -154,65 +143,53 @@ curl https://vandelay.yourdomain.com/health
 curl https://vandelay.yourdomain.com/status
 ```
 
-### 9. Ongoing management
+### Ongoing management
 
 | Task | How |
 |------|-----|
-| **Redeploy** | Push to GitHub — Railway auto-deploys |
-| **Logs** | Railway dashboard > **Deployments** > **View Logs** |
-| **Add tools** | Railway shell: `vandelay tools add <name>` |
-| **Update config** | Change env vars in dashboard — auto-restarts |
+| Redeploy | Push to GitHub (auto-deploys) |
+| Logs | Railway dashboard > **Deployments** > **View Logs** |
+| Add tools | Railway shell: `vandelay tools add <name>` |
+| Update config | Change env vars in dashboard (auto-restarts) |
 
-### Railway costs
+### Pricing
 
-The Hobby plan ($5/month) removes sleep limits so your agent stays on 24/7. The free tier includes $5/month in credits for light use.
+The Hobby plan ($5/month) removes sleep limits. The free tier includes $5/month in credits.
 
-### Railway security notes
-
-Railway runs your app in an isolated container, but the FastAPI server is still internet-facing. Anyone who discovers your Railway URL can hit your API endpoints. For serious use:
-
-- Set `VANDELAY_SECRET_KEY` and enforce API authentication
-- Use `TELEGRAM_CHAT_ID` to lock your bot to your chat only
-- Consider the VPS + Tailscale path below for zero public exposure
+> **Note:** Railway containers are internet-facing. Set `VANDELAY_SECRET_KEY` for API auth and use `TELEGRAM_CHAT_ID` to restrict bot access. For full network isolation, use the VPS + Tailscale path below.
 
 ---
 
-## Part 3: Deploy to a VPS
+## Deploy to a VPS
 
-A VPS gives you full control. Combined with Tailscale, nothing is internet-facing except what you explicitly allow. This is the recommended production path.
+### Providers
 
-### Recommended providers
+Any Ubuntu 22.04+ or Debian 12+ VPS works. Example providers:
 
 | Provider | Spec | Cost |
 |----------|------|------|
-| **Hetzner** | 2 vCPU, 4GB RAM, 40GB SSD | ~$7/mo |
-| **DigitalOcean** | 2 vCPU, 4GB RAM, 80GB SSD | ~$24/mo |
-| **AWS Lightsail** | 2 vCPU, 4GB RAM, 80GB SSD | ~$20/mo |
-
-Hetzner offers the best value. Any Ubuntu 22.04+ or Debian 12+ VPS works.
+| Hetzner | 2 vCPU, 4GB RAM, 40GB SSD | ~$7/mo |
+| DigitalOcean | 2 vCPU, 4GB RAM, 80GB SSD | ~$24/mo |
+| AWS Lightsail | 2 vCPU, 4GB RAM, 80GB SSD | ~$20/mo |
 
 ### 1. Provision the server
 
-Create a VPS with your provider. Use SSH key authentication during setup — never password auth.
+Create a VPS with SSH key authentication.
 
 ### 2. Initial server setup
 
 ```bash
-# SSH in
 ssh root@your-server-ip
 
 # Create a non-root user
 adduser vandelay
 usermod -aG sudo vandelay
-
-# Switch to the new user
 su - vandelay
 ```
 
 ### 3. Install dependencies
 
 ```bash
-# System packages
 sudo apt update && sudo apt install -y git curl build-essential
 
 # Install uv
@@ -226,55 +203,46 @@ sudo apt install -y python3.11 python3.11-venv
 ### 4. Deploy Vandelay
 
 ```bash
-# Clone and install
 git clone https://github.com/yourusername/vandelay.git ~/vandelay
 cd ~/vandelay
 uv sync
 
-# Run onboarding
 uv run vandelay onboard
 
-# Test it works
+# Verify it starts
 uv run vandelay start --server
-# Ctrl+C after confirming it starts
+# Ctrl+C to stop
 ```
 
-### 5. Set up systemd
+### 5. Install as a system service
 
 ```bash
-# Copy the service file
-sudo cp ~/vandelay/systemd/vandelay.service /etc/systemd/system/vandelay@.service
-
-# Enable and start
-sudo systemctl enable vandelay@vandelay
-sudo systemctl start vandelay@vandelay
-
-# Verify
-sudo systemctl status vandelay@vandelay
-journalctl -u vandelay@vandelay -f
+uv run vandelay daemon install
+uv run vandelay daemon start
+uv run vandelay daemon status
 ```
 
-The service auto-restarts on failure with a 10-second delay. It runs as your `vandelay` user with systemd hardening (NoNewPrivileges, ProtectSystem).
+On Linux, this creates a user-level systemd unit at `~/.config/systemd/user/vandelay.service`. On macOS, it creates a LaunchAgent at `~/Library/LaunchAgents/com.vandelay.agent.plist`. The service auto-restarts on failure with a 5-second delay. No sudo required.
 
-**Do NOT open ports yet.** The next step locks everything down first.
+```bash
+uv run vandelay daemon stop       # Stop the service
+uv run vandelay daemon restart    # Restart
+uv run vandelay daemon logs       # Tail logs
+uv run vandelay daemon uninstall  # Remove the service
+```
+
+> **Note:** Do not open ports yet. Configure Tailscale first (next section).
 
 ---
 
-## Part 4: Secure with Tailscale
+## Network Isolation with Tailscale
 
-Tailscale creates an encrypted mesh VPN between your devices. Your Vandelay server gets a private IP (100.x.x.x) that only your authorized devices can reach. Nothing is exposed to the public internet.
+[Tailscale](https://tailscale.com) creates an encrypted mesh VPN between your devices. Your server gets a private IP (100.x.x.x) reachable only by authorized devices.
 
-### Why Tailscale?
-
-Without Tailscale, your agent's API is one port scan away from discovery. AI agents with shell access are high-value targets — [early deployments of similar tools saw thousands of exposed instances found by Shodan within weeks](https://danlevy.net/securing-clawdbot-tailscale/). Tailscale eliminates this entire attack surface.
-
-### 1. Install Tailscale on your server
+### 1. Install Tailscale on the server
 
 ```bash
-# Install
 curl -fsSL https://tailscale.com/install.sh | sh
-
-# Authenticate (opens a browser link)
 sudo tailscale up
 
 # Note your Tailscale IP
@@ -284,144 +252,100 @@ tailscale ip -4
 
 ### 2. Install Tailscale on your devices
 
-Install Tailscale on every device you want to access Vandelay from:
 - **Desktop**: [tailscale.com/download](https://tailscale.com/download)
 - **Mobile**: App Store / Google Play
-- **Other servers**: Same `curl | sh` install as above
+- **Other servers**: Same `curl | sh` install
 
-All devices on your Tailnet can reach each other. Nothing else can.
-
-### 3. Bind Vandelay to Tailscale only
-
-Set the bind address to your Tailscale IP so the server never listens on the public interface:
+### 3. Bind Vandelay to the Tailscale interface
 
 ```bash
 # In ~/.vandelay/.env
-VANDELAY_HOST=100.x.x.x    # Your Tailscale IP from step 1
+VANDELAY_HOST=100.x.x.x    # Your Tailscale IP
 VANDELAY_PORT=8000
 ```
 
-Restart the service:
-
 ```bash
-sudo systemctl restart vandelay@vandelay
+vandelay daemon restart
 ```
 
-Verify it's only listening on Tailscale:
+Verify the bind address:
 
 ```bash
 sudo ss -tulpn | grep 8000
 # Should show 100.x.x.x:8000, NOT 0.0.0.0:8000
 ```
 
-### 4. Access from your devices
-
-From any device on your Tailnet:
+### 4. Configure the firewall
 
 ```bash
-# Health check
-curl http://100.x.x.x:8000/health
-
-# AgentOS playground
-open http://100.x.x.x:8000/docs
-```
-
-Or use Tailscale's MagicDNS for a friendly hostname:
-
-```bash
-curl http://vandelay-server:8000/health
-```
-
-### 5. Lock down the firewall
-
-Now that Tailscale is working, block everything else:
-
-```bash
-# Default deny all incoming
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
-
-# Allow all traffic on the Tailscale interface
 sudo ufw allow in on tailscale0
-
-# Enable the firewall
 sudo ufw enable
-
-# Verify
-sudo ufw status
 ```
 
-### 6. Verify from outside
+### 5. Verify access
 
-From a device NOT on your Tailnet (e.g., your phone on cellular with Tailscale off):
-
-```bash
-# This should timeout or be refused
-curl http://your-public-ip:8000/health
-# Expected: connection refused
-
-# SSH should also be unreachable
-ssh vandelay@your-public-ip
-# Expected: connection refused
-```
-
-From a device ON your Tailnet:
+From a device on your Tailnet:
 
 ```bash
-# This should work
 curl http://100.x.x.x:8000/health
 # Expected: {"status": "ok"}
 ```
 
-### 7. Tailscale SSH (optional, recommended)
+From outside your Tailnet:
 
-Replace traditional SSH with Tailscale SSH for keyless, identity-based access:
+```bash
+curl http://your-public-ip:8000/health
+# Expected: connection refused
+```
+
+### 6. Tailscale SSH (optional)
+
+Replace traditional SSH with identity-based access:
 
 ```bash
 # On the server
 sudo tailscale up --ssh
 
-# On your client (no keys needed)
+# On your client (no SSH keys needed)
 ssh vandelay@vandelay-server
 ```
 
-This eliminates SSH key management entirely. Access is controlled by your Tailscale ACLs.
+Access is controlled by your Tailscale ACLs.
 
 ---
 
-## Part 5: Expose Webhooks Safely
+## Webhook Configuration
 
-Telegram and WhatsApp require a public HTTPS URL for webhooks. Tailscale Funnel solves this by exposing a single endpoint publicly while keeping everything else private.
+Telegram and WhatsApp require a public HTTPS URL for webhooks.
 
-### Option A: Tailscale Funnel (recommended)
+### Option A: Tailscale Funnel
 
-Funnel exposes one port to the internet through Tailscale's infrastructure, with automatic TLS.
+Funnel exposes a single port publicly through Tailscale's edge network with automatic TLS.
 
 ```bash
-# Enable HTTPS serving on your Tailscale hostname
 sudo tailscale serve --bg https+insecure://localhost:8000
-
-# Expose it publicly via Funnel
 sudo tailscale funnel 443 on
 ```
 
-Your server is now reachable at `https://vandelay-server.your-tailnet.ts.net` — but only on port 443, with TLS, through Tailscale's edge network.
+Your server is reachable at `https://vandelay-server.your-tailnet.ts.net`.
 
-**Set your webhooks:**
+Set webhooks:
 
 ```bash
 # Telegram
 curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://vandelay-server.your-tailnet.ts.net/webhooks/telegram"
 ```
 
-For WhatsApp, set the webhook URL in your Meta Developer Console to:
+For WhatsApp, set the webhook URL in your [Meta Developer Console](https://developers.facebook.com/) to:
 ```
 https://vandelay-server.your-tailnet.ts.net/webhooks/whatsapp
 ```
 
-### Option B: Reverse proxy with nginx
+### Option B: nginx reverse proxy
 
-If you prefer a custom domain with traditional TLS:
+Expose only webhook paths through a custom domain:
 
 ```bash
 sudo apt install -y nginx certbot python3-certbot-nginx
@@ -433,14 +357,12 @@ server {
     listen 80;
     server_name vandelay.yourdomain.com;
 
-    # Only allow webhook paths publicly
     location /webhooks/ {
         proxy_pass http://100.x.x.x:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 
-    # Block everything else from public access
     location / {
         return 403;
     }
@@ -452,28 +374,25 @@ sudo ln -s /etc/nginx/sites-available/vandelay /etc/nginx/sites-enabled/
 sudo certbot --nginx -d vandelay.yourdomain.com
 sudo systemctl reload nginx
 
-# Allow nginx through the firewall
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 ```
 
-This only exposes `/webhooks/*` publicly. The dashboard, API, and WebSocket remain Tailscale-only.
+Only `/webhooks/*` is publicly accessible. All other endpoints remain Tailscale-only.
 
 ### Option C: No webhooks
 
-If you only use the terminal chat or WebSocket API, skip this entirely. Tailscale is all you need.
+If you only use terminal chat or the WebSocket API, skip this section.
 
 ---
 
-## Part 6: Harden Everything
+## Security Hardening
 
-### SSH hardening
+### SSH
 
 ```bash
 sudo nano /etc/ssh/sshd_config
 ```
-
-Set these values:
 
 ```
 PasswordAuthentication no
@@ -481,7 +400,7 @@ PermitRootLogin no
 MaxAuthTries 3
 ```
 
-If using Tailscale SSH, you can bind SSH to Tailscale only:
+If using Tailscale SSH, bind to the Tailscale interface:
 
 ```
 ListenAddress 100.x.x.x
@@ -494,29 +413,27 @@ sudo systemctl restart sshd
 ### File permissions
 
 ```bash
-# Lock down config and secrets
 chmod 700 ~/.vandelay
 chmod 600 ~/.vandelay/.env
 chmod 600 ~/.vandelay/config.json
 chmod 644 ~/.vandelay/data/vandelay.db
 ```
 
-### Automatic updates
+### Automatic OS updates
 
 ```bash
 sudo apt install -y unattended-upgrades
 sudo dpkg-reconfigure -plow unattended-upgrades
 ```
 
-### Vandelay safety mode
+### Safety mode
 
-For deployed servers, use **Tiered** or **Confirm** safety mode — never **Trust** on a machine connected to the internet, even through Tailscale:
+Use **Tiered** or **Confirm** safety mode in production:
 
 ```bash
-# Check current safety mode
 uv run vandelay status
 
-# Or change in config
+# Or edit directly
 nano ~/.vandelay/config.json
 # Set "safety_mode": "tiered"
 ```
@@ -524,7 +441,6 @@ nano ~/.vandelay/config.json
 ### Database backups
 
 ```bash
-# Add to crontab: daily backup of SQLite DB
 crontab -e
 ```
 
@@ -532,55 +448,82 @@ crontab -e
 0 3 * * * cp ~/.vandelay/data/vandelay.db ~/.vandelay/data/vandelay.db.bak
 ```
 
-For PostgreSQL, use `pg_dump` instead.
+For PostgreSQL, use `pg_dump`.
 
 ---
 
-## Part 7: Monitoring & Maintenance
+## AgentOS Control Panel
 
-### Check service health
+[AgentOS](https://docs.agno.com/agent-os/connect-your-os) is Agno's hosted control panel at [os.agno.com](https://os.agno.com). It connects directly from your browser to your running Vandelay server — no data is routed through Agno's servers.
+
+### Connect your agent
+
+1. Ensure your Vandelay server is running (`vandelay start --server` or `vandelay daemon start`)
+2. Go to [os.agno.com](https://os.agno.com) and sign in
+3. Click **Add new OS**
+4. Fill in:
+   - **Environment** — Local Development or Production
+   - **Endpoint URL** — your server address (see table below)
+   - **OS Name** — a label for this instance (e.g. "Vandelay Production")
+   - **Tags** — optional
+5. Click **CONNECT**
+
+| Deployment | Endpoint URL |
+|------------|-------------|
+| Local | `http://localhost:8000` |
+| Tailscale | `http://100.x.x.x:8000` (from a device on your Tailnet) |
+| Railway | `https://vandelay.yourdomain.com` |
+| VPS (public) | `https://vandelay.yourdomain.com` (via Funnel or nginx) |
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| Chat | Web-based chat with streaming responses |
+| Sessions | Browse and resume past conversations |
+| Memory | View what the agent remembers across sessions |
+| Knowledge | See indexed documents and RAG sources |
+
+### Access requirements
+
+Your Vandelay endpoint must be reachable from your browser for AgentOS to connect.
+
+- **Local development:** Works out of the box at `localhost:8000`
+- **Tailscale:** Connect from a device on your Tailnet
+- **Public deployments:** Ensure TLS is configured (Railway handles this automatically; for VPS, use Tailscale Funnel or nginx with certbot)
+
+---
+
+## Monitoring & Maintenance
+
+### Service health
 
 ```bash
-# Service status
-sudo systemctl status vandelay@vandelay
-
-# Live logs
-journalctl -u vandelay@vandelay -f
-
-# Health endpoint
+vandelay daemon status
+vandelay daemon logs
 curl http://100.x.x.x:8000/health
 ```
 
-### Update Vandelay
+### Updating
 
 ```bash
 cd ~/vandelay
 git pull
 uv sync
-sudo systemctl restart vandelay@vandelay
+vandelay daemon restart
 ```
 
-### Update Tailscale
+### Updating Tailscale
 
 ```bash
 sudo apt update && sudo apt upgrade tailscale
 ```
 
-### Verify security posture
-
-Run periodically from outside your Tailnet:
-
-```bash
-# Should all be unreachable
-nmap -p 22,8000 your-public-ip
-```
-
-### Check listening ports
+### Port audit
 
 ```bash
 sudo ss -tulpn | grep LISTEN
-# Everything should be on 100.x.x.x or 127.0.0.1
-# Nothing on 0.0.0.0
+# All listeners should be on 100.x.x.x or 127.0.0.1
 ```
 
 ---
@@ -589,76 +532,73 @@ sudo ss -tulpn | grep LISTEN
 
 ### Pre-deployment checklist
 
-- [ ] Tailscale installed and authenticated on server
-- [ ] Tailscale installed on all client devices
+- [ ] Tailscale installed on server and client devices
 - [ ] `VANDELAY_HOST` set to Tailscale IP (100.x.x.x)
-- [ ] UFW enabled: deny all incoming, allow tailscale0
-- [ ] SSH hardened: no password auth, no root login
+- [ ] UFW: deny all incoming, allow tailscale0
+- [ ] SSH: no password auth, no root login
 - [ ] File permissions: `~/.vandelay/` is 700, `.env` is 600
 - [ ] Safety mode set to Tiered or Confirm
-- [ ] External port scan shows nothing open
 - [ ] Webhooks routed through Funnel or nginx (if needed)
 - [ ] Automatic OS updates enabled
-- [ ] Database backup cron job running
+- [ ] Database backup cron job configured
 
 ### Common commands
 
 ```bash
-# Start/stop/restart
-sudo systemctl start vandelay@vandelay
-sudo systemctl stop vandelay@vandelay
-sudo systemctl restart vandelay@vandelay
+# Daemon
+vandelay daemon start
+vandelay daemon stop
+vandelay daemon restart
+vandelay daemon status
+vandelay daemon logs
 
-# Logs
-journalctl -u vandelay@vandelay -f
-journalctl -u vandelay@vandelay --since "1 hour ago"
+# systemctl (Linux)
+systemctl --user status vandelay
+journalctl --user-unit vandelay --since "1 hour ago"
 
 # Tailscale
-tailscale status              # See connected devices
-tailscale ip -4               # Your Tailscale IP
-sudo tailscale up --ssh       # Enable Tailscale SSH
+tailscale status
+tailscale ip -4
+sudo tailscale up --ssh
 
-# Tools
-uv run vandelay tools list --enabled
-uv run vandelay tools add <name>
-uv run vandelay status
+# Vandelay
+vandelay tools list --enabled
+vandelay tools add <name>
+vandelay cron list
+vandelay status
 ```
 
-### Architecture diagram
+### Architecture
 
 ```
-Your Devices (laptop, phone, tablet)
-        │
-        │  Tailscale encrypted tunnel
-        │
-        ▼
-┌──────────────────────────────┐
-│  VPS (Hetzner/DO/AWS)        │
-│                              │
-│  ┌────────────────────────┐  │
-│  │  Tailscale (100.x.x.x) │  │
-│  │                        │  │
-│  │  ┌──────────────────┐  │  │
-│  │  │  Vandelay Agent  │  │  │
-│  │  │  FastAPI :8000   │  │  │
-│  │  │  WebSocket       │  │  │
-│  │  │  Memory + Tools  │  │  │
-│  │  └──────────────────┘  │  │
-│  │                        │  │
-│  └────────────────────────┘  │
-│                              │
-│  UFW: deny all except        │
-│       tailscale0 interface   │
-│                              │
-│  ┌────────────────────────┐  │
-│  │  Tailscale Funnel      │  │  ◄── Telegram/WhatsApp webhooks
-│  │  (only /webhooks/*)    │  │      (public, TLS, limited paths)
-│  └────────────────────────┘  │
-│                              │
-└──────────────────────────────┘
-     Public IP: all ports closed
+Client Devices
+      │
+      │  Tailscale (encrypted)
+      │
+      ▼
+┌─────────────────────────────┐
+│  VPS                        │
+│                             │
+│  ┌───────────────────────┐  │
+│  │ Tailscale (100.x.x.x) │  │
+│  │                       │  │
+│  │  ┌─────────────────┐  │  │
+│  │  │ Vandelay Agent  │  │  │
+│  │  │ FastAPI :8000   │  │  │
+│  │  │ WebSocket       │  │  │
+│  │  │ Memory + Tools  │  │  │
+│  │  └─────────────────┘  │  │
+│  │                       │  │
+│  └───────────────────────┘  │
+│                             │
+│  UFW: deny all except       │
+│       tailscale0            │
+│                             │
+│  ┌───────────────────────┐  │
+│  │ Tailscale Funnel      │  │  <── Webhooks (public, TLS)
+│  │ (only /webhooks/*)    │  │
+│  └───────────────────────┘  │
+│                             │
+└─────────────────────────────┘
+      Public IP: all ports closed
 ```
-
----
-
-*Built with [Agno](https://github.com/agno-agi/agno) | Secured with [Tailscale](https://tailscale.com)*

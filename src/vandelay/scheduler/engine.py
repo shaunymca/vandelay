@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -39,7 +40,7 @@ class SchedulerEngine:
         self,
         settings: Settings,
         chat_service: ChatService,
-        store: Optional[CronJobStore] = None,
+        store: CronJobStore | None = None,
     ) -> None:
         self._settings = settings
         self._chat_service = chat_service
@@ -75,7 +76,7 @@ class SchedulerEngine:
 
         # Compute next_run
         cron = croniter(job.cron_expression)
-        job.next_run = cron.get_next(datetime).replace(tzinfo=timezone.utc)
+        job.next_run = cron.get_next(datetime).replace(tzinfo=UTC)
 
         self._store.add(job)
         if job.enabled and self._scheduler.running:
@@ -92,7 +93,7 @@ class SchedulerEngine:
             logger.info("Removed job %s", job_id)
         return removed
 
-    def pause_job(self, job_id: str) -> Optional[CronJob]:
+    def pause_job(self, job_id: str) -> CronJob | None:
         """Pause a job (disable without deleting)."""
         job = self._store.get(job_id)
         if job is None:
@@ -103,7 +104,7 @@ class SchedulerEngine:
         logger.info("Paused job %s (%s)", job_id, job.name)
         return job
 
-    def resume_job(self, job_id: str) -> Optional[CronJob]:
+    def resume_job(self, job_id: str) -> CronJob | None:
         """Resume a paused job."""
         job = self._store.get(job_id)
         if job is None:
@@ -112,7 +113,7 @@ class SchedulerEngine:
 
         # Recompute next_run
         cron = croniter(job.cron_expression)
-        job.next_run = cron.get_next(datetime).replace(tzinfo=timezone.utc)
+        job.next_run = cron.get_next(datetime).replace(tzinfo=UTC)
 
         self._store.update(job)
         if self._scheduler.running:
@@ -124,7 +125,7 @@ class SchedulerEngine:
         """Return all jobs."""
         return self._store.all()
 
-    def get_job(self, job_id: str) -> Optional[CronJob]:
+    def get_job(self, job_id: str) -> CronJob | None:
         """Retrieve a single job by ID."""
         return self._store.get(job_id)
 
@@ -149,13 +150,13 @@ class SchedulerEngine:
         result = await self._chat_service.run(message)
 
         # Update job metadata
-        job.last_run = datetime.now(timezone.utc)
+        job.last_run = datetime.now(UTC)
         job.run_count += 1
         job.last_result = result.content[:500] if result.content else result.error
 
         # Recompute next_run
         cron = croniter(job.cron_expression)
-        job.next_run = cron.get_next(datetime).replace(tzinfo=timezone.utc)
+        job.next_run = cron.get_next(datetime).replace(tzinfo=UTC)
 
         self._store.update(job)
 
@@ -196,10 +197,8 @@ class SchedulerEngine:
 
     def _unregister_job(self, job_id: str) -> None:
         """Remove a job from APScheduler if it exists."""
-        try:
+        with contextlib.suppress(Exception):
             self._scheduler.remove_job(job_id)
-        except Exception:
-            pass  # Job may not be registered
 
     def _sync_heartbeat_job(self) -> None:
         """Create or update the heartbeat job from HeartbeatConfig."""

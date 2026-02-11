@@ -9,6 +9,7 @@ from rich.console import Console
 
 from vandelay import __version__
 from vandelay.cli.cron_commands import app as cron_app
+from vandelay.cli.daemon import app as daemon_app
 from vandelay.cli.knowledge_commands import app as knowledge_app
 from vandelay.cli.tools_commands import app as tools_app
 
@@ -21,6 +22,7 @@ app = typer.Typer(
 app.add_typer(tools_app, name="tools")
 app.add_typer(cron_app, name="cron")
 app.add_typer(knowledge_app, name="knowledge")
+app.add_typer(daemon_app, name="daemon")
 console = Console()
 
 # Background server state
@@ -75,11 +77,18 @@ def start(
         False, "--server", "-s",
         help="Server only — no terminal chat (for headless/daemon deployments)",
     ),
+    watch: bool = typer.Option(
+        False, "--watch", "-w",
+        help="Auto-restart on file changes (watches src, config, workspace)",
+    ),
 ):
     """Start your agent with the API server and terminal chat."""
     import os
 
     from vandelay.config.settings import Settings, get_settings
+
+    if watch:
+        os.environ["VANDELAY_AUTO_RESTART"] = "1"
 
     if not Settings.config_exists():
         # Auto-onboard if VANDELAY_AUTO_ONBOARD=1 is set (PaaS use case)
@@ -125,7 +134,8 @@ def _show_status(settings, server_running: bool = False) -> None:
     """Print current config summary."""
     console.print()
     console.print(f"  [bold]Agent:[/bold]     {settings.agent_name}")
-    console.print(f"  [bold]Model:[/bold]     {settings.model.provider} / {settings.model.model_id}")
+    model_str = f"{settings.model.provider} / {settings.model.model_id}"
+    console.print(f"  [bold]Model:[/bold]     {model_str}")
     console.print(f"  [bold]Safety:[/bold]    {settings.safety.mode}")
     console.print(f"  [bold]Timezone:[/bold]  {settings.timezone}")
     console.print(f"  [bold]DB:[/bold]        {settings.db_path}")
@@ -136,9 +146,16 @@ def _show_status(settings, server_running: bool = False) -> None:
         channels.append("Telegram")
     if settings.channels.whatsapp_enabled:
         channels.append("WhatsApp")
-    console.print(f"  [bold]Channels:[/bold]  {', '.join(channels) if channels else 'Terminal only'}")
+    ch_str = ", ".join(channels) if channels else "Terminal only"
+    console.print(f"  [bold]Channels:[/bold]  {ch_str}")
     knowledge_str = "enabled" if settings.knowledge.enabled else "disabled"
     console.print(f"  [bold]Knowledge:[/bold] {knowledge_str}")
+
+    if settings.team.enabled:
+        members = ", ".join(settings.team.members)
+        console.print(f"  [bold]Team:[/bold]      [green]enabled[/green] ({members})")
+    else:
+        console.print("  [bold]Team:[/bold]      [dim]disabled[/dim]")
 
     if server_running or _server_handle.get("running"):
         host = settings.server.host
@@ -147,7 +164,7 @@ def _show_status(settings, server_running: bool = False) -> None:
         console.print(f"  [bold]Docs:[/bold]     http://{host}:{port}/docs")
         console.print(f"  [bold]WS:[/bold]       ws://{host}:{port}/ws/terminal")
     else:
-        console.print(f"  [bold]Server:[/bold]   [dim]not running[/dim]")
+        console.print("  [bold]Server:[/bold]   [dim]not running[/dim]")
 
     console.print()
 
@@ -164,7 +181,7 @@ def _show_help() -> None:
     console.print()
 
 
-def _run_config(settings) -> "Settings":
+def _run_config(settings):
     """Open the config menu and return updated settings."""
     from vandelay.cli.onboard import run_config_menu
 
@@ -236,7 +253,7 @@ def _start_server_foreground(settings) -> None:
 
 async def _run_with_server(settings) -> None:
     """Start the server in the background, then run terminal chat."""
-    from vandelay.agents.factory import create_agent
+    from vandelay.agents.factory import create_agent, create_team
     from vandelay.channels.base import IncomingMessage
     from vandelay.cli.banner import print_agent_ready
     from vandelay.core import ChatService, RefAgentProvider
@@ -253,18 +270,26 @@ async def _run_with_server(settings) -> None:
     port = settings.server.port
     console.print(f"  [dim]Server running at http://{host}:{port}[/dim]")
     console.print(f"  [dim]AgentOS playground at http://{host}:{port}/docs[/dim]")
+    if settings.team.enabled:
+        console.print(f"  [dim]Team mode: {len(settings.team.members)} specialists[/dim]")
     console.print()
 
-    # Create agent for terminal chat (shares DB with server's agent)
+    # Create agent/team for terminal chat (shares DB with server's agent)
     # Use a list so the reload callback can swap the reference
     agent_ref: list = [None]
+    team_mode = settings.team.enabled
+
+    def _create_agent_or_team(**kwargs):
+        if team_mode:
+            return create_team(settings, **kwargs)
+        return create_agent(settings, **kwargs)
 
     def _reload_agent() -> None:
-        """Recreate the terminal agent in-place after tool changes."""
+        """Recreate the terminal agent/team in-place after tool changes."""
         console.print("[dim]Reloading agent with updated tools...[/dim]")
-        agent_ref[0] = create_agent(settings, reload_callback=_reload_agent)
+        agent_ref[0] = _create_agent_or_team(reload_callback=_reload_agent)
 
-    agent_ref[0] = create_agent(settings, reload_callback=_reload_agent)
+    agent_ref[0] = _create_agent_or_team(reload_callback=_reload_agent)
 
     # ChatService with lazy provider — always uses the current agent_ref[0]
     chat_service = ChatService(RefAgentProvider(agent_ref))
@@ -297,7 +322,8 @@ async def _run_with_server(settings) -> None:
         if cmd == "/config":
             try:
                 settings = await asyncio.to_thread(_run_config, settings)
-                agent_ref[0] = create_agent(settings, reload_callback=_reload_agent)
+                team_mode = settings.team.enabled
+                agent_ref[0] = _create_agent_or_team(reload_callback=_reload_agent)
                 console.print(f"\n[bold blue]{settings.agent_name}[/bold blue] is ready.\n")
             except KeyboardInterrupt:
                 console.print("\n[yellow]Config cancelled — keeping current settings.[/yellow]\n")
@@ -334,6 +360,6 @@ async def _run_with_server(settings) -> None:
         console.print()
 
     # Graceful shutdown
-    console.print(f"\n[dim]Shutting down server...[/dim]")
+    console.print("\n[dim]Shutting down server...[/dim]")
     _stop_background_server()
     console.print(f"[dim]{settings.agent_name} signing off.[/dim]")

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from datetime import UTC
 
 import typer
 from rich.console import Console
@@ -31,7 +31,9 @@ def list_jobs():
 
     if not jobs:
         console.print("[dim]No cron jobs configured.[/dim]")
-        console.print("[dim]Add one: vandelay cron add \"Job name\" \"*/5 * * * *\" \"do something\"[/dim]")
+        console.print(
+            '[dim]Add one: vandelay cron add "Job name" "*/5 * * * *" "do something"[/dim]'
+        )
         raise typer.Exit()
 
     table = Table(title="Cron Jobs", show_lines=False)
@@ -86,17 +88,17 @@ def add_job(
     )
 
     # Compute next_run
-    from datetime import datetime, timezone as tz
+    from datetime import datetime
 
     cron = croniter(cron_expression)
-    job.next_run = cron.get_next(datetime).replace(tzinfo=tz.utc)
+    job.next_run = cron.get_next(datetime).replace(tzinfo=UTC)
 
     store.add(job)
 
     console.print(f"  [green]\\u2713[/green] Added job [bold]{name}[/bold] (ID: {job.id})")
     console.print(f"  [dim]Schedule: {cron_expression} ({timezone})[/dim]")
     console.print(f"  [dim]Command: {command}[/dim]")
-    console.print(f"  [dim]Will be active on next server start.[/dim]")
+    console.print("  [dim]Will be active on next server start.[/dim]")
 
 
 @app.command("remove")
@@ -154,12 +156,12 @@ def resume_job(
     job.enabled = True
 
     # Recompute next_run
-    from datetime import datetime, timezone as tz
+    from datetime import datetime
 
     from croniter import croniter
 
     cron = croniter(job.cron_expression)
-    job.next_run = cron.get_next(datetime).replace(tzinfo=tz.utc)
+    job.next_run = cron.get_next(datetime).replace(tzinfo=UTC)
 
     store.update(job)
     console.print(f"  [green]\\u2713[/green] Resumed [bold]{job.name}[/bold] (ID: {job_id}).")
