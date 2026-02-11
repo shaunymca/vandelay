@@ -188,6 +188,19 @@ def _run_config(settings):
     return run_config_menu(settings)
 
 
+def _is_server_running(host: str, port: int) -> bool:
+    """Check if a Vandelay server is already responding on host:port."""
+    import socket
+
+    # Use localhost for connection check when bound to 0.0.0.0
+    check_host = "127.0.0.1" if host == "0.0.0.0" else host
+    try:
+        with socket.create_connection((check_host, port), timeout=1):
+            return True
+    except OSError:
+        return False
+
+
 def _start_background_server(settings) -> None:
     """Start the FastAPI server in a background thread."""
     import threading
@@ -258,16 +271,20 @@ async def _run_with_server(settings) -> None:
     from vandelay.cli.banner import print_agent_ready
     from vandelay.core import ChatService, RefAgentProvider
 
-    # Start server in background thread
-    _start_background_server(settings)
+    host = settings.server.host
+    port = settings.server.port
+    external_server = _is_server_running(host, port)
 
-    # Wait briefly for server to be ready
-    await asyncio.sleep(0.5)
+    if external_server:
+        # Server already running (e.g. daemon) — just launch terminal chat
+        console.print(f"  [dim]Server already running on port {port} — connecting...[/dim]")
+    else:
+        # Start our own server in background thread
+        _start_background_server(settings)
+        await asyncio.sleep(0.5)
 
     # Print banner with server info
     print_agent_ready(console, settings.agent_name, __version__)
-    host = settings.server.host
-    port = settings.server.port
     console.print(f"  [dim]Server running at http://{host}:{port}[/dim]")
     console.print(f"  [dim]AgentOS playground at http://{host}:{port}/docs[/dim]")
     if settings.team.enabled:
@@ -359,7 +376,8 @@ async def _run_with_server(settings) -> None:
 
         console.print()
 
-    # Graceful shutdown
-    console.print("\n[dim]Shutting down server...[/dim]")
-    _stop_background_server()
+    # Graceful shutdown — only stop the server if we started it
+    if not external_server:
+        console.print("\n[dim]Shutting down server...[/dim]")
+        _stop_background_server()
     console.print(f"[dim]{settings.agent_name} signing off.[/dim]")
