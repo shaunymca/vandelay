@@ -508,6 +508,7 @@ def run_config_menu(settings: Settings) -> Settings:
                     title=f"Heartbeat       [{_heartbeat_summary(settings)}]",
                     value="heartbeat",
                 ),
+                *_daemon_restart_choice(),
                 questionary.Choice(
                     title="Back to chat",
                     value="done",
@@ -577,10 +578,37 @@ def run_config_menu(settings: Settings) -> Settings:
         elif section == "heartbeat":
             settings.heartbeat = _configure_heartbeat(settings.heartbeat, settings.timezone)
 
+        elif section == "restart_daemon":
+            _do_daemon_restart()
+            continue  # skip save — no settings changed
+
         settings.save()
         console.print("  [dim]Config saved.[/dim]")
 
     return settings
+
+
+def _daemon_restart_choice() -> list:
+    """Return a restart choice if the daemon is running, else empty list."""
+    from vandelay.cli.daemon import is_daemon_running, is_daemon_supported
+
+    if is_daemon_supported() and is_daemon_running():
+        return [questionary.Choice(
+            title="Restart daemon  [apply config changes]",
+            value="restart_daemon",
+        )]
+    return []
+
+
+def _do_daemon_restart() -> None:
+    """Restart the daemon and report result."""
+    from vandelay.cli.daemon import restart_daemon
+
+    console.print("  Restarting daemon...")
+    if restart_daemon():
+        console.print("  [green]\u2713[/green] Daemon restarted with new config.")
+    else:
+        console.print("  [red]\u2717[/red] Daemon restart failed. Try: vandelay daemon restart")
 
 
 def _heartbeat_summary(settings) -> str:

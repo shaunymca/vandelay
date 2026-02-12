@@ -270,6 +270,33 @@ def is_daemon_supported() -> bool:
     return _platform() in ("linux", "darwin")
 
 
+def is_daemon_running() -> bool:
+    """Return True if the daemon service is currently active."""
+    plat = _platform()
+    if plat == "linux":
+        result = _run(["systemctl", "--user", "is-active", "vandelay"], check=False)
+        return result.stdout.strip() == "active"
+    elif plat == "darwin":
+        result = _run(["launchctl", "list"], check=False)
+        return any("vandelay" in line.lower() for line in result.stdout.splitlines())
+    return False
+
+
+def restart_daemon() -> bool:
+    """Restart the daemon service. Returns True on success."""
+    plat = _platform()
+    try:
+        if plat == "linux":
+            _systemd_restart()
+            return True
+        elif plat == "darwin":
+            _launchd_restart()
+            return True
+    except Exception:
+        return False
+    return False
+
+
 # --- Commands ---
 
 @app.command()
