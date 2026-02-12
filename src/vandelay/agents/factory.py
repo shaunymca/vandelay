@@ -28,7 +28,11 @@ def _load_env() -> None:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, _, value = line.partition("=")
-        key, value = key.strip(), value.strip()
+        key = key.strip()
+        # Strip inline comments (e.g. VALUE=foo  # comment)
+        if " #" in value:
+            value = value[:value.index(" #")]
+        value = value.strip()
         # Don't overwrite existing env vars (env vars take priority)
         if key and key not in os.environ:
             os.environ[key] = value
