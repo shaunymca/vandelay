@@ -5,6 +5,7 @@ from __future__ import annotations
 from agno.tools import Toolkit
 
 _DEFAULT_BASE_URL = "http://localhost:9377"
+_DEFAULT_USER_ID = "vandelay"
 
 
 class CamofoxTools(Toolkit):
@@ -14,9 +15,14 @@ class CamofoxTools(Toolkit):
     (500KB HTML → 5KB), stable element refs (e1, e2, …), and site macros.
     """
 
-    def __init__(self, base_url: str = _DEFAULT_BASE_URL) -> None:
+    def __init__(
+        self,
+        base_url: str = _DEFAULT_BASE_URL,
+        user_id: str = _DEFAULT_USER_ID,
+    ) -> None:
         super().__init__(name="camofox")
         self.base_url = base_url.rstrip("/")
+        self.user_id = user_id
         self.register(self.create_tab)
         self.register(self.snapshot)
         self.register(self.click)
@@ -28,15 +34,23 @@ class CamofoxTools(Toolkit):
         self.register(self.close_tab)
         self.register(self.list_tabs)
 
-    async def create_tab(self, url: str) -> str:
-        """Open a new browser tab and navigate to the given URL."""
+    async def create_tab(self, url: str, session_key: str = "default") -> str:
+        """Open a new browser tab and navigate to the given URL.
+
+        Args:
+            url: The URL to open.
+            session_key: Group related tabs together (e.g. 'task1', 'research').
+        """
         import httpx
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=30) as client:
-            resp = await client.post("/tabs", json={"url": url})
+            resp = await client.post(
+                "/tabs",
+                json={"url": url, "userId": self.user_id, "sessionKey": session_key},
+            )
             resp.raise_for_status()
             data = resp.json()
-            tab_id = data.get("id", "unknown")
+            tab_id = data.get("tabId", data.get("id", "unknown"))
             snapshot = data.get("snapshot", "")
             return f"Tab {tab_id} opened.\n\n{snapshot}"
 
@@ -45,7 +59,9 @@ class CamofoxTools(Toolkit):
         import httpx
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=30) as client:
-            resp = await client.get(f"/tabs/{tab_id}/snapshot")
+            resp = await client.get(
+                f"/tabs/{tab_id}/snapshot", params={"userId": self.user_id}
+            )
             resp.raise_for_status()
             data = resp.json()
             return data.get("snapshot", str(data))
@@ -55,7 +71,10 @@ class CamofoxTools(Toolkit):
         import httpx
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=30) as client:
-            resp = await client.post(f"/tabs/{tab_id}/click", json={"ref": ref})
+            resp = await client.post(
+                f"/tabs/{tab_id}/click",
+                json={"ref": ref, "userId": self.user_id},
+            )
             resp.raise_for_status()
             data = resp.json()
             return data.get("snapshot", str(data))
@@ -66,7 +85,8 @@ class CamofoxTools(Toolkit):
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=30) as client:
             resp = await client.post(
-                f"/tabs/{tab_id}/type", json={"ref": ref, "text": text}
+                f"/tabs/{tab_id}/type",
+                json={"ref": ref, "text": text, "userId": self.user_id},
             )
             resp.raise_for_status()
             data = resp.json()
@@ -77,18 +97,22 @@ class CamofoxTools(Toolkit):
         import httpx
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=30) as client:
-            resp = await client.post(f"/tabs/{tab_id}/navigate", json={"url": url})
+            resp = await client.post(
+                f"/tabs/{tab_id}/navigate",
+                json={"url": url, "userId": self.user_id},
+            )
             resp.raise_for_status()
             data = resp.json()
             return data.get("snapshot", str(data))
 
     async def scroll(self, tab_id: str, direction: str = "down") -> str:
-        """Scroll the page. Direction: 'up' or 'down'."""
+        """Scroll the page. Direction: 'up', 'down', 'left', or 'right'."""
         import httpx
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=30) as client:
             resp = await client.post(
-                f"/tabs/{tab_id}/scroll", json={"direction": direction}
+                f"/tabs/{tab_id}/scroll",
+                json={"direction": direction, "userId": self.user_id},
             )
             resp.raise_for_status()
             data = resp.json()
@@ -99,7 +123,9 @@ class CamofoxTools(Toolkit):
         import httpx
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=30) as client:
-            resp = await client.get(f"/tabs/{tab_id}/screenshot")
+            resp = await client.get(
+                f"/tabs/{tab_id}/screenshot", params={"userId": self.user_id}
+            )
             resp.raise_for_status()
             data = resp.json()
             return data.get("image", str(data))
@@ -109,7 +135,9 @@ class CamofoxTools(Toolkit):
         import httpx
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=30) as client:
-            resp = await client.get(f"/tabs/{tab_id}/links")
+            resp = await client.get(
+                f"/tabs/{tab_id}/links", params={"userId": self.user_id}
+            )
             resp.raise_for_status()
             data = resp.json()
             links = data.get("links", data)
@@ -125,7 +153,9 @@ class CamofoxTools(Toolkit):
         import httpx
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=30) as client:
-            resp = await client.delete(f"/tabs/{tab_id}")
+            resp = await client.delete(
+                f"/tabs/{tab_id}", json={"userId": self.user_id}
+            )
             resp.raise_for_status()
             return f"Tab {tab_id} closed."
 
@@ -134,13 +164,16 @@ class CamofoxTools(Toolkit):
         import httpx
 
         async with httpx.AsyncClient(base_url=self.base_url, timeout=30) as client:
-            resp = await client.get("/tabs")
+            resp = await client.get("/tabs", params={"userId": self.user_id})
             resp.raise_for_status()
             data = resp.json()
             tabs = data.get("tabs", data)
             if isinstance(tabs, list):
                 if not tabs:
                     return "No open tabs."
-                lines = [f"- Tab {t.get('id', '?')}: {t.get('url', '?')}" for t in tabs]
+                lines = [
+                    f"- Tab {t.get('tabId', t.get('id', '?'))}: {t.get('url', '?')}"
+                    for t in tabs
+                ]
                 return "\n".join(lines)
             return str(tabs)
