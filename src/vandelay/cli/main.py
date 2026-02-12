@@ -127,7 +127,9 @@ def status():
         console.print("[yellow]Not configured.[/yellow] Run [bold]vandelay onboard[/bold] first.")
         raise typer.Exit(1)
 
-    _show_status(get_settings())
+    settings = get_settings()
+    running = _is_server_running(settings.server.host, settings.server.port)
+    _show_status(settings, server_running=running)
 
 
 def _show_status(settings, server_running: bool = False) -> None:
@@ -198,6 +200,13 @@ def _is_server_running(host: str, port: int) -> bool:
         with socket.create_connection((check_host, port), timeout=1):
             return True
     except OSError:
+        # If configured host is unavailable (e.g. Tailscale down), try localhost
+        if check_host != "127.0.0.1":
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=1):
+                    return True
+            except OSError:
+                pass
         return False
 
 
