@@ -153,32 +153,59 @@ def remove_tool(
     console.print("  [dim]Restart your agent for changes to take effect.[/dim]")
 
 
-@app.command("auth-gmail")
-def auth_gmail():
-    """Authenticate Gmail for headless servers (interactive OAuth flow)."""
+_GOOGLE_TOKEN_FILE = "google_token.json"
+
+# All scopes needed across Google tools
+_GOOGLE_SCOPES = [
+    # Gmail
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.compose",
+    # Calendar
+    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/calendar.readonly",
+    # Drive
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/drive.readonly",
+    # Sheets
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/spreadsheets.readonly",
+]
+
+# Tools that use Google OAuth and need token_path + port override
+_GOOGLE_OAUTH_TOOLS = {
+    "gmail": {"token_kwarg": "token_path", "port_kwarg": "port"},
+    "google_drive": {"token_kwarg": "token_path", "port_kwarg": "auth_port"},
+    "googlecalendar": {"token_kwarg": "token_path", "port_kwarg": "oauth_port"},
+    "googlesheets": {"token_kwarg": "token_path", "port_kwarg": "oauth_port"},
+}
+
+
+@app.command("auth-google")
+def auth_google(
+    reauth: bool = typer.Option(
+        False, "--reauth", "-r", help="Re-authenticate even if token exists",
+    ),
+):
+    """Authenticate Google services (Gmail, Calendar, Drive, Sheets)."""
     import os
 
     from vandelay.config.constants import VANDELAY_HOME
 
-    token_path = VANDELAY_HOME / "gmail_token.json"
+    token_path = VANDELAY_HOME / _GOOGLE_TOKEN_FILE
 
-    if token_path.exists():
+    if token_path.exists() and not reauth:
         console.print(f"  [dim]Token already exists at {token_path}[/dim]")
-        console.print("  [dim]Delete it to re-authenticate.[/dim]")
+        console.print("  [dim]Run with --reauth to re-authenticate.[/dim]")
         raise typer.Exit()
 
-    # Check required env vars
+    # Load .env so Google credentials are available
+    from vandelay.agents.factory import _load_env
+    _load_env()
+
     client_id = os.environ.get("GOOGLE_CLIENT_ID")
     client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
     project_id = os.environ.get("GOOGLE_PROJECT_ID")
-
-    if not all([client_id, client_secret, project_id]):
-        # Also try loading from .env
-        from vandelay.agents.factory import _load_env
-        _load_env()
-        client_id = os.environ.get("GOOGLE_CLIENT_ID")
-        client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
-        project_id = os.environ.get("GOOGLE_PROJECT_ID")
 
     if not all([client_id, client_secret, project_id]):
         console.print("[red]Missing Google OAuth credentials.[/red]")
@@ -198,11 +225,6 @@ def auth_gmail():
         )
         raise typer.Exit(1) from None
 
-    scopes = [
-        "https://www.googleapis.com/auth/gmail.readonly",
-        "https://www.googleapis.com/auth/gmail.compose",
-    ]
-
     client_config = {
         "installed": {
             "client_id": client_id,
@@ -210,19 +232,28 @@ def auth_gmail():
             "project_id": project_id,
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
-            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "redirect_uris": ["urn:ietf:wg:oauth:2.0:oob", "http://localhost"],
+            "auth_provider_x509_cert_url": (
+                "https://www.googleapis.com/oauth2/v1/certs"
+            ),
+            "redirect_uris": [
+                "urn:ietf:wg:oauth:2.0:oob",
+                "http://localhost",
+            ],
         }
     }
 
-    flow = InstalledAppFlow.from_client_config(client_config, scopes)
+    flow = InstalledAppFlow.from_client_config(
+        client_config, _GOOGLE_SCOPES,
+    )
 
     # Use console-based flow (no browser needed on server)
     flow.redirect_uri = "urn:ietf:wg:oauth:2.0:oob"
     auth_url, _ = flow.authorization_url(prompt="consent")
 
     console.print()
-    console.print("[bold]Gmail OAuth Setup[/bold]")
+    console.print("[bold]Google OAuth Setup[/bold]")
+    console.print()
+    console.print("  Scopes: Gmail, Calendar, Drive, Sheets")
     console.print()
     console.print("1. Open this URL in your browser:")
     console.print(f"   [link]{auth_url}[/link]")
@@ -240,9 +271,15 @@ def auth_gmail():
         flow.fetch_token(code=code)
         creds = flow.credentials
         token_path.write_text(creds.to_json())
-        console.print(f"  [green]✓[/green] Gmail authenticated. Token saved to {token_path}")
+        console.print(
+            f"  [green]\u2713[/green] Google authenticated."
+            f" Token saved to {token_path}"
+        )
+        console.print(
+            "  [dim]Covers: Gmail, Calendar, Drive, Sheets[/dim]"
+        )
     except Exception as e:
-        console.print(f"  [red]✗[/red] OAuth failed: {e}")
+        console.print(f"  [red]\u2717[/red] OAuth failed: {e}")
         raise typer.Exit(1) from None
 
 

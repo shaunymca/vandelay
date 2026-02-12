@@ -165,13 +165,20 @@ class ToolManager:
                     instances.append(CamofoxTools())
                     continue
 
-                # Special handling for gmail — set token_path and port
-                if tool_name == "gmail":
+                # Special handling for Google OAuth tools — shared token
+                _goauth = {
+                    "gmail": ("token_path", "port"),
+                    "google_drive": ("token_path", "auth_port"),
+                    "googlecalendar": ("token_path", "oauth_port"),
+                    "googlesheets": ("token_path", "oauth_port"),
+                }
+                if tool_name in _goauth:
                     from vandelay.config.constants import VANDELAY_HOME
                     mod = importlib.import_module(entry.module_path)
                     cls = getattr(mod, entry.class_name)
-                    token_path = str(VANDELAY_HOME / "gmail_token.json")
-                    instances.append(cls(token_path=token_path, port=0))
+                    tk, pk = _goauth[tool_name]
+                    token = str(VANDELAY_HOME / "google_token.json")
+                    instances.append(cls(**{tk: token, pk: 0}))
                     continue
 
                 mod = importlib.import_module(entry.module_path)
