@@ -70,10 +70,53 @@ class Settings(BaseSettings):
                 file_data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
                 # File values are the base; explicit values override
                 merged = {**file_data, **{k: v for k, v in values.items() if v is not None}}
-                return merged
+                values = merged
             except (json.JSONDecodeError, OSError):
                 pass
+
+        # Map VANDELAY_HOST/PORT/SECRET_KEY env vars into nested server config
+        cls._apply_env_to_server(values)
         return values
+
+    @classmethod
+    def _apply_env_to_server(cls, values: dict) -> None:
+        """Map flat VANDELAY_HOST/PORT/SECRET_KEY env vars into server sub-config."""
+        import os
+
+        env_map = {
+            "VANDELAY_HOST": "host",
+            "VANDELAY_PORT": "port",
+            "VANDELAY_SECRET_KEY": "secret_key",
+        }
+
+        # Also check ~/.vandelay/.env for these values
+        env_file_vals: dict[str, str] = {}
+        env_path = VANDELAY_HOME / ".env"
+        if env_path.exists():
+            try:
+                for line in env_path.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, _, v = line.partition("=")
+                    k = k.strip()
+                    if " #" in v:
+                        v = v[:v.index(" #")]
+                    env_file_vals[k] = v.strip()
+            except OSError:
+                pass
+
+        server = values.get("server", {})
+        if not isinstance(server, dict):
+            server = {}
+        changed = False
+        for env_key, field in env_map.items():
+            val = os.environ.get(env_key) or env_file_vals.get(env_key)
+            if val:
+                server[field] = int(val) if field == "port" else val
+                changed = True
+        if changed:
+            values["server"] = server
 
     @property
     def db_path(self) -> Path:
