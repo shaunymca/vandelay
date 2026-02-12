@@ -505,6 +505,10 @@ def run_config_menu(settings: Settings) -> Settings:
                     value="team",
                 ),
                 questionary.Choice(
+                    title=f"Heartbeat       [{_heartbeat_summary(settings)}]",
+                    value="heartbeat",
+                ),
+                questionary.Choice(
                     title="Back to chat",
                     value="done",
                 ),
@@ -570,10 +574,74 @@ def run_config_menu(settings: Settings) -> Settings:
                 state = "enabled" if toggle else "disabled"
                 console.print(f"  [green]\u2713[/green] Team mode {state}")
 
+        elif section == "heartbeat":
+            settings.heartbeat = _configure_heartbeat(settings.heartbeat, settings.timezone)
+
         settings.save()
         console.print("  [dim]Config saved.[/dim]")
 
     return settings
+
+
+def _heartbeat_summary(settings) -> str:
+    """One-line summary for config menu display."""
+    hb = settings.heartbeat
+    if not hb.enabled:
+        return "disabled"
+    return f"every {hb.interval_minutes}m, {hb.active_hours_start}-{hb.active_hours_end}h"
+
+
+def _configure_heartbeat(hb, default_tz: str):
+    """Interactive heartbeat configuration. Returns updated HeartbeatConfig."""
+    from vandelay.config.models import HeartbeatConfig
+
+    toggle = questionary.confirm(
+        "Enable heartbeat? (periodic health checks)",
+        default=hb.enabled,
+    ).ask()
+    if toggle is None:
+        return hb
+
+    if not toggle:
+        console.print("  [green]\u2713[/green] Heartbeat disabled")
+        return HeartbeatConfig(enabled=False, timezone=hb.timezone)
+
+    interval = questionary.text(
+        "Check interval in minutes:",
+        default=str(hb.interval_minutes),
+        validate=lambda v: v.isdigit() and int(v) > 0,
+    ).ask()
+    if interval is None:
+        return hb
+
+    start = questionary.text(
+        "Active hours start (0-23):",
+        default=str(hb.active_hours_start),
+        validate=lambda v: v.isdigit() and 0 <= int(v) <= 23,
+    ).ask()
+    if start is None:
+        return hb
+
+    end = questionary.text(
+        "Active hours end (0-23):",
+        default=str(hb.active_hours_end),
+        validate=lambda v: v.isdigit() and 0 <= int(v) <= 23,
+    ).ask()
+    if end is None:
+        return hb
+
+    result = HeartbeatConfig(
+        enabled=True,
+        interval_minutes=int(interval),
+        active_hours_start=int(start),
+        active_hours_end=int(end),
+        timezone=hb.timezone or default_tz,
+    )
+    console.print(
+        f"  [green]\u2713[/green] Heartbeat enabled: every {interval}m, "
+        f"{start}:00-{end}:00 ({result.timezone})"
+    )
+    return result
 
 
 def _browser_tools_summary(enabled_tools: list[str]) -> str:
