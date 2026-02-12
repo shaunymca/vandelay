@@ -288,6 +288,9 @@ sudo ss -tulpn | grep 8000
 ### 4. Configure the firewall
 
 ```bash
+# Install ufw if not already present
+sudo apt install -y ufw
+
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw allow in on tailscale0
