@@ -1,10 +1,12 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/logo.svg">
-  <source media="(prefers-color-scheme: light)" srcset="assets/logo-light.svg">
-  <img alt="Vandelay" src="assets/logo.svg" width="310">
-</picture>
+```
+ __   __            _      _
+ \ \ / /__ _ _ _  __| |___ | |__ _ _  _
+  \ V / _` | ' \/ _` / -_)| / _` | || |
+   \_/\__,_|_||_\__,_\___||_\__,_|\_, |
+                                   |__/
+```
 
 ### *The employee who doesn't exist.*
 
