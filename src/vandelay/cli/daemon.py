@@ -12,7 +12,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from vandelay.config.constants import LOGS_DIR, VANDELAY_HOME
+from vandelay.config.constants import LOGS_DIR
 
 app = typer.Typer(
     name="daemon",
@@ -70,7 +70,7 @@ def _systemd_unit_content(exe: str) -> str:
         RestartSec=5
         StandardOutput=append:{_LOG_FILE}
         StandardError=append:{_LOG_FILE}
-        WorkingDirectory={VANDELAY_HOME}
+        WorkingDirectory=%h
 
         [Install]
         WantedBy=default.target
@@ -166,7 +166,7 @@ def _launchd_plist_content(exe: str) -> str:
             <key>StandardErrorPath</key>
             <string>{_LOG_FILE}</string>
             <key>WorkingDirectory</key>
-            <string>{VANDELAY_HOME}</string>
+            <string>{Path.home()}</string>
         </dict>
         </plist>
     """)

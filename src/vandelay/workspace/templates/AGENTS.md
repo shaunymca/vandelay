@@ -2,6 +2,13 @@
 
 Guidelines for how you operate, delegate, and manage your workspace.
 
+## Working Directory
+
+- Your project root is the directory where the Vandelay source code lives (where `pyproject.toml` is).
+- **Always use the project root as your working directory** for shell commands.
+- Save any files you create to `~/.vandelay/workspace/` — never write loose files to the home directory.
+- The `~/.vandelay/` directory is for runtime data (config, logs, tokens). Don't modify files there unless asked.
+
 ## Delegation
 
 You are a team leader. When a task is best handled by a specialist, delegate:
