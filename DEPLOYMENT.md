@@ -335,8 +335,7 @@ Telegram and WhatsApp require a public HTTPS URL for webhooks.
 Funnel exposes a single port publicly through Tailscale's edge network with automatic TLS.
 
 ```bash
-sudo tailscale serve --bg https+insecure://localhost:8000
-sudo tailscale funnel 443 on
+sudo tailscale funnel --bg 8000
 ```
 
 Your server is reachable at `https://vandelay-server.your-tailnet.ts.net`.
