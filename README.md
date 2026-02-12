@@ -1,10 +1,6 @@
 <div align="center">
 
-```
-╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦  ╔═╗╦ ╦
-╚╗╔╝╠═╣║║║ ║║║╣ ║  ╠═╣╚╦╝
- ╚╝ ╩ ╩╝╚╝═╩╝╚═╝╩═╝╩ ╩ ╩
-```
+# VANDELAY
 
 ### *The employee who doesn't exist.*
 
@@ -12,7 +8,7 @@ An always-on AI agent that works so you don't have to.
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-279%20passed-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-282%20passed-brightgreen.svg)]()
 [![Powered by Agno](https://img.shields.io/badge/powered%20by-Agno-red.svg)](https://github.com/agno-agi/agno)
 
 [Features](#-features) &bull; [Get Started](#-get-started) &bull; [CLI Reference](#-cli-reference) &bull; [How-To Guide](#-how-to-guide) &bull; [Deploy](#-deploy)
