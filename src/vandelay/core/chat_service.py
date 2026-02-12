@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
@@ -94,14 +96,22 @@ class ChatService:
             await mw.before_run(message)
 
         try:
+            typing_task = None
             if typing:
-                await typing()
+                typing_task = asyncio.create_task(
+                    _typing_loop(typing), name="typing-indicator"
+                )
 
             response = await agent.arun(
                 message.text,
                 user_id=message.user_id or None,
                 session_id=message.session_id,
             )
+
+            if typing_task:
+                typing_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await typing_task
 
             result = ChatResponse(
                 content=response.content if response and response.content else "",
@@ -127,8 +137,11 @@ class ChatService:
         """Stream agent response as ``StreamChunk`` events."""
         agent = self._get_agent()
 
+        typing_task = None
         if typing:
-            await typing()
+            typing_task = asyncio.create_task(
+                _typing_loop(typing), name="typing-indicator"
+            )
 
         try:
             run_response = agent.arun(
@@ -199,3 +212,22 @@ class ChatService:
         except Exception as exc:
             logger.error("Stream error: %s", exc, exc_info=True)
             yield StreamChunk(event="run_error", content=str(exc))
+        finally:
+            if typing_task:
+                typing_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await typing_task
+
+
+async def _typing_loop(
+    typing_fn: Callable[[], Awaitable[None]],
+    interval: float = 4.0,
+) -> None:
+    """Repeatedly send typing indicator until cancelled.
+
+    Telegram's typing status expires after ~5 seconds, so we resend
+    every *interval* seconds to keep it visible during long runs.
+    """
+    while True:
+        await typing_fn()
+        await asyncio.sleep(interval)

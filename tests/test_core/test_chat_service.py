@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -64,13 +65,19 @@ class TestChatServiceRun:
         agent = AsyncMock()
         response = MagicMock()
         response.content = "ok"
-        agent.arun = AsyncMock(return_value=response)
+
+        # Simulate a brief delay so the typing loop has time to fire
+        async def slow_arun(*args, **kwargs):
+            await asyncio.sleep(0.05)
+            return response
+
+        agent.arun = slow_arun
 
         typing_fn = AsyncMock()
         svc = ChatService(_make_provider(agent))
         await svc.run(_make_incoming(), typing=typing_fn)
 
-        typing_fn.assert_awaited_once()
+        assert typing_fn.await_count >= 1
 
     @pytest.mark.asyncio
     async def test_passes_user_id_and_session(self):
