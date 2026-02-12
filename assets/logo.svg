@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 310 80" fill="none">
+  <style>
+    text {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 16px;
+      font-weight: bold;
+      fill: #e0e0e0;
+    }
+  </style>
+  <rect width="310" height="80" rx="6" fill="#161b22"/>
+  <text x="20" y="28">╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦  ╔═╗╦ ╦</text>
+  <text x="20" y="48">╚╗╔╝╠═╣║║║ ║║║╣ ║  ╠═╣╚╦╝</text>
+  <text x="20" y="68"> ╚╝ ╩ ╩╝╚╝═╩╝╚═╝╩═╝╩ ╩ ╩</text>
+</svg>
