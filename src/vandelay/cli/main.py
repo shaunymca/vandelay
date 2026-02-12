@@ -191,23 +191,31 @@ def _run_config(settings):
 
 
 def _is_server_running(host: str, port: int) -> bool:
-    """Check if a Vandelay server is already responding on host:port."""
+    """Check if something is already listening on the given port."""
     import socket
 
-    # Use localhost for connection check when bound to 0.0.0.0
-    check_host = "127.0.0.1" if host == "0.0.0.0" else host
+    # Try connecting to the configured host, then localhost as fallback
+    check_hosts = ["127.0.0.1"] if host == "0.0.0.0" else [host, "127.0.0.1"]
+
+    for h in check_hosts:
+        try:
+            with socket.create_connection((h, port), timeout=2):
+                return True
+        except OSError:
+            continue
+
+    # Last resort: check if the port is bound by any process (Linux)
+    # This catches the case where the server is starting up but not yet accepting
     try:
-        with socket.create_connection((check_host, port), timeout=1):
-            return True
-    except OSError:
-        # If configured host is unavailable (e.g. Tailscale down), try localhost
-        if check_host != "127.0.0.1":
-            try:
-                with socket.create_connection(("127.0.0.1", port), timeout=1):
-                    return True
-            except OSError:
-                pass
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(1)
+        s.bind(("0.0.0.0", port))
+        s.close()
+        # Bind succeeded → port is free
         return False
+    except OSError:
+        # Bind failed → port is in use
+        return True
 
 
 def _start_background_server(settings) -> None:
@@ -286,16 +294,25 @@ async def _run_with_server(settings) -> None:
 
     if external_server:
         # Server already running (e.g. daemon) — just launch terminal chat
-        console.print(f"  [dim]Server already running on port {port} — connecting...[/dim]")
+        console.print(f"  [dim]Server already running on port {port} — entering chat only.[/dim]")
     else:
         # Start our own server in background thread
         _start_background_server(settings)
         await asyncio.sleep(0.5)
 
+        # Verify server actually started (might have failed to bind)
+        if not _server_handle.get("running"):
+            console.print(
+                f"[yellow]Could not start server on port {port}.[/yellow] "
+                "Continuing in chat-only mode."
+            )
+            external_server = True
+
     # Print banner with server info
     print_agent_ready(console, settings.agent_name, __version__)
-    console.print(f"  [dim]Server running at http://{host}:{port}[/dim]")
-    console.print(f"  [dim]AgentOS playground at http://{host}:{port}/docs[/dim]")
+    if not external_server:
+        console.print(f"  [dim]Server running at http://{host}:{port}[/dim]")
+        console.print(f"  [dim]AgentOS playground at http://{host}:{port}/docs[/dim]")
     if settings.team.enabled:
         console.print(f"  [dim]Team mode: {len(settings.team.members)} specialists[/dim]")
     console.print()
