@@ -101,6 +101,7 @@ def create_app(settings: Settings) -> FastAPI:
                 bot_token=token,
                 chat_service=chat_service,
                 chat_id=settings.channels.telegram_chat_id,
+                default_user_id=settings.user_id or "default",
             )
             channel_router.register(tg_adapter)
             base_app.state.telegram_adapter = tg_adapter

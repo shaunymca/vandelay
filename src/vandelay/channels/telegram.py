@@ -34,11 +34,13 @@ class TelegramAdapter(ChannelAdapter):
         chat_service: ChatService,
         chat_id: str = "",
         webhook_url: str = "",
+        default_user_id: str = "",
     ) -> None:
         self.bot_token = bot_token
         self.chat_service = chat_service
         self.chat_id = chat_id
         self.webhook_url = webhook_url
+        self.default_user_id = default_user_id
         self._bot_username: str | None = None
         self._polling_task: asyncio.Task | None = None
         self._stop_event = asyncio.Event()
@@ -195,10 +197,13 @@ class TelegramAdapter(ChannelAdapter):
 
         chat_id = str(message["chat"]["id"])
         user = message.get("from", {})
-        user_id = str(user.get("id", ""))
+        tg_user_id = str(user.get("id", ""))
         session_id = f"tg:{chat_id}"
 
-        logger.info("Telegram message from %s in %s: %s", user_id, chat_id, text[:80])
+        # Use configured user_id for unified memory across channels
+        user_id = self.default_user_id or tg_user_id
+
+        logger.info("Telegram message from %s in %s: %s", tg_user_id, chat_id, text[:80])
 
         incoming = IncomingMessage(
             text=text,

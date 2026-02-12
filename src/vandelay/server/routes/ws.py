@@ -127,6 +127,7 @@ async def _handle_chat(
     incoming = IncomingMessage(
         text=text,
         session_id=session_id,
+        user_id=settings.user_id or "default",
         channel="websocket",
     )
 
