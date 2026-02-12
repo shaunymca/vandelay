@@ -153,6 +153,99 @@ def remove_tool(
     console.print("  [dim]Restart your agent for changes to take effect.[/dim]")
 
 
+@app.command("auth-gmail")
+def auth_gmail():
+    """Authenticate Gmail for headless servers (interactive OAuth flow)."""
+    import os
+
+    from vandelay.config.constants import VANDELAY_HOME
+
+    token_path = VANDELAY_HOME / "gmail_token.json"
+
+    if token_path.exists():
+        console.print(f"  [dim]Token already exists at {token_path}[/dim]")
+        console.print("  [dim]Delete it to re-authenticate.[/dim]")
+        raise typer.Exit()
+
+    # Check required env vars
+    client_id = os.environ.get("GOOGLE_CLIENT_ID")
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
+    project_id = os.environ.get("GOOGLE_PROJECT_ID")
+
+    if not all([client_id, client_secret, project_id]):
+        # Also try loading from .env
+        from vandelay.agents.factory import _load_env
+        _load_env()
+        client_id = os.environ.get("GOOGLE_CLIENT_ID")
+        client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
+        project_id = os.environ.get("GOOGLE_PROJECT_ID")
+
+    if not all([client_id, client_secret, project_id]):
+        console.print("[red]Missing Google OAuth credentials.[/red]")
+        console.print("  Set these in ~/.vandelay/.env:")
+        console.print("    GOOGLE_CLIENT_ID=...")
+        console.print("    GOOGLE_CLIENT_SECRET=...")
+        console.print("    GOOGLE_PROJECT_ID=...")
+        raise typer.Exit(1)
+
+    try:
+        from google_auth_oauthlib.flow import InstalledAppFlow
+    except ImportError:
+        console.print("[red]Google auth libraries not installed.[/red]")
+        console.print(
+            "  Run: uv add google-api-python-client"
+            " google-auth-httplib2 google-auth-oauthlib"
+        )
+        raise typer.Exit(1) from None
+
+    scopes = [
+        "https://www.googleapis.com/auth/gmail.readonly",
+        "https://www.googleapis.com/auth/gmail.compose",
+    ]
+
+    client_config = {
+        "installed": {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "project_id": project_id,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "redirect_uris": ["urn:ietf:wg:oauth:2.0:oob", "http://localhost"],
+        }
+    }
+
+    flow = InstalledAppFlow.from_client_config(client_config, scopes)
+
+    # Use console-based flow (no browser needed on server)
+    flow.redirect_uri = "urn:ietf:wg:oauth:2.0:oob"
+    auth_url, _ = flow.authorization_url(prompt="consent")
+
+    console.print()
+    console.print("[bold]Gmail OAuth Setup[/bold]")
+    console.print()
+    console.print("1. Open this URL in your browser:")
+    console.print(f"   [link]{auth_url}[/link]")
+    console.print()
+    console.print("2. Sign in and authorize access")
+    console.print("3. Copy the authorization code and paste it below")
+    console.print()
+
+    code = input("Authorization code: ").strip()
+    if not code:
+        console.print("[red]No code provided.[/red]")
+        raise typer.Exit(1)
+
+    try:
+        flow.fetch_token(code=code)
+        creds = flow.credentials
+        token_path.write_text(creds.to_json())
+        console.print(f"  [green]✓[/green] Gmail authenticated. Token saved to {token_path}")
+    except Exception as e:
+        console.print(f"  [red]✗[/red] OAuth failed: {e}")
+        raise typer.Exit(1) from None
+
+
 @app.command("refresh")
 def refresh_registry():
     """Rebuild the tool registry from the installed Agno package."""

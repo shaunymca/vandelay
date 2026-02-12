@@ -29,6 +29,9 @@ dependencies = [
     "watchfiles>=1.0",
     "fastembed>=0.4",
     "ddgs>=9.10.0",
+    "google-api-python-client>=2.190.0",
+    "google-auth-httplib2>=0.3.0",
+    "google-auth-oauthlib>=1.2.4",
 ]
 
 [project.optional-dependencies]

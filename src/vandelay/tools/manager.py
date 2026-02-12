@@ -165,6 +165,15 @@ class ToolManager:
                     instances.append(CamofoxTools())
                     continue
 
+                # Special handling for gmail — set token_path and port
+                if tool_name == "gmail":
+                    from vandelay.config.constants import VANDELAY_HOME
+                    mod = importlib.import_module(entry.module_path)
+                    cls = getattr(mod, entry.class_name)
+                    token_path = str(VANDELAY_HOME / "gmail_token.json")
+                    instances.append(cls(token_path=token_path, port=0))
+                    continue
+
                 mod = importlib.import_module(entry.module_path)
                 cls = getattr(mod, entry.class_name)
 
