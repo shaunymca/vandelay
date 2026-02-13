@@ -75,32 +75,33 @@ def test_build_prompt_excludes_bootstrap_after_removal(tmp_workspace):
 
 
 def test_build_prompt_includes_tool_catalog(tmp_workspace, prompt_settings):
-    """Prompt should include the dynamic tool catalog when settings provided."""
+    """Prompt should include the enabled tools section when settings provided."""
     prompt = build_system_prompt(
         workspace_dir=tmp_workspace,
         settings=prompt_settings,
     )
-    assert "Available Tool Catalog" in prompt
-    assert "enable_tool" in prompt
+    assert "Your Enabled Tools" in prompt
+    assert "list_available_tools" in prompt
 
 
 def test_build_prompt_catalog_shows_enabled(tmp_workspace, prompt_settings):
-    """Tool catalog should mark enabled tools."""
+    """Tool catalog should list enabled tools."""
     prompt = build_system_prompt(
         workspace_dir=tmp_workspace,
         settings=prompt_settings,
     )
-    assert "shell [ENABLED]" in prompt
-    assert "file [ENABLED]" in prompt
+    assert "**shell**" in prompt
+    assert "**file**" in prompt
 
 
 def test_build_prompt_catalog_shows_available(tmp_workspace, prompt_settings):
-    """Tool catalog should mark non-enabled tools as available."""
+    """Tool catalog should not list non-enabled tools individually."""
     prompt = build_system_prompt(
         workspace_dir=tmp_workspace,
         settings=prompt_settings,
     )
-    assert "[available]" in prompt
+    # duckduckgo is a known tool that is NOT enabled — should not appear
+    assert "**duckduckgo**" not in prompt
 
 
 def test_build_prompt_no_catalog_without_settings(tmp_workspace):

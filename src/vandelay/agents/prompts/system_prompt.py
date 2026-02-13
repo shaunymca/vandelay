@@ -24,27 +24,34 @@ def _build_tool_catalog(settings: Settings) -> str:
         return ""
 
     enabled = set(settings.enabled_tools)
+
+    # Only list enabled tools in the prompt to keep it lean.
+    # The agent can use `list_available_tools` to discover others.
+    enabled_entries = []
+    for entries in by_cat.values():
+        for entry in entries:
+            if entry.name in enabled:
+                enabled_entries.append(entry)
+
+    if not enabled_entries:
+        return ""
+
     lines: list[str] = [
-        "# Available Tool Catalog",
+        "# Your Enabled Tools",
         "",
-        "**Tool selection hierarchy:** (1) Use ENABLED tools first."
-        " (2) If no enabled tool fits, enable an [available] one from this catalog."
-        " (3) If nothing in the catalog works, ask the user before writing custom code.",
+        "These tools are registered and ready to use as direct function calls.",
+        "To discover and enable more tools, use `list_available_tools`.",
         "",
     ]
 
-    for category in sorted(by_cat):
-        lines.append(f"## {category.title()}")
-        for entry in sorted(by_cat[category], key=lambda e: e.name):
-            status = "ENABLED" if entry.name in enabled else "available"
-            desc = entry.description or ""
-            # Truncate to keep prompt lean
-            if len(desc) > 100:
-                desc = desc[:97] + "..."
-            suffix = f" — {desc}" if desc else ""
-            lines.append(f"- {entry.name} [{status}]{suffix}")
-        lines.append("")
+    for entry in sorted(enabled_entries, key=lambda e: (e.category, e.name)):
+        desc = entry.description or ""
+        if len(desc) > 120:
+            desc = desc[:117] + "..."
+        suffix = f" — {desc}" if desc else ""
+        lines.append(f"- **{entry.name}** [{entry.category}]{suffix}")
 
+    lines.append("")
     return "\n".join(lines)
 
 
