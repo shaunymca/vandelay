@@ -155,21 +155,12 @@ def remove_tool(
 
 _GOOGLE_TOKEN_FILE = "google_token.json"
 
-# All scopes needed across Google tools
+# All scopes needed across Google tools (broadest per API — no redundant readonly)
 _GOOGLE_SCOPES = [
-    # Gmail
-    "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.modify",
-    "https://www.googleapis.com/auth/gmail.compose",
-    # Calendar
     "https://www.googleapis.com/auth/calendar",
-    "https://www.googleapis.com/auth/calendar.readonly",
-    # Drive
-    "https://www.googleapis.com/auth/drive.file",
-    "https://www.googleapis.com/auth/drive.readonly",
-    # Sheets
+    "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/spreadsheets.readonly",
 ]
 
 # Tools that use Google OAuth and need token_path + port override
