@@ -42,6 +42,10 @@ async def lifespan(app: FastAPI):
     settings = app.state.settings
 
     # --- Startup ---
+    # Ensure workspace templates exist (restores any missing files)
+    from vandelay.workspace.manager import init_workspace
+    init_workspace()
+
     logger.info(
         "Vandelay server starting: agent=%s, host=%s, port=%d",
         settings.agent_name,
