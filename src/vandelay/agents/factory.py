@@ -141,7 +141,7 @@ def create_agent(
     # Knowledge/RAG
     from vandelay.knowledge.setup import create_knowledge
 
-    knowledge = create_knowledge(settings)
+    knowledge = create_knowledge(settings, db=db)
 
     agent = Agent(
         id="vandelay-main",
@@ -190,7 +190,7 @@ def create_team(
         workspace_dir=workspace_dir,
         settings=settings,
     )
-    knowledge = create_knowledge(settings)
+    knowledge = create_knowledge(settings, db=db)
 
     # Build specialist members
     members = []

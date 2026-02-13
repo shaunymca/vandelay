@@ -15,8 +15,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def create_knowledge(settings: Settings) -> Any | None:
+def create_knowledge(settings: Settings, db: Any = None) -> Any | None:
     """Build a Knowledge instance from settings.
+
+    Args:
+        settings: Application settings.
+        db: Database backend for contents tracking (enables AgentOS playground UI).
 
     Returns ``None`` when knowledge is disabled or no embedder is available.
     The caller should pass ``None`` safely — the Agent works fine without it.
@@ -51,4 +55,5 @@ def create_knowledge(settings: Settings) -> Any | None:
     return Knowledge(
         name="vandelay-knowledge",
         vector_db=vector_db,
+        contents_db=db,
     )
