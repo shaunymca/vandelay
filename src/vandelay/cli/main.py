@@ -119,6 +119,24 @@ def start(
 
 
 @app.command()
+def config():
+    """Open the interactive configuration menu."""
+    from vandelay.config.settings import Settings, get_settings
+
+    if not Settings.config_exists():
+        console.print("[yellow]Not configured.[/yellow] Run [bold]vandelay onboard[/bold] first.")
+        raise typer.Exit(1)
+
+    settings = get_settings()
+    from vandelay.cli.onboard import run_config_menu
+
+    try:
+        run_config_menu(settings, exit_label="Done")
+    except KeyboardInterrupt:
+        console.print("\n[dim]Config closed.[/dim]")
+
+
+@app.command()
 def status():
     """Show current configuration and agent status."""
     from vandelay.config.settings import Settings, get_settings
