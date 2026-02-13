@@ -114,6 +114,7 @@ def create_agent(
     from pathlib import Path
 
     from vandelay.tools.tool_management import ToolManagementTools
+    from vandelay.tools.workspace import WorkspaceTools
 
     db = create_db(settings)
     model = _get_model(settings)
@@ -131,6 +132,9 @@ def create_agent(
         reload_callback=reload_callback,
     )
     tools.append(tool_mgmt)
+
+    # Always include workspace tools for persistent memory management
+    tools.append(WorkspaceTools(settings=settings))
 
     # Include scheduler tools when engine is available
     if scheduler_engine is not None:
@@ -181,6 +185,7 @@ def create_team(
     from vandelay.agents.specialists.agents import SPECIALIST_FACTORIES
     from vandelay.knowledge.setup import create_knowledge
     from vandelay.tools.tool_management import ToolManagementTools
+    from vandelay.tools.workspace import WorkspaceTools
 
     db = create_db(settings)
     model = _get_model(settings)
@@ -211,11 +216,12 @@ def create_team(
 
         members.append(factory(**kwargs))
 
-    # Supervisor keeps tool management for enable/disable
+    # Supervisor keeps tool management and workspace tools
     tool_mgmt = ToolManagementTools(
         settings=settings,
         reload_callback=reload_callback,
     )
+    workspace_tools = WorkspaceTools(settings=settings)
 
     team = Team(
         id="vandelay-team",
@@ -227,7 +233,7 @@ def create_team(
         knowledge=knowledge,
         search_knowledge=knowledge is not None,
         instructions=instructions,
-        tools=[tool_mgmt],
+        tools=[tool_mgmt, workspace_tools],
         respond_directly=True,
         update_memory_on_run=True,
         markdown=True,
