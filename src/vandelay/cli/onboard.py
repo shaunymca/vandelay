@@ -455,7 +455,13 @@ def _offer_daemon_install() -> None:
     console.print()
 
 
-def run_config_menu(settings: Settings) -> Settings:
+def _tools_summary(enabled_tools: list[str]) -> str:
+    """One-line summary of enabled tool count."""
+    count = len(enabled_tools)
+    return f"{count} enabled" if count else "none"
+
+
+def run_config_menu(settings: Settings, exit_label: str = "Back to chat") -> Settings:
     """Interactive config editor — pick a section to change."""
     while True:
         console.print()
@@ -488,6 +494,10 @@ def run_config_menu(settings: Settings) -> Settings:
                     value="timezone",
                 ),
                 questionary.Choice(
+                    title=f"Tools           [{_tools_summary(settings.enabled_tools)}]",
+                    value="tools",
+                ),
+                questionary.Choice(
                     title=f"Browser tools   [{_browser_tools_summary(settings.enabled_tools)}]",
                     value="browser",
                 ),
@@ -510,7 +520,7 @@ def run_config_menu(settings: Settings) -> Settings:
                 ),
                 *_daemon_restart_choice(),
                 questionary.Choice(
-                    title="Back to chat",
+                    title=exit_label,
                     value="done",
                 ),
             ],
@@ -551,6 +561,11 @@ def run_config_menu(settings: Settings) -> Settings:
             settings.timezone = tz
             settings.heartbeat.timezone = tz
             console.print(f"  [green]✓[/green] Timezone set to {tz}")
+
+        elif section == "tools":
+            from vandelay.cli.tools_commands import interactive_tools_browser
+            interactive_tools_browser(settings)
+            continue  # skip save — browser handles its own saves
 
         elif section == "browser":
             settings.enabled_tools = _configure_browser_tools(list(settings.enabled_tools))

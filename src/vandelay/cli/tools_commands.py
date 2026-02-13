@@ -283,6 +283,152 @@ def auth_google(
         raise typer.Exit(1) from None
 
 
+@app.command("browse")
+def browse_tools():
+    """Interactively browse, inspect, and enable/disable tools."""
+    settings = _get_settings()
+    interactive_tools_browser(settings)
+
+
+def interactive_tools_browser(settings) -> None:
+    """Interactive tools browser with filter → list → detail → action flow.
+
+    Called from both ``vandelay tools browse`` and the config menu.
+    """
+    import questionary
+
+    manager = _get_manager()
+
+    while True:
+        # --- Step 1: Filter selection ---
+        all_tools = manager.list_tools(enabled_tools=settings.enabled_tools)
+        enabled_count = sum(1 for t in all_tools if t["enabled"])
+        available_count = len(all_tools) - enabled_count
+
+        filter_choice = questionary.select(
+            "How would you like to browse tools?",
+            choices=[
+                questionary.Choice(
+                    title=f"Enabled tools ({enabled_count})", value="enabled",
+                ),
+                questionary.Choice(
+                    title=f"All tools ({len(all_tools)})", value="all",
+                ),
+                questionary.Choice(
+                    title=f"Available tools ({available_count})", value="available",
+                ),
+                questionary.Choice(title="Back", value="back"),
+            ],
+        ).ask()
+
+        if filter_choice is None or filter_choice == "back":
+            break
+
+        # Apply filter
+        if filter_choice == "enabled":
+            filtered = [t for t in all_tools if t["enabled"]]
+        elif filter_choice == "available":
+            filtered = [t for t in all_tools if not t["enabled"]]
+        else:
+            filtered = all_tools
+
+        if not filtered:
+            console.print("  [dim]No tools match this filter.[/dim]")
+            continue
+
+        # --- Step 2: Tool list ---
+        while True:
+            tool_choices = []
+            for t in sorted(filtered, key=lambda x: x["name"]):
+                status = "[green]enabled[/green]" if t["enabled"] else "available"
+                label = f"{t['name']} [{t['category']}] - {status}"
+                tool_choices.append(questionary.Choice(title=label, value=t["name"]))
+            tool_choices.append(questionary.Choice(title="<- Back to filter", value="back"))
+
+            selected = questionary.select(
+                "Select a tool to learn more:",
+                choices=tool_choices,
+            ).ask()
+
+            if selected is None or selected == "back":
+                break
+
+            # --- Step 3: Tool detail + action ---
+            entry = manager.registry.get(selected)
+            if entry is None:
+                continue
+
+            is_enabled = selected in settings.enabled_tools
+            installed = manager._check_installed(entry)
+
+            console.print()
+            console.print(f"  [bold]Name:[/bold]       {entry.name}")
+            console.print(f"  [bold]Class:[/bold]      {entry.class_name}")
+            console.print(f"  [bold]Category:[/bold]   {entry.category}")
+            deps_str = ", ".join(entry.pip_dependencies) or "none"
+            console.print(f"  [bold]Deps:[/bold]       {deps_str}")
+            inst = "[green]yes[/green]" if installed else "[red]no[/red]"
+            enab = "[green]enabled[/green]" if is_enabled else "[dim]not enabled[/dim]"
+            console.print(f"  [bold]Installed:[/bold]  {inst}")
+            console.print(f"  [bold]Status:[/bold]     {enab}")
+            if entry.description:
+                desc = entry.description
+                if len(desc) > 200:
+                    desc = desc[:197] + "..."
+                console.print(f"  [bold]Info:[/bold]       {desc}")
+            console.print()
+
+            # Build action choices
+            action_choices = []
+            if is_enabled:
+                action_choices.append(
+                    questionary.Choice(title="Disable this tool", value="disable")
+                )
+            else:
+                action_choices.append(
+                    questionary.Choice(title="Enable this tool", value="enable")
+                )
+            action_choices.append(
+                questionary.Choice(title="Back to list", value="back")
+            )
+
+            action = questionary.select(
+                "What would you like to do?",
+                choices=action_choices,
+            ).ask()
+
+            if action == "enable":
+                if not entry.is_builtin:
+                    console.print(
+                        f"  Installing dependencies for [bold]{selected}[/bold]..."
+                    )
+                    result = manager.install_deps(selected)
+                    if result.success:
+                        console.print(f"  [green]✓[/green] {result.message}")
+                    else:
+                        console.print(f"  [red]✗[/red] {result.message}")
+                        continue
+                settings.enabled_tools.append(selected)
+                settings.save()
+                console.print(
+                    f"  [green]✓[/green] [bold]{selected}[/bold] enabled."
+                )
+                # Update the filtered list to reflect the change
+                for t in filtered:
+                    if t["name"] == selected:
+                        t["enabled"] = True
+
+            elif action == "disable":
+                settings.enabled_tools.remove(selected)
+                settings.save()
+                console.print(
+                    f"  [green]✓[/green] [bold]{selected}[/bold] disabled."
+                )
+                for t in filtered:
+                    if t["name"] == selected:
+                        t["enabled"] = False
+
+
 @app.command("refresh")
 def refresh_registry():
     """Rebuild the tool registry from the installed Agno package."""
