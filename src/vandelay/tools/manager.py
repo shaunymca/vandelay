@@ -3,9 +3,19 @@
 from __future__ import annotations
 
 import subprocess
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from vandelay.tools.registry import ToolEntry, ToolRegistry
+
+
+def _find_project_root() -> str | None:
+    """Walk up from this file's location to find the directory containing pyproject.toml."""
+    current = Path(__file__).resolve().parent
+    for parent in (current, *current.parents):
+        if (parent / "pyproject.toml").exists():
+            return str(parent)
+    return None
 
 if TYPE_CHECKING:
     from vandelay.config.settings import Settings
@@ -85,6 +95,7 @@ class ToolManager:
                 capture_output=True,
                 text=True,
                 timeout=120,
+                cwd=_find_project_root(),
             )
             if result.returncode == 0:
                 return InstallResult(True, f"Installed: {', '.join(deps)}", tool_name)
@@ -122,6 +133,7 @@ class ToolManager:
                 capture_output=True,
                 text=True,
                 timeout=120,
+                cwd=_find_project_root(),
             )
             if result.returncode == 0:
                 return InstallResult(True, f"Removed: {', '.join(deps)}", tool_name)
