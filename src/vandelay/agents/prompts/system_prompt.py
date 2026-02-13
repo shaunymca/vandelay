@@ -27,9 +27,9 @@ def _build_tool_catalog(settings: Settings) -> str:
     lines: list[str] = [
         "# Available Tool Catalog",
         "",
-        "You can enable or disable any of these tools using your "
-        "tool management functions (`enable_tool`, `disable_tool`, "
-        "`list_available_tools`, `get_tool_info`).",
+        "**Tool selection hierarchy:** (1) Use ENABLED tools first."
+        " (2) If no enabled tool fits, enable an [available] one from this catalog."
+        " (3) If nothing in the catalog works, ask the user before writing custom code.",
         "",
     ]
 
