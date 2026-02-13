@@ -8,6 +8,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 import httpx
+from agno.media import Audio, File, Image, Video
 
 from vandelay.channels.base import ChannelAdapter, IncomingMessage, OutgoingMessage
 
@@ -191,10 +192,6 @@ class TelegramAdapter(ChannelAdapter):
         if not message:
             return
 
-        text = message.get("text", "")
-        if not text:
-            return
-
         chat_id = str(message["chat"]["id"])
         user = message.get("from", {})
         tg_user_id = str(user.get("id", ""))
@@ -202,6 +199,59 @@ class TelegramAdapter(ChannelAdapter):
 
         # Use configured user_id for unified memory across channels
         user_id = self.default_user_id or tg_user_id
+
+        # Extract text — could be message text or media caption
+        text = message.get("text") or message.get("caption") or ""
+
+        # Extract media attachments
+        images: list[Image] = []
+        audio_list: list[Audio] = []
+        video_list: list[Video] = []
+        files: list[File] = []
+
+        if message.get("photo"):
+            # Telegram sends multiple sizes; use the largest (last)
+            photo = message["photo"][-1]
+            url = await self._get_file_url(photo["file_id"])
+            if url:
+                images.append(Image(url=url))
+
+        if message.get("audio"):
+            url = await self._get_file_url(message["audio"]["file_id"])
+            if url:
+                audio_list.append(Audio(url=url))
+
+        if message.get("voice"):
+            url = await self._get_file_url(message["voice"]["file_id"])
+            if url:
+                audio_list.append(Audio(url=url))
+
+        if message.get("video"):
+            url = await self._get_file_url(message["video"]["file_id"])
+            if url:
+                video_list.append(Video(url=url))
+
+        if message.get("document"):
+            url = await self._get_file_url(message["document"]["file_id"])
+            if url:
+                files.append(File(url=url))
+
+        # Drop updates that have neither text nor media
+        if not text and not images and not audio_list and not video_list and not files:
+            return
+
+        # If media with no text, give the agent a hint
+        if not text:
+            media_types = []
+            if images:
+                media_types.append("image")
+            if audio_list:
+                media_types.append("audio")
+            if video_list:
+                media_types.append("video")
+            if files:
+                media_types.append("file")
+            text = f"[User sent: {', '.join(media_types)}]"
 
         logger.info("Telegram message from %s in %s: %s", tg_user_id, chat_id, text[:80])
 
@@ -211,6 +261,10 @@ class TelegramAdapter(ChannelAdapter):
             user_id=user_id,
             channel="telegram",
             raw=update_data,
+            images=images,
+            audio=audio_list,
+            video=video_list,
+            files=files,
         )
 
         sent_any = False
@@ -229,6 +283,28 @@ class TelegramAdapter(ChannelAdapter):
 
         if not sent_any:
             await self._send_text(chat_id, "(no response)")
+
+    # ------------------------------------------------------------------
+    # File downloads
+    # ------------------------------------------------------------------
+
+    async def _get_file_url(self, file_id: str) -> str | None:
+        """Resolve a Telegram file_id to a full download URL."""
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    f"{TELEGRAM_API}/bot{self.bot_token}/getFile",
+                    json={"file_id": file_id},
+                )
+                data = resp.json()
+                if data.get("ok"):
+                    file_path = data["result"].get("file_path")
+                    if file_path:
+                        return f"{TELEGRAM_API}/file/bot{self.bot_token}/{file_path}"
+                logger.warning("getFile failed for %s: %s", file_id, data)
+        except Exception as exc:
+            logger.error("Error getting file URL for %s: %s", file_id, exc)
+        return None
 
     # ------------------------------------------------------------------
     # Webhook helpers

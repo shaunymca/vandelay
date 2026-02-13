@@ -127,7 +127,7 @@ class TestCreateTeam:
             create_team(settings)
 
         call_kwargs = mock_team_cls.call_args[1]
-        assert len(call_kwargs["tools"]) == 1
+        assert len(call_kwargs["tools"]) == 2  # ToolManagementTools + WorkspaceTools
 
 
 class TestBackwardCompatibility:
