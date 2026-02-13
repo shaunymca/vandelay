@@ -267,16 +267,21 @@ class TelegramAdapter(ChannelAdapter):
             files=files,
         )
 
-        result = await self.chat_service.run(
+        sent_any = False
+        async for chunk in self.chat_service.run_chunked(
             incoming,
             typing=lambda: self._send_typing(chat_id),
-        )
+        ):
+            if chunk.error:
+                await self._send_text(chat_id, f"Error: {chunk.error}")
+                return
+            if chunk.content:
+                if sent_any:
+                    await asyncio.sleep(0.4)  # natural pacing between chunks
+                await self._send_text(chat_id, chunk.content)
+                sent_any = True
 
-        if result.error:
-            await self._send_text(chat_id, f"Error: {result.error}")
-        elif result.content:
-            await self._send_text(chat_id, result.content)
-        else:
+        if not sent_any:
             await self._send_text(chat_id, "(no response)")
 
     # ------------------------------------------------------------------

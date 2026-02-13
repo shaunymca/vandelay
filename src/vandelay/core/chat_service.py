@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -131,6 +131,114 @@ class ChatService:
 
         return result
 
+    # -- Chunked (Telegram, CLI) ---------------------------------------------
+
+    async def run_chunked(
+        self,
+        message: IncomingMessage,
+        typing: Callable[[], Awaitable[None]] | None = None,
+        min_chunk_size: int = 80,
+    ) -> AsyncGenerator[ChatResponse, None]:
+        """Stream internally and yield logical paragraph-sized chunks.
+
+        The agent is called in streaming mode. Token deltas are accumulated
+        into a buffer. When a paragraph break (``\\n\\n``) is found outside a
+        code fence and the buffer exceeds *min_chunk_size*, the accumulated
+        text is yielded as a ``ChatResponse``. Any remaining text is yielded
+        when the stream ends.
+        """
+        agent = self._get_agent()
+
+        # Pre-hooks
+        for mw in self._middleware:
+            await mw.before_run(message)
+
+        typing_task = None
+        if typing:
+            typing_task = asyncio.create_task(
+                _typing_loop(typing), name="typing-indicator"
+            )
+
+        buffer = ""
+        run_id: str | None = None
+        full_content = ""
+        yielded_any = False
+
+        try:
+            run_response = agent.arun(
+                input=message.text,
+                user_id=message.user_id or None,
+                session_id=message.session_id,
+                stream=True,
+                stream_events=True,
+            )
+
+            async for chunk in run_response:
+                event_type = getattr(chunk, "event", "")
+                run_id = getattr(chunk, "run_id", run_id)
+
+                if event_type == RunEvent.run_content.value:
+                    delta = getattr(chunk, "content", "")
+                    if delta:
+                        buffer += str(delta)
+
+                    # Try to split at paragraph breaks outside code fences
+                    while "\n\n" in buffer:
+                        idx = buffer.index("\n\n")
+                        candidate = buffer[:idx]
+
+                        # Don't split inside code fences
+                        if _inside_code_fence(candidate):
+                            # Move past this \n\n and keep scanning
+                            next_after = idx + 2
+                            # Look for next \n\n
+                            next_break = buffer.find("\n\n", next_after)
+                            if next_break == -1:
+                                break  # wait for more data
+                            idx = next_break
+                            candidate = buffer[:idx]
+                            if _inside_code_fence(candidate):
+                                break  # still inside — wait
+
+                        if len(candidate.strip()) >= min_chunk_size:
+                            text = candidate.strip()
+                            full_content += text + "\n\n"
+                            yield ChatResponse(content=text, run_id=run_id)
+                            yielded_any = True
+                            buffer = buffer[idx + 2:]
+                        else:
+                            # Too small — keep accumulating
+                            break
+
+                elif event_type == RunEvent.run_error.value:
+                    error_msg = getattr(chunk, "content", "Unknown error")
+                    yield ChatResponse(error=str(error_msg), run_id=run_id)
+                    return
+
+            # Flush remaining buffer
+            remainder = buffer.strip()
+            if remainder:
+                full_content += remainder
+                yield ChatResponse(content=remainder, run_id=run_id)
+                yielded_any = True
+
+            if not yielded_any:
+                yield ChatResponse(content="", run_id=run_id)
+
+        except Exception as exc:
+            logger.error("Chunked stream error: %s", exc, exc_info=True)
+            yield ChatResponse(error=str(exc))
+        finally:
+            if typing_task:
+                typing_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await typing_task
+
+        # Post-hooks (use full accumulated content)
+        result = ChatResponse(content=full_content.strip(), run_id=run_id)
+        for mw in self._middleware:
+            await mw.after_run(message, result)
+
     # -- Streaming (WebSocket) ---------------------------------------------
 
     async def run_stream(
@@ -221,6 +329,11 @@ class ChatService:
                 typing_task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     await typing_task
+
+
+def _inside_code_fence(text: str) -> bool:
+    """Return True if *text* has an odd number of ``` fences (i.e. unclosed)."""
+    return text.count("```") % 2 != 0
 
 
 async def _typing_loop(
