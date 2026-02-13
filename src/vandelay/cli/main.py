@@ -387,20 +387,19 @@ async def _run_with_server(settings) -> None:
             channel="terminal",
         )
 
-        with console.status(
-            f"[bold blue]{settings.agent_name}[/bold blue] is thinking...",
-            spinner="dots",
-        ):
-            result = await chat_service.run(incoming)
-
         console.print(f"\n[bold blue]{settings.agent_name}:[/bold blue] ", end="")
-        if result.error:
-            console.print(f"[red]Error: {result.error}[/red]")
-        elif result.content:
-            console.print(result.content)
-        else:
-            console.print("[dim](no response)[/dim]")
+        first_chunk = True
+        async for chunk in chat_service.run_chunked(incoming):
+            if chunk.error:
+                console.print(f"[red]Error: {chunk.error}[/red]")
+                break
+            if chunk.content:
+                if not first_chunk:
+                    console.print()  # blank line between chunks
+                console.print(chunk.content, end="")
+                first_chunk = False
 
+        console.print()  # final newline
         console.print()
 
     # Graceful shutdown — only stop the server if we started it

@@ -10,10 +10,18 @@ from vandelay.channels.telegram import TelegramAdapter
 from vandelay.core.chat_service import ChatResponse, ChatService
 
 
+async def _async_gen(*items):
+    for item in items:
+        yield item
+
+
 @pytest.fixture
 def mock_chat_service():
     svc = MagicMock(spec=ChatService)
     svc.run = AsyncMock(return_value=ChatResponse(content="Hello from the agent!"))
+    svc.run_chunked = MagicMock(
+        return_value=_async_gen(ChatResponse(content="Hello from the agent!"))
+    )
     return svc
 
 
@@ -55,8 +63,8 @@ class TestHandleUpdate:
 
             await adapter.handle_update(update)
 
-        mock_chat_service.run.assert_called_once()
-        call_args = mock_chat_service.run.call_args
+        mock_chat_service.run_chunked.assert_called_once()
+        call_args = mock_chat_service.run_chunked.call_args
         incoming = call_args[0][0]
         assert incoming.text == "Hello bot"
         assert incoming.user_id == "67890"
@@ -68,7 +76,7 @@ class TestHandleUpdate:
         """Updates without a 'message' key (e.g. edited_message) are skipped."""
         update = {"edited_message": {"text": "edited"}}
         await adapter.handle_update(update)
-        mock_chat_service.run.assert_not_called()
+        mock_chat_service.run_chunked.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_non_text_message_ignored(self, adapter, mock_chat_service):
@@ -81,7 +89,7 @@ class TestHandleUpdate:
             }
         }
         await adapter.handle_update(update)
-        mock_chat_service.run.assert_not_called()
+        mock_chat_service.run_chunked.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_empty_text_ignored(self, adapter, mock_chat_service):
@@ -94,13 +102,13 @@ class TestHandleUpdate:
             }
         }
         await adapter.handle_update(update)
-        mock_chat_service.run.assert_not_called()
+        mock_chat_service.run_chunked.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_error_response_sends_error(self, adapter, mock_chat_service):
         """When chat_service returns an error, it's sent as 'Error: ...'."""
-        mock_chat_service.run = AsyncMock(
-            return_value=ChatResponse(error="Something broke")
+        mock_chat_service.run_chunked = MagicMock(
+            return_value=_async_gen(ChatResponse(error="Something broke"))
         )
         update = {
             "message": {
