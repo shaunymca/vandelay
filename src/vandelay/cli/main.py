@@ -335,7 +335,16 @@ async def _run_with_server(settings) -> None:
     agent_ref[0] = _create_agent_or_team(reload_callback=_reload_agent)
 
     # ChatService with lazy provider — always uses the current agent_ref[0]
-    chat_service = ChatService(RefAgentProvider(agent_ref))
+    agent_provider = RefAgentProvider(agent_ref)
+    middleware: list = []
+    if settings.router.enabled:
+        from vandelay.routing.middleware import RouterMiddleware
+        from vandelay.routing.router import LLMRouter
+
+        llm_router = LLMRouter(settings.router, settings)
+        middleware.append(RouterMiddleware(llm_router, agent_provider))
+
+    chat_service = ChatService(agent_provider, middleware=middleware)
 
     session_id = "terminal"
     while True:

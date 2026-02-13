@@ -509,6 +509,10 @@ def run_config_menu(settings: Settings) -> Settings:
                     value="heartbeat",
                 ),
                 questionary.Choice(
+                    title=f"Router          [{_router_summary(settings)}]",
+                    value="router",
+                ),
+                questionary.Choice(
                     title="Back to chat",
                     value="done",
                 ),
@@ -577,6 +581,9 @@ def run_config_menu(settings: Settings) -> Settings:
         elif section == "heartbeat":
             settings.heartbeat = _configure_heartbeat(settings.heartbeat, settings.timezone)
 
+        elif section == "router":
+            settings.router = _configure_router(settings.router)
+
         settings.save()
         console.print("  [dim]Config saved.[/dim]")
 
@@ -640,6 +647,84 @@ def _configure_heartbeat(hb, default_tz: str):
     console.print(
         f"  [green]\u2713[/green] Heartbeat enabled: every {interval}m, "
         f"{start}:00-{end}:00 ({result.timezone})"
+    )
+    return result
+
+
+def _router_summary(settings) -> str:
+    """One-line summary of router config for the config menu."""
+    if not settings.router.enabled:
+        return "disabled"
+    tiers = settings.router.tiers
+    parts = []
+    for name, cfg in tiers.items():
+        parts.append(f"{name}={cfg.model_id}")
+    return ", ".join(parts) if parts else "enabled"
+
+
+def _configure_router(router_cfg):
+    """Interactive router configuration. Returns updated RouterConfig."""
+    from vandelay.routing.config import RouterConfig, TierConfig
+
+    toggle = questionary.confirm(
+        "Enable smart routing? (routes simple queries to cheaper models)",
+        default=router_cfg.enabled,
+    ).ask()
+    if toggle is None:
+        return router_cfg
+
+    if not toggle:
+        console.print("  [green]\u2713[/green] Router disabled")
+        return RouterConfig(enabled=False, tiers=router_cfg.tiers)
+
+    # Configure simple tier
+    current_simple = router_cfg.tiers.get("simple")
+    simple_default = current_simple.model_id if current_simple else "claude-haiku-4-5-20251001"
+    simple_provider_default = current_simple.provider if current_simple else "anthropic"
+
+    simple_model = questionary.text(
+        "Simple tier model ID (fast, cheap):",
+        default=simple_default,
+    ).ask()
+    if simple_model is None:
+        return router_cfg
+
+    simple_provider = questionary.text(
+        "Simple tier provider:",
+        default=simple_provider_default,
+    ).ask()
+    if simple_provider is None:
+        return router_cfg
+
+    # Configure complex tier
+    current_complex = router_cfg.tiers.get("complex")
+    complex_default = current_complex.model_id if current_complex else "claude-sonnet-4-5-20250929"
+    complex_provider_default = current_complex.provider if current_complex else "anthropic"
+
+    complex_model = questionary.text(
+        "Complex tier model ID (powerful):",
+        default=complex_default,
+    ).ask()
+    if complex_model is None:
+        return router_cfg
+
+    complex_provider = questionary.text(
+        "Complex tier provider:",
+        default=complex_provider_default,
+    ).ask()
+    if complex_provider is None:
+        return router_cfg
+
+    result = RouterConfig(
+        enabled=True,
+        tiers={
+            "simple": TierConfig(provider=simple_provider, model_id=simple_model),
+            "complex": TierConfig(provider=complex_provider, model_id=complex_model),
+        },
+    )
+    console.print(
+        f"  [green]\u2713[/green] Router enabled: "
+        f"simple={simple_model}, complex={complex_model}"
     )
     return result
 

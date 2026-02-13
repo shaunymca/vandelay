@@ -76,7 +76,18 @@ def create_app(settings: Settings) -> FastAPI:
     # ChatService resolves agent lazily — hot-reload swaps app.state.agent
     # and every subsequent ChatService call picks up the new instance.
     agent_provider = AppStateAgentProvider(base_app.state)
-    chat_service = ChatService(agent_provider)
+
+    # Router middleware — classify messages and swap models per tier
+    middleware: list = []
+    if settings.router.enabled:
+        from vandelay.routing.middleware import RouterMiddleware
+        from vandelay.routing.router import LLMRouter
+
+        llm_router = LLMRouter(settings.router, settings)
+        middleware.append(RouterMiddleware(llm_router, agent_provider))
+        logger.info("LLM router enabled with tiers: %s", list(settings.router.tiers.keys()))
+
+    chat_service = ChatService(agent_provider, middleware=middleware)
 
     # Now create the scheduler engine with the real ChatService and
     # recreate the agent/team so it gets SchedulerTools wired in.

@@ -25,6 +25,7 @@ from vandelay.config.models import (
     ServerConfig,
     TeamConfig,
 )
+from vandelay.routing.config import RouterConfig
 
 
 class Settings(BaseSettings):
@@ -52,6 +53,7 @@ class Settings(BaseSettings):
     server: ServerConfig = Field(default_factory=ServerConfig)
     knowledge: KnowledgeConfig = Field(default_factory=KnowledgeConfig)
     team: TeamConfig = Field(default_factory=TeamConfig)
+    router: RouterConfig = Field(default_factory=RouterConfig)
 
     # --- Top-level settings ---
     agent_name: str = "Art"
