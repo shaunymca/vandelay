@@ -93,7 +93,8 @@ class TestChatServiceRun:
         await svc.run(msg)
 
         agent.arun.assert_awaited_once_with(
-            "hi", user_id="user-42", session_id="sess-1"
+            "hi", user_id="user-42", session_id="sess-1",
+            images=None, audio=None, video=None, files=None,
         )
 
     @pytest.mark.asyncio
