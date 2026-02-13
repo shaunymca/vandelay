@@ -16,6 +16,10 @@ class IncomingMessage:
     channel: str = ""  # "websocket", "telegram", "whatsapp", etc.
     raw: dict | None = field(default=None, repr=False)
     metadata: dict = field(default_factory=dict)
+    images: list = field(default_factory=list)  # List of agno.media.Image
+    audio: list = field(default_factory=list)  # List of agno.media.Audio
+    video: list = field(default_factory=list)  # List of agno.media.Video
+    files: list = field(default_factory=list)  # List of agno.media.File
 
 
 @dataclass
