@@ -212,29 +212,29 @@ class TelegramAdapter(ChannelAdapter):
         if message.get("photo"):
             # Telegram sends multiple sizes; use the largest (last)
             photo = message["photo"][-1]
-            url = await self._get_file_url(photo["file_id"])
-            if url:
-                images.append(Image(url=url))
+            data = await self._download_file(photo["file_id"])
+            if data:
+                images.append(Image(content=data))
 
         if message.get("audio"):
-            url = await self._get_file_url(message["audio"]["file_id"])
-            if url:
-                audio_list.append(Audio(url=url))
+            data = await self._download_file(message["audio"]["file_id"])
+            if data:
+                audio_list.append(Audio(content=data))
 
         if message.get("voice"):
-            url = await self._get_file_url(message["voice"]["file_id"])
-            if url:
-                audio_list.append(Audio(url=url))
+            data = await self._download_file(message["voice"]["file_id"])
+            if data:
+                audio_list.append(Audio(content=data))
 
         if message.get("video"):
-            url = await self._get_file_url(message["video"]["file_id"])
-            if url:
-                video_list.append(Video(url=url))
+            data = await self._download_file(message["video"]["file_id"])
+            if data:
+                video_list.append(Video(content=data))
 
         if message.get("document"):
-            url = await self._get_file_url(message["document"]["file_id"])
-            if url:
-                files.append(File(url=url))
+            data = await self._download_file(message["document"]["file_id"])
+            if data:
+                files.append(File(content=data))
 
         # Drop updates that have neither text nor media
         if not text and not images and not audio_list and not video_list and not files:
@@ -288,22 +288,31 @@ class TelegramAdapter(ChannelAdapter):
     # File downloads
     # ------------------------------------------------------------------
 
-    async def _get_file_url(self, file_id: str) -> str | None:
-        """Resolve a Telegram file_id to a full download URL."""
+    async def _download_file(self, file_id: str) -> bytes | None:
+        """Download a file from Telegram by file_id. Returns raw bytes."""
         try:
             async with httpx.AsyncClient() as client:
+                # Step 1: resolve file_id → file_path
                 resp = await client.post(
                     f"{TELEGRAM_API}/bot{self.bot_token}/getFile",
                     json={"file_id": file_id},
                 )
                 data = resp.json()
-                if data.get("ok"):
-                    file_path = data["result"].get("file_path")
-                    if file_path:
-                        return f"{TELEGRAM_API}/file/bot{self.bot_token}/{file_path}"
-                logger.warning("getFile failed for %s: %s", file_id, data)
+                if not data.get("ok"):
+                    logger.warning("getFile failed for %s: %s", file_id, data)
+                    return None
+
+                file_path = data["result"].get("file_path")
+                if not file_path:
+                    return None
+
+                # Step 2: download the actual file bytes
+                download_url = f"{TELEGRAM_API}/file/bot{self.bot_token}/{file_path}"
+                dl_resp = await client.get(download_url)
+                dl_resp.raise_for_status()
+                return dl_resp.content
         except Exception as exc:
-            logger.error("Error getting file URL for %s: %s", file_id, exc)
+            logger.error("Error downloading file %s: %s", file_id, exc)
         return None
 
     # ------------------------------------------------------------------
