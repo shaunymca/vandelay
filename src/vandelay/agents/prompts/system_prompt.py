@@ -206,6 +206,12 @@ def _build_member_roster(settings: Settings) -> str:
         "- Match tasks to the member whose role fits best",
         "- If no member fits, handle it yourself using your workspace tools",
         "- You can assign new tools to members with assign_tool_to_member()",
+        "- If a member fails or hits a technical error, escalate to another member "
+        "who can diagnose and fix the issue (e.g. CTO for tool/config problems, "
+        "Vandelay Expert for agent setup issues). Never just report the failure — "
+        "always attempt a fix or workaround before responding to the user",
+        "- Synthesize member results into a single clear response. "
+        "Do not pass member output through verbatim",
     ])
 
     return "\n".join(lines)
