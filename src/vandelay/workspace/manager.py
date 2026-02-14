@@ -5,7 +5,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from vandelay.config.constants import KNOWLEDGE_DIR, WORKSPACE_DIR
+from vandelay.config.constants import KNOWLEDGE_DIR, MEMBERS_DIR, WORKSPACE_DIR
 
 # Templates are shipped inside the package
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -28,6 +28,7 @@ def init_workspace(workspace_dir: Path | None = None) -> Path:
     ws = workspace_dir or WORKSPACE_DIR
     ws.mkdir(parents=True, exist_ok=True)
     KNOWLEDGE_DIR.mkdir(parents=True, exist_ok=True)
+    MEMBERS_DIR.mkdir(parents=True, exist_ok=True)
 
     # Create memory subdirectory for daily logs
     (ws / "memory").mkdir(parents=True, exist_ok=True)

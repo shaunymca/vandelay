@@ -34,6 +34,11 @@ class ToolManagementTools(Toolkit):
         self.register(self.enable_tool)
         self.register(self.disable_tool)
 
+        # Team-only tools: assign/remove tools to/from members
+        if settings.team.enabled:
+            self.register(self.assign_tool_to_member)
+            self.register(self.remove_tool_from_member)
+
     def list_available_tools(self) -> str:
         """List every available Agno tool grouped by category, showing which are enabled.
 
@@ -151,3 +156,103 @@ class ToolManagementTools(Toolkit):
         self._reload_callback()
 
         return f"Tool '{name}' has been disabled. I've reloaded without it."
+
+    def assign_tool_to_member(self, tool_name: str, member_name: str) -> str:
+        """Assign a globally enabled tool to a specific team member.
+
+        The tool must be enabled globally first. The member must exist in the team config.
+
+        Args:
+            tool_name: The tool name to assign (must be globally enabled).
+            member_name: The team member name to assign the tool to.
+
+        Returns:
+            str: Success or failure message.
+        """
+        from vandelay.agents.factory import _resolve_member
+        from vandelay.config.models import MemberConfig
+
+        # Validate tool exists and is enabled
+        entry = self._manager.registry.get(tool_name)
+        if entry is None:
+            return f"Unknown tool: '{tool_name}'. Use list_available_tools() to see all tools."
+
+        if tool_name not in self._settings.enabled_tools:
+            return (
+                f"Tool '{tool_name}' is not globally enabled. "
+                f"Enable it first with enable_tool('{tool_name}')."
+            )
+
+        # Find the member
+        members = self._settings.team.members
+        member_idx = None
+        for i, m in enumerate(members):
+            name = m if isinstance(m, str) else m.name
+            if name == member_name:
+                member_idx = i
+                break
+
+        if member_idx is None:
+            names = [m if isinstance(m, str) else m.name for m in members]
+            return f"Unknown member: '{member_name}'. Available: {', '.join(names)}"
+
+        # Resolve string member to MemberConfig if needed
+        member = members[member_idx]
+        if isinstance(member, str):
+            member = _resolve_member(member)
+            members[member_idx] = member
+
+        if tool_name in member.tools:
+            return f"Member '{member_name}' already has tool '{tool_name}'."
+
+        member.tools.append(tool_name)
+        self._settings.save()
+        self._reload_callback()
+
+        return (
+            f"Tool '{tool_name}' assigned to member '{member_name}'. "
+            f"Team reloaded with the change."
+        )
+
+    def remove_tool_from_member(self, tool_name: str, member_name: str) -> str:
+        """Remove a tool from a specific team member.
+
+        Args:
+            tool_name: The tool name to remove from the member.
+            member_name: The team member name to remove the tool from.
+
+        Returns:
+            str: Success or failure message.
+        """
+        # Find the member
+        members = self._settings.team.members
+        member_idx = None
+        for i, m in enumerate(members):
+            name = m if isinstance(m, str) else m.name
+            if name == member_name:
+                member_idx = i
+                break
+
+        if member_idx is None:
+            names = [m if isinstance(m, str) else m.name for m in members]
+            return f"Unknown member: '{member_name}'. Available: {', '.join(names)}"
+
+        member = members[member_idx]
+        if isinstance(member, str):
+            # String members don't have custom tool lists
+            return (
+                f"Member '{member_name}' uses default tools. "
+                f"Convert to a custom member first by assigning a tool."
+            )
+
+        if tool_name not in member.tools:
+            return f"Member '{member_name}' doesn't have tool '{tool_name}'."
+
+        member.tools.remove(tool_name)
+        self._settings.save()
+        self._reload_callback()
+
+        return (
+            f"Tool '{tool_name}' removed from member '{member_name}'. "
+            f"Team reloaded with the change."
+        )

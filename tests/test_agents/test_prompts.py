@@ -4,8 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from vandelay.agents.prompts.system_prompt import build_system_prompt
-from vandelay.config.models import ModelConfig, SafetyConfig
+from vandelay.agents.prompts.system_prompt import (
+    build_system_prompt,
+    build_team_leader_prompt,
+    _build_agents_slim,
+    _build_member_roster,
+)
+from vandelay.config.models import MemberConfig, ModelConfig, SafetyConfig, TeamConfig
 from vandelay.config.settings import Settings
 
 
@@ -108,3 +113,161 @@ def test_build_prompt_no_catalog_without_settings(tmp_workspace):
     """Without settings, no tool catalog should appear."""
     prompt = build_system_prompt(workspace_dir=tmp_workspace)
     assert "Available Tool Catalog" not in prompt
+
+
+# --- Team leader prompt tests ---
+
+
+@pytest.fixture
+def team_settings(tmp_path: Path) -> Settings:
+    return Settings(
+        agent_name="TestLeader",
+        model=ModelConfig(provider="ollama", model_id="llama3.1"),
+        team=TeamConfig(
+            enabled=True,
+            members=[
+                MemberConfig(name="cto", role="Technical architecture", tools=["shell", "file"]),
+                MemberConfig(
+                    name="research",
+                    role="Web research",
+                    tools=["tavily"],
+                    model_provider="openai",
+                    model_id="gpt-4o",
+                ),
+            ],
+        ),
+        enabled_tools=["shell", "file", "tavily"],
+        workspace_dir=str(tmp_path / "workspace"),
+        db_url="",
+    )
+
+
+class TestTeamLeaderPrompt:
+    def test_leader_prompt_excludes_tools_md(self, tmp_workspace, team_settings):
+        """Leader prompt should NOT include TOOLS.md content."""
+        prompt = build_team_leader_prompt(
+            workspace_dir=tmp_workspace, settings=team_settings,
+        )
+        assert "Shell Commands" not in prompt
+
+    def test_leader_prompt_excludes_tool_catalog(self, tmp_workspace, team_settings):
+        """Leader prompt should NOT include the tool catalog."""
+        prompt = build_team_leader_prompt(
+            workspace_dir=tmp_workspace, settings=team_settings,
+        )
+        assert "Your Enabled Tools" not in prompt
+
+    def test_leader_prompt_includes_soul(self, tmp_workspace, team_settings):
+        """Leader prompt should include SOUL.md."""
+        prompt = build_team_leader_prompt(
+            workspace_dir=tmp_workspace, settings=team_settings,
+        )
+        assert "Core Truths" in prompt
+
+    def test_leader_prompt_includes_user(self, tmp_workspace, team_settings):
+        """Leader prompt should include USER.md."""
+        prompt = build_team_leader_prompt(
+            workspace_dir=tmp_workspace, settings=team_settings,
+        )
+        assert "Timezone" in prompt
+
+    def test_leader_prompt_includes_memory(self, tmp_workspace, team_settings):
+        """Leader prompt should include MEMORY.md."""
+        prompt = build_team_leader_prompt(
+            workspace_dir=tmp_workspace, settings=team_settings,
+        )
+        assert "Memory" in prompt
+
+    def test_leader_prompt_includes_roster(self, tmp_workspace, team_settings):
+        """Leader prompt should include the member roster."""
+        prompt = build_team_leader_prompt(
+            workspace_dir=tmp_workspace, settings=team_settings,
+        )
+        assert "Your Team" in prompt
+        assert "cto" in prompt
+        assert "research" in prompt
+
+    def test_leader_prompt_slim_agents(self, tmp_workspace, team_settings):
+        """Leader prompt should include safety/style from AGENTS.md but not Delegation."""
+        prompt = build_team_leader_prompt(
+            workspace_dir=tmp_workspace, settings=team_settings,
+        )
+        assert "Safety Rules" in prompt
+        assert "Response Style" in prompt
+        assert "Delegation" not in prompt
+
+    def test_leader_prompt_includes_agent_name(self, tmp_workspace, team_settings):
+        """Leader prompt should include the agent name."""
+        prompt = build_team_leader_prompt(
+            agent_name="LeaderBot",
+            workspace_dir=tmp_workspace,
+            settings=team_settings,
+        )
+        assert "LeaderBot" in prompt
+
+
+class TestBuildAgentsSlim:
+    def test_keeps_safety_and_style(self, tmp_workspace):
+        result = _build_agents_slim(tmp_workspace)
+        assert "Safety Rules" in result
+        assert "Response Style" in result
+        assert "Workspace Files" in result
+        assert "Error Handling" in result
+
+    def test_drops_delegation_and_working_dir(self, tmp_workspace):
+        result = _build_agents_slim(tmp_workspace)
+        assert "Delegation" not in result
+        assert "Working Directory" not in result
+
+    def test_empty_when_no_agents_md(self, tmp_path):
+        # Create a workspace dir with no AGENTS.md and no fallback
+        empty_ws = tmp_path / "empty_ws"
+        empty_ws.mkdir()
+        # Patch get_template_content to return empty for this workspace
+        from unittest.mock import patch
+        with patch(
+            "vandelay.agents.prompts.system_prompt.get_template_content",
+            return_value="",
+        ):
+            result = _build_agents_slim(empty_ws)
+        assert result == ""
+
+
+class TestBuildMemberRoster:
+    def test_roster_includes_members(self, team_settings):
+        result = _build_member_roster(team_settings)
+        assert "| cto |" in result
+        assert "| research |" in result
+
+    def test_roster_shows_tools(self, team_settings):
+        result = _build_member_roster(team_settings)
+        assert "shell, file" in result
+        assert "tavily" in result
+
+    def test_roster_shows_model_override(self, team_settings):
+        result = _build_member_roster(team_settings)
+        assert "openai / gpt-4o" in result
+
+    def test_roster_shows_inherited(self, team_settings):
+        result = _build_member_roster(team_settings)
+        assert "inherited" in result
+
+    def test_empty_roster_when_no_members(self, tmp_path):
+        settings = Settings(
+            agent_name="Test",
+            model=ModelConfig(provider="ollama"),
+            team=TeamConfig(enabled=True, members=[]),
+            workspace_dir=str(tmp_path),
+        )
+        result = _build_member_roster(settings)
+        assert result == ""
+
+    def test_roster_handles_string_members(self, tmp_path):
+        settings = Settings(
+            agent_name="Test",
+            model=ModelConfig(provider="ollama"),
+            team=TeamConfig(enabled=True, members=["browser"]),
+            workspace_dir=str(tmp_path),
+        )
+        result = _build_member_roster(settings)
+        assert "| browser |" in result

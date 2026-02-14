@@ -1,10 +1,10 @@
-"""Tests for team factory — create_team() and backward compatibility."""
+"""Tests for team factory — create_team() with configurable members."""
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from vandelay.config.models import KnowledgeConfig, ModelConfig, TeamConfig
+from vandelay.config.models import KnowledgeConfig, MemberConfig, ModelConfig, TeamConfig
 from vandelay.config.settings import Settings
 
 
@@ -22,9 +22,11 @@ class TestCreateTeam:
     @patch("agno.team.Team")
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
-    @patch("vandelay.agents.factory.build_system_prompt")
+    @patch("vandelay.agents.factory.build_team_leader_prompt")
+    @patch("vandelay.agents.factory.build_personality_brief")
     def test_create_team_builds_team(
         self,
+        mock_brief,
         mock_prompt,
         mock_db,
         mock_model,
@@ -34,6 +36,7 @@ class TestCreateTeam:
     ):
         from vandelay.agents.factory import create_team
 
+        mock_brief.return_value = ""
         mock_prompt.return_value = ["test"]
         mock_db.return_value = MagicMock()
         mock_model.return_value = MagicMock()
@@ -45,27 +48,23 @@ class TestCreateTeam:
             workspace_dir=str(tmp_path),
         )
 
-        mock_browser = MagicMock(return_value=MagicMock())
-        mock_system = MagicMock(return_value=MagicMock())
-        with patch(
-            "vandelay.agents.specialists.agents.SPECIALIST_FACTORIES",
-            {"browser": mock_browser, "system": mock_system},
-        ):
+        with patch("vandelay.agents.factory.Agent"):
             create_team(settings)
 
         call_kwargs = mock_team_cls.call_args[1]
         assert call_kwargs["id"] == "vandelay-team"
         assert call_kwargs["name"] == "TestTeam"
-        assert call_kwargs["respond_directly"] is True
         assert len(call_kwargs["members"]) == 2
 
     @patch("vandelay.knowledge.setup.create_knowledge")
     @patch("agno.team.Team")
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
-    @patch("vandelay.agents.factory.build_system_prompt")
-    def test_create_team_skips_unknown_members(
+    @patch("vandelay.agents.factory.build_team_leader_prompt")
+    @patch("vandelay.agents.factory.build_personality_brief")
+    def test_user_id_passed_to_team(
         self,
+        mock_brief,
         mock_prompt,
         mock_db,
         mock_model,
@@ -73,8 +72,10 @@ class TestCreateTeam:
         mock_create_knowledge,
         tmp_path,
     ):
+        """Bug fix: user_id must be passed to Team constructor."""
         from vandelay.agents.factory import create_team
 
+        mock_brief.return_value = ""
         mock_prompt.return_value = ["test"]
         mock_db.return_value = MagicMock()
         mock_model.return_value = MagicMock()
@@ -82,25 +83,26 @@ class TestCreateTeam:
         mock_create_knowledge.return_value = None
 
         settings = self._make_settings(
-            team=TeamConfig(enabled=True, members=["unknown_specialist"]),
+            user_id="test@example.com",
+            team=TeamConfig(enabled=True, members=[]),
             workspace_dir=str(tmp_path),
         )
 
-        with patch(
-            "vandelay.agents.specialists.agents.SPECIALIST_FACTORIES", {},
-        ):
+        with patch("vandelay.agents.factory.Agent"):
             create_team(settings)
 
         call_kwargs = mock_team_cls.call_args[1]
-        assert len(call_kwargs["members"]) == 0
+        assert call_kwargs["user_id"] == "test@example.com"
 
     @patch("vandelay.knowledge.setup.create_knowledge")
     @patch("agno.team.Team")
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
-    @patch("vandelay.agents.factory.build_system_prompt")
-    def test_create_team_includes_tool_management(
+    @patch("vandelay.agents.factory.build_team_leader_prompt")
+    @patch("vandelay.agents.factory.build_personality_brief")
+    def test_user_id_defaults_when_empty(
         self,
+        mock_brief,
         mock_prompt,
         mock_db,
         mock_model,
@@ -110,6 +112,7 @@ class TestCreateTeam:
     ):
         from vandelay.agents.factory import create_team
 
+        mock_brief.return_value = ""
         mock_prompt.return_value = ["test"]
         mock_db.return_value = MagicMock()
         mock_model.return_value = MagicMock()
@@ -121,9 +124,194 @@ class TestCreateTeam:
             workspace_dir=str(tmp_path),
         )
 
-        with patch(
-            "vandelay.agents.specialists.agents.SPECIALIST_FACTORIES", {},
-        ):
+        with patch("vandelay.agents.factory.Agent"):
+            create_team(settings)
+
+        call_kwargs = mock_team_cls.call_args[1]
+        assert call_kwargs["user_id"] == "default"
+
+    @patch("vandelay.knowledge.setup.create_knowledge")
+    @patch("agno.team.Team")
+    @patch("vandelay.agents.factory._get_model")
+    @patch("vandelay.agents.factory.create_db")
+    @patch("vandelay.agents.factory.build_team_leader_prompt")
+    @patch("vandelay.agents.factory.build_personality_brief")
+    def test_mode_comes_from_config(
+        self,
+        mock_brief,
+        mock_prompt,
+        mock_db,
+        mock_model,
+        mock_team_cls,
+        mock_create_knowledge,
+        tmp_path,
+    ):
+        from vandelay.agents.factory import create_team
+
+        mock_brief.return_value = ""
+        mock_prompt.return_value = ["test"]
+        mock_db.return_value = MagicMock()
+        mock_model.return_value = MagicMock()
+        mock_team_cls.return_value = MagicMock()
+        mock_create_knowledge.return_value = None
+
+        settings = self._make_settings(
+            team=TeamConfig(enabled=True, mode="coordinate", members=[]),
+            workspace_dir=str(tmp_path),
+        )
+
+        with patch("vandelay.agents.factory.Agent"):
+            create_team(settings)
+
+        call_kwargs = mock_team_cls.call_args[1]
+        assert call_kwargs["mode"] == "coordinate"
+        assert call_kwargs["respond_directly"] is False
+
+    @patch("vandelay.knowledge.setup.create_knowledge")
+    @patch("agno.team.Team")
+    @patch("vandelay.agents.factory._get_model")
+    @patch("vandelay.agents.factory.create_db")
+    @patch("vandelay.agents.factory.build_team_leader_prompt")
+    @patch("vandelay.agents.factory.build_personality_brief")
+    def test_route_mode_respond_directly(
+        self,
+        mock_brief,
+        mock_prompt,
+        mock_db,
+        mock_model,
+        mock_team_cls,
+        mock_create_knowledge,
+        tmp_path,
+    ):
+        from vandelay.agents.factory import create_team
+
+        mock_brief.return_value = ""
+        mock_prompt.return_value = ["test"]
+        mock_db.return_value = MagicMock()
+        mock_model.return_value = MagicMock()
+        mock_team_cls.return_value = MagicMock()
+        mock_create_knowledge.return_value = None
+
+        settings = self._make_settings(
+            team=TeamConfig(enabled=True, mode="route", members=[]),
+            workspace_dir=str(tmp_path),
+        )
+
+        with patch("vandelay.agents.factory.Agent"):
+            create_team(settings)
+
+        call_kwargs = mock_team_cls.call_args[1]
+        assert call_kwargs["mode"] == "route"
+        assert call_kwargs["respond_directly"] is True
+
+    @patch("vandelay.knowledge.setup.create_knowledge")
+    @patch("agno.team.Team")
+    @patch("vandelay.agents.factory._get_model")
+    @patch("vandelay.agents.factory.create_db")
+    @patch("vandelay.agents.factory.build_team_leader_prompt")
+    @patch("vandelay.agents.factory.build_personality_brief")
+    def test_mixed_string_and_memberconfig_members(
+        self,
+        mock_brief,
+        mock_prompt,
+        mock_db,
+        mock_model,
+        mock_team_cls,
+        mock_create_knowledge,
+        tmp_path,
+    ):
+        from vandelay.agents.factory import create_team
+
+        mock_brief.return_value = ""
+        mock_prompt.return_value = ["test"]
+        mock_db.return_value = MagicMock()
+        mock_model.return_value = MagicMock()
+        mock_team_cls.return_value = MagicMock()
+        mock_create_knowledge.return_value = None
+
+        mc = MemberConfig(name="cto", tools=["shell"])
+        settings = self._make_settings(
+            team=TeamConfig(enabled=True, members=["browser", mc]),
+            enabled_tools=["shell", "crawl4ai"],
+            workspace_dir=str(tmp_path),
+        )
+
+        with patch("vandelay.agents.factory.Agent") as mock_agent:
+            mock_agent.return_value = MagicMock()
+            create_team(settings)
+
+        call_kwargs = mock_team_cls.call_args[1]
+        assert len(call_kwargs["members"]) == 2
+
+    @patch("vandelay.knowledge.setup.create_knowledge")
+    @patch("agno.team.Team")
+    @patch("vandelay.agents.factory._get_model")
+    @patch("vandelay.agents.factory.create_db")
+    @patch("vandelay.agents.factory.build_team_leader_prompt")
+    @patch("vandelay.agents.factory.build_personality_brief")
+    def test_personality_brief_injected(
+        self,
+        mock_brief,
+        mock_prompt,
+        mock_db,
+        mock_model,
+        mock_team_cls,
+        mock_create_knowledge,
+        tmp_path,
+    ):
+        from vandelay.agents.factory import create_team
+
+        mock_brief.return_value = "Be helpful and direct."
+        mock_prompt.return_value = ["test"]
+        mock_db.return_value = MagicMock()
+        mock_model.return_value = MagicMock()
+        mock_team_cls.return_value = MagicMock()
+        mock_create_knowledge.return_value = None
+
+        settings = self._make_settings(
+            team=TeamConfig(enabled=True, members=["browser"]),
+            workspace_dir=str(tmp_path),
+        )
+
+        with patch("vandelay.agents.factory.Agent") as mock_agent:
+            mock_agent.return_value = MagicMock()
+            create_team(settings)
+
+        # The Agent was called once for the browser member
+        agent_kwargs = mock_agent.call_args[1]
+        assert "Be helpful and direct." in agent_kwargs["instructions"]
+
+    @patch("vandelay.knowledge.setup.create_knowledge")
+    @patch("agno.team.Team")
+    @patch("vandelay.agents.factory._get_model")
+    @patch("vandelay.agents.factory.create_db")
+    @patch("vandelay.agents.factory.build_team_leader_prompt")
+    @patch("vandelay.agents.factory.build_personality_brief")
+    def test_includes_tool_management(
+        self,
+        mock_brief,
+        mock_prompt,
+        mock_db,
+        mock_model,
+        mock_team_cls,
+        mock_create_knowledge,
+        tmp_path,
+    ):
+        from vandelay.agents.factory import create_team
+
+        mock_brief.return_value = ""
+        mock_prompt.return_value = ["test"]
+        mock_db.return_value = MagicMock()
+        mock_model.return_value = MagicMock()
+        mock_team_cls.return_value = MagicMock()
+        mock_create_knowledge.return_value = None
+
+        settings = self._make_settings(
+            team=TeamConfig(enabled=True, members=[]),
+            workspace_dir=str(tmp_path),
+        )
+
+        with patch("vandelay.agents.factory.Agent"):
             create_team(settings)
 
         call_kwargs = mock_team_cls.call_args[1]
@@ -138,7 +326,7 @@ class TestBackwardCompatibility:
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory._get_tools")
     @patch("vandelay.agents.factory.create_db")
-    @patch("vandelay.agents.factory.build_system_prompt")
+    @patch("vandelay.agents.factory.build_team_leader_prompt")
     def test_create_agent_still_works(
         self,
         mock_prompt,

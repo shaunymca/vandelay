@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from vandelay.config.models import ModelConfig, SafetyConfig
+from vandelay.config.models import MemberConfig, ModelConfig, SafetyConfig, TeamConfig
 from vandelay.config.settings import Settings
 from vandelay.tools.tool_management import ToolManagementTools
 
@@ -156,3 +156,152 @@ def test_enable_tool_install_failure(
 
     assert "failed" in result.lower()
     assert "duckduckgo" not in test_settings.enabled_tools
+
+
+# --- Tool assignment tests ---
+
+
+@pytest.fixture
+def team_settings(tmp_path: Path) -> Settings:
+    config_file = tmp_path / "config.json"
+    return Settings(
+        agent_name="TestTeam",
+        model=ModelConfig(provider="ollama", model_id="llama3.1"),
+        safety=SafetyConfig(mode="tiered"),
+        workspace_dir=str(tmp_path / "workspace"),
+        enabled_tools=["shell", "file", "tavily"],
+        team=TeamConfig(
+            enabled=True,
+            members=[
+                MemberConfig(name="cto", role="Tech lead", tools=["shell"]),
+                MemberConfig(name="research", role="Researcher", tools=["tavily"]),
+                "browser",  # legacy string member
+            ],
+        ),
+        db_url="",
+    )
+
+
+@pytest.fixture
+def team_toolkit(team_settings: Settings, reload_tracker: dict) -> ToolManagementTools:
+    def _reload():
+        reload_tracker["count"] += 1
+
+    return ToolManagementTools(settings=team_settings, reload_callback=_reload)
+
+
+def test_assign_tool_success(
+    team_toolkit: ToolManagementTools,
+    team_settings: Settings,
+    reload_tracker: dict,
+):
+    """assign_tool_to_member should add tool and trigger reload."""
+    with patch.object(Settings, "save", return_value=None):
+        result = team_toolkit.assign_tool_to_member("file", "cto")
+
+    assert "assigned" in result.lower()
+    # Find cto member and check tool was added
+    for m in team_settings.team.members:
+        if isinstance(m, MemberConfig) and m.name == "cto":
+            assert "file" in m.tools
+            break
+    assert reload_tracker["count"] == 1
+
+
+def test_assign_tool_already_has(team_toolkit: ToolManagementTools):
+    """assign_tool_to_member should report if member already has the tool."""
+    result = team_toolkit.assign_tool_to_member("shell", "cto")
+    assert "already has" in result.lower()
+
+
+def test_assign_tool_unknown_tool(team_toolkit: ToolManagementTools):
+    """assign_tool_to_member should fail for unknown tools."""
+    result = team_toolkit.assign_tool_to_member("fake_tool_xyz", "cto")
+    assert "Unknown tool" in result
+
+
+def test_assign_tool_not_enabled(team_toolkit: ToolManagementTools):
+    """assign_tool_to_member should fail for tools not globally enabled."""
+    result = team_toolkit.assign_tool_to_member("calculator", "cto")
+    assert "not globally enabled" in result.lower()
+
+
+def test_assign_tool_unknown_member(team_toolkit: ToolManagementTools):
+    """assign_tool_to_member should fail for unknown members."""
+    result = team_toolkit.assign_tool_to_member("shell", "nonexistent")
+    assert "Unknown member" in result
+
+
+def test_assign_tool_resolves_string_member(
+    team_toolkit: ToolManagementTools,
+    team_settings: Settings,
+    reload_tracker: dict,
+):
+    """assign_tool_to_member should convert string member to MemberConfig."""
+    with patch.object(Settings, "save", return_value=None):
+        result = team_toolkit.assign_tool_to_member("tavily", "browser")
+
+    assert "assigned" in result.lower()
+    # browser should now be a MemberConfig
+    browser = team_settings.team.members[2]
+    assert isinstance(browser, MemberConfig)
+    assert "tavily" in browser.tools
+
+
+def test_remove_tool_success(
+    team_toolkit: ToolManagementTools,
+    team_settings: Settings,
+    reload_tracker: dict,
+):
+    """remove_tool_from_member should remove tool and trigger reload."""
+    with patch.object(Settings, "save", return_value=None):
+        result = team_toolkit.remove_tool_from_member("shell", "cto")
+
+    assert "removed" in result.lower()
+    for m in team_settings.team.members:
+        if isinstance(m, MemberConfig) and m.name == "cto":
+            assert "shell" not in m.tools
+            break
+    assert reload_tracker["count"] == 1
+
+
+def test_remove_tool_not_found(team_toolkit: ToolManagementTools):
+    """remove_tool_from_member should fail if member doesn't have the tool."""
+    result = team_toolkit.remove_tool_from_member("tavily", "cto")
+    assert "doesn't have" in result.lower()
+
+
+def test_remove_tool_unknown_member(team_toolkit: ToolManagementTools):
+    """remove_tool_from_member should fail for unknown members."""
+    result = team_toolkit.remove_tool_from_member("shell", "nonexistent")
+    assert "Unknown member" in result
+
+
+def test_remove_tool_string_member(team_toolkit: ToolManagementTools):
+    """remove_tool_from_member should fail gracefully for string members."""
+    result = team_toolkit.remove_tool_from_member("crawl4ai", "browser")
+    assert "default tools" in result.lower()
+
+
+def test_team_tools_registered_when_enabled(team_toolkit: ToolManagementTools):
+    """assign/remove functions should be registered when team is enabled."""
+    func_names = [f.name for f in team_toolkit.functions.values()]
+    assert "assign_tool_to_member" in func_names
+    assert "remove_tool_from_member" in func_names
+
+
+def test_team_tools_not_registered_when_disabled(reload_tracker: dict):
+    """assign/remove functions should NOT be registered when team is disabled."""
+    settings = Settings(
+        agent_name="Test",
+        model=ModelConfig(provider="ollama"),
+        team=TeamConfig(enabled=False),
+        enabled_tools=["shell"],
+    )
+    tk = ToolManagementTools(
+        settings=settings,
+        reload_callback=lambda: reload_tracker.__setitem__("count", 0),
+    )
+    func_names = [f.name for f in tk.functions.values()]
+    assert "assign_tool_to_member" not in func_names
+    assert "remove_tool_from_member" not in func_names

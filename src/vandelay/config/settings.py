@@ -20,6 +20,7 @@ from vandelay.config.models import (
     ChannelConfig,
     HeartbeatConfig,
     KnowledgeConfig,
+    MemberConfig,
     ModelConfig,
     SafetyConfig,
     ServerConfig,

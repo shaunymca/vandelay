@@ -82,10 +82,23 @@ class KnowledgeConfig(BaseModel):
     embedder: EmbedderConfig = Field(default_factory=EmbedderConfig)
 
 
+class MemberConfig(BaseModel):
+    """Configuration for a single team member."""
+
+    name: str
+    role: str = ""
+    tools: list[str] = Field(default_factory=list)
+    model_provider: str = ""   # "" = inherit main model
+    model_id: str = ""         # "" = inherit main model
+    instructions: list[str] = Field(default_factory=list)
+    instructions_file: str = ""  # path to .md file loaded at runtime
+
+
 class TeamConfig(BaseModel):
     """Agent Team settings (opt-in supervisor mode)."""
 
     enabled: bool = False
-    members: list[str] = Field(
+    mode: str = "route"  # route | coordinate | broadcast | tasks
+    members: list[str | MemberConfig] = Field(
         default_factory=lambda: ["browser", "system", "scheduler", "knowledge"]
     )
