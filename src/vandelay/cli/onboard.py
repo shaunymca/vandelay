@@ -753,8 +753,27 @@ def _add_team_member(settings: Settings) -> Settings:
         instructions_path.write_text(content, encoding="utf-8")
         console.print(f"  [green]\u2713[/green] Template saved to {instructions_path}")
 
-        # Pre-select suggested tools that are enabled
+        # Prompt to enable any suggested tools that aren't globally enabled
         suggested = set(template.suggested_tools)
+        enabled = set(settings.enabled_tools or [])
+        missing = sorted(suggested - enabled)
+        if missing:
+            console.print(
+                f"  [yellow]\u26a0[/yellow] This template suggests tools not yet enabled: "
+                f"[bold]{', '.join(missing)}[/bold]"
+            )
+            to_enable = questionary.checkbox(
+                "Enable these tools globally?",
+                choices=[
+                    questionary.Choice(title=t, value=t, checked=True)
+                    for t in missing
+                ],
+            ).ask()
+            if to_enable:
+                settings.enabled_tools = list(settings.enabled_tools or []) + to_enable
+                enabled = set(settings.enabled_tools)
+
+        # Select which enabled tools this member should have access to
         tools: list[str] = []
         if settings.enabled_tools:
             selected = questionary.checkbox(
