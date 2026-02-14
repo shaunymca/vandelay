@@ -94,6 +94,19 @@ class MemberConfig(BaseModel):
     instructions_file: str = ""  # path to .md file loaded at runtime
 
 
+class DeepWorkConfig(BaseModel):
+    """Deep work — autonomous background execution settings."""
+
+    enabled: bool = False
+    background: bool = True              # False = blocking
+    activation: str = "suggest"          # "suggest" | "explicit" | "auto"
+    max_iterations: int = 50
+    max_time_minutes: int = 240          # 4 hours
+    progress_interval_minutes: int = 5
+    progress_channel: str = ""           # "" = originating channel
+    save_results_to_workspace: bool = True
+
+
 class TeamConfig(BaseModel):
     """Agent Team settings (opt-in supervisor mode)."""
 

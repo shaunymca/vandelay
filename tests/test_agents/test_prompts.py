@@ -8,9 +8,16 @@ from vandelay.agents.prompts.system_prompt import (
     build_system_prompt,
     build_team_leader_prompt,
     _build_agents_slim,
+    _build_deep_work_prompt,
     _build_member_roster,
 )
-from vandelay.config.models import MemberConfig, ModelConfig, SafetyConfig, TeamConfig
+from vandelay.config.models import (
+    DeepWorkConfig,
+    MemberConfig,
+    ModelConfig,
+    SafetyConfig,
+    TeamConfig,
+)
 from vandelay.config.settings import Settings
 
 
@@ -271,3 +278,118 @@ class TestBuildMemberRoster:
         )
         result = _build_member_roster(settings)
         assert "| browser |" in result
+
+
+# --- Deep work prompt tests ---
+
+
+class TestDeepWorkPrompt:
+    def test_returns_empty_when_disabled(self, tmp_path):
+        settings = Settings(
+            agent_name="Test",
+            model=ModelConfig(provider="ollama"),
+            deep_work=DeepWorkConfig(enabled=False),
+            workspace_dir=str(tmp_path),
+        )
+        result = _build_deep_work_prompt(settings)
+        assert result == ""
+
+    def test_includes_deep_work_heading(self, tmp_path):
+        settings = Settings(
+            agent_name="Test",
+            model=ModelConfig(provider="ollama"),
+            deep_work=DeepWorkConfig(enabled=True),
+            workspace_dir=str(tmp_path),
+        )
+        result = _build_deep_work_prompt(settings)
+        assert "# Deep Work" in result
+
+    def test_includes_tools_list(self, tmp_path):
+        settings = Settings(
+            agent_name="Test",
+            model=ModelConfig(provider="ollama"),
+            deep_work=DeepWorkConfig(enabled=True),
+            workspace_dir=str(tmp_path),
+        )
+        result = _build_deep_work_prompt(settings)
+        assert "start_deep_work" in result
+        assert "check_deep_work_status" in result
+        assert "cancel_deep_work" in result
+
+    def test_includes_safeguard_values(self, tmp_path):
+        settings = Settings(
+            agent_name="Test",
+            model=ModelConfig(provider="ollama"),
+            deep_work=DeepWorkConfig(
+                enabled=True,
+                max_iterations=25,
+                max_time_minutes=120,
+                progress_interval_minutes=10,
+            ),
+            workspace_dir=str(tmp_path),
+        )
+        result = _build_deep_work_prompt(settings)
+        assert "25" in result
+        assert "120" in result
+        assert "10" in result
+
+    def test_suggest_activation_mode(self, tmp_path):
+        settings = Settings(
+            agent_name="Test",
+            model=ModelConfig(provider="ollama"),
+            deep_work=DeepWorkConfig(enabled=True, activation="suggest"),
+            workspace_dir=str(tmp_path),
+        )
+        result = _build_deep_work_prompt(settings)
+        assert "suggest" in result.lower() or "confirmation" in result.lower()
+
+    def test_explicit_activation_mode(self, tmp_path):
+        settings = Settings(
+            agent_name="Test",
+            model=ModelConfig(provider="ollama"),
+            deep_work=DeepWorkConfig(enabled=True, activation="explicit"),
+            workspace_dir=str(tmp_path),
+        )
+        result = _build_deep_work_prompt(settings)
+        assert "explicitly" in result.lower()
+
+    def test_auto_activation_mode(self, tmp_path):
+        settings = Settings(
+            agent_name="Test",
+            model=ModelConfig(provider="ollama"),
+            deep_work=DeepWorkConfig(enabled=True, activation="auto"),
+            workspace_dir=str(tmp_path),
+        )
+        result = _build_deep_work_prompt(settings)
+        assert "automatically" in result.lower()
+
+    def test_injected_into_leader_prompt(self, tmp_workspace):
+        settings = Settings(
+            agent_name="Test",
+            model=ModelConfig(provider="ollama"),
+            deep_work=DeepWorkConfig(enabled=True),
+            team=TeamConfig(enabled=True, members=["browser"]),
+            enabled_tools=[],
+            workspace_dir=str(tmp_workspace),
+            db_url="",
+        )
+        prompt = build_team_leader_prompt(
+            workspace_dir=tmp_workspace, settings=settings,
+        )
+        assert "Deep Work" in prompt
+        assert "start_deep_work" in prompt
+
+    def test_not_injected_when_disabled(self, tmp_workspace):
+        settings = Settings(
+            agent_name="Test",
+            model=ModelConfig(provider="ollama"),
+            deep_work=DeepWorkConfig(enabled=False),
+            team=TeamConfig(enabled=True, members=["browser"]),
+            enabled_tools=[],
+            workspace_dir=str(tmp_workspace),
+            db_url="",
+        )
+        prompt = build_team_leader_prompt(
+            workspace_dir=tmp_workspace, settings=settings,
+        )
+        assert "Deep Work" not in prompt

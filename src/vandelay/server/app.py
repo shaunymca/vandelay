@@ -59,6 +59,8 @@ def create_app(settings: Settings) -> FastAPI:
     def _build_agent_or_team(**extra_kwargs):
         """Create either an Agent or Team based on settings."""
         if team_mode:
+            if deep_work_manager is not None:
+                extra_kwargs.setdefault("deep_work_manager", deep_work_manager)
             return create_team(settings, **extra_kwargs)
         return create_agent(settings, **extra_kwargs)
 
@@ -90,6 +92,17 @@ def create_app(settings: Settings) -> FastAPI:
 
     # Channel router for managing adapters
     channel_router = ChannelRouter()
+
+    # Deep work manager (created before channels so it can receive the router)
+    deep_work_manager = None
+    if settings.deep_work.enabled and settings.team.enabled:
+        from vandelay.core.deep_work import DeepWorkManager
+
+        deep_work_manager = DeepWorkManager(
+            settings=settings,
+            channel_router=channel_router,
+        )
+
     agentos_interfaces = []
 
     # --- Telegram ---
@@ -145,6 +158,7 @@ def create_app(settings: Settings) -> FastAPI:
     base_app.state.channel_router = channel_router
     base_app.state.chat_service = chat_service
     base_app.state.scheduler_engine = scheduler_engine
+    base_app.state.deep_work_manager = deep_work_manager
 
     # Register our custom routes before AgentOS
     base_app.include_router(health_router)

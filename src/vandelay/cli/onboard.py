@@ -13,6 +13,7 @@ from rich.panel import Panel
 from vandelay.config.constants import MODEL_PROVIDERS
 from vandelay.config.models import (
     ChannelConfig,
+    DeepWorkConfig,
     HeartbeatConfig,
     KnowledgeConfig,
     MemberConfig,
@@ -516,6 +517,10 @@ def run_config_menu(settings: Settings, exit_label: str = "Back to chat") -> Set
                     value="team",
                 ),
                 questionary.Choice(
+                    title=f"Deep work       [{_deep_work_summary(settings)}]",
+                    value="deep_work",
+                ),
+                questionary.Choice(
                     title=f"Heartbeat       [{_heartbeat_summary(settings)}]",
                     value="heartbeat",
                 ),
@@ -583,6 +588,9 @@ def run_config_menu(settings: Settings, exit_label: str = "Back to chat") -> Set
 
         elif section == "team":
             settings = _configure_team(settings)
+
+        elif section == "deep_work":
+            settings.deep_work = _configure_deep_work(settings.deep_work)
 
         elif section == "heartbeat":
             settings.heartbeat = _configure_heartbeat(settings.heartbeat, settings.timezone)
@@ -901,6 +909,100 @@ def _do_daemon_restart() -> None:
         console.print("  [green]\u2713[/green] Daemon restarted with new config.")
     else:
         console.print("  [red]\u2717[/red] Daemon restart failed. Try: vandelay daemon restart")
+
+
+def _deep_work_summary(settings) -> str:
+    """One-line summary for config menu display."""
+    dw = settings.deep_work
+    if not dw.enabled:
+        return "disabled"
+    return f"{dw.activation}, {dw.max_iterations} iter, {dw.max_time_minutes}m"
+
+
+def _configure_deep_work(dw: DeepWorkConfig) -> DeepWorkConfig:
+    """Interactive deep work configuration. Returns updated DeepWorkConfig."""
+    toggle = questionary.confirm(
+        "Enable deep work? (autonomous background execution for complex tasks)",
+        default=dw.enabled,
+    ).ask()
+    if toggle is None:
+        return dw
+
+    if not toggle:
+        console.print("  [green]\u2713[/green] Deep work disabled")
+        return DeepWorkConfig(enabled=False)
+
+    # Activation mode
+    activation = questionary.select(
+        "How should deep work be activated?",
+        choices=[
+            questionary.Choice(
+                title="Suggest — agent suggests deep work for complex tasks (recommended)",
+                value="suggest",
+            ),
+            questionary.Choice(
+                title="Explicit — only when you explicitly request it",
+                value="explicit",
+            ),
+            questionary.Choice(
+                title="Auto — agent starts deep work automatically for complex tasks",
+                value="auto",
+            ),
+        ],
+        default=dw.activation,
+    ).ask()
+    if activation is None:
+        return dw
+
+    # Max iterations
+    max_iter = questionary.text(
+        "Max iterations:",
+        default=str(dw.max_iterations),
+        validate=lambda v: v.isdigit() and int(v) > 0,
+    ).ask()
+    if max_iter is None:
+        return dw
+
+    # Max time
+    max_time = questionary.text(
+        "Max time (minutes):",
+        default=str(dw.max_time_minutes),
+        validate=lambda v: v.isdigit() and int(v) > 0,
+    ).ask()
+    if max_time is None:
+        return dw
+
+    # Progress interval
+    progress_interval = questionary.text(
+        "Progress update interval (minutes):",
+        default=str(dw.progress_interval_minutes),
+        validate=lambda v: v.isdigit() and int(v) > 0,
+    ).ask()
+    if progress_interval is None:
+        return dw
+
+    # Background mode
+    background = questionary.confirm(
+        "Run in background? (recommended — lets you keep chatting)",
+        default=dw.background,
+    ).ask()
+    if background is None:
+        return dw
+
+    result = DeepWorkConfig(
+        enabled=True,
+        background=background,
+        activation=activation,
+        max_iterations=int(max_iter),
+        max_time_minutes=int(max_time),
+        progress_interval_minutes=int(progress_interval),
+        save_results_to_workspace=dw.save_results_to_workspace,
+    )
+    console.print(
+        f"  [green]\u2713[/green] Deep work enabled: {activation} mode, "
+        f"max {max_iter} iterations / {max_time} min"
+    )
+    return result
 
 
 def _heartbeat_summary(settings) -> str:

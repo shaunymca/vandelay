@@ -18,6 +18,7 @@ from vandelay.config.constants import (
 )
 from vandelay.config.models import (
     ChannelConfig,
+    DeepWorkConfig,
     HeartbeatConfig,
     KnowledgeConfig,
     MemberConfig,
@@ -52,6 +53,7 @@ class Settings(BaseSettings):
     heartbeat: HeartbeatConfig = Field(default_factory=HeartbeatConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
     knowledge: KnowledgeConfig = Field(default_factory=KnowledgeConfig)
+    deep_work: DeepWorkConfig = Field(default_factory=DeepWorkConfig)
     team: TeamConfig = Field(default_factory=TeamConfig)
 
     # --- Top-level settings ---
