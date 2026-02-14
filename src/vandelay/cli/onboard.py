@@ -610,7 +610,7 @@ def _team_summary(settings: Settings) -> str:
 
 
 def _configure_team(settings: Settings) -> Settings:
-    """Interactive team configuration — toggle, mode, and members summary."""
+    """Interactive team configuration — toggle, mode, and member management."""
     toggle = questionary.confirm(
         "Enable team mode? (routes queries to specialist agents)",
         default=settings.team.enabled,
@@ -647,19 +647,176 @@ def _configure_team(settings: Settings) -> Settings:
 
     settings.team.mode = mode
 
-    # Show current members
-    member_names = []
-    for m in settings.team.members:
-        name = m if isinstance(m, str) else m.name
-        member_names.append(name)
-    console.print(f"  Members: {', '.join(member_names) or 'none'}")
-    console.print(
-        "  [dim]Edit members in config.json or via the API"
-        " — see docs for MemberConfig format[/dim]"
-    )
+    # Member management loop
+    while True:
+        member_names = []
+        for m in settings.team.members:
+            name = m if isinstance(m, str) else m.name
+            member_names.append(name)
+        console.print(f"\n  Members: {', '.join(member_names) or 'none'}")
 
-    console.print(f"  [green]\u2713[/green] Team: {mode} mode, {len(member_names)} members")
+        action = questionary.select(
+            "Manage members?",
+            choices=[
+                questionary.Choice(title="Add a member", value="add"),
+                questionary.Choice(title="Edit a member's instructions", value="edit"),
+                questionary.Choice(title="Remove a member", value="remove"),
+                questionary.Choice(title="Done", value="done"),
+            ],
+        ).ask()
+
+        if action is None or action == "done":
+            break
+
+        if action == "add":
+            settings = _add_team_member(settings)
+        elif action == "edit":
+            settings = _edit_member_instructions(settings)
+        elif action == "remove":
+            settings = _remove_team_member(settings)
+
+    member_count = len(settings.team.members)
+    console.print(f"  [green]\u2713[/green] Team: {mode} mode, {member_count} members")
     return settings
+
+
+def _add_team_member(settings: Settings) -> Settings:
+    """Add a new member to the team."""
+    name = questionary.text("Member name (e.g. cto, research, writer):").ask()
+    if not name:
+        return settings
+    name = name.strip().lower().replace(" ", "-")
+
+    role = questionary.text(
+        "Role description (optional):",
+        default="",
+    ).ask()
+    if role is None:
+        return settings
+
+    # Tool selection from enabled tools
+    tools: list[str] = []
+    if settings.enabled_tools:
+        selected = questionary.checkbox(
+            "Which tools should this member have access to?",
+            choices=[
+                questionary.Choice(title=t, value=t, checked=False)
+                for t in settings.enabled_tools
+            ],
+        ).ask()
+        if selected:
+            tools = selected
+
+    # Instructions — paste option
+    mc = MemberConfig(name=name, role=role, tools=tools)
+    mc = _offer_instructions_paste(mc)
+
+    settings.team.members.append(mc)
+    console.print(f"  [green]\u2713[/green] Added member: {name}")
+    return settings
+
+
+def _edit_member_instructions(settings: Settings) -> Settings:
+    """Edit instructions for an existing member."""
+    if not settings.team.members:
+        console.print("  [dim]No members to edit.[/dim]")
+        return settings
+
+    choices = []
+    for i, m in enumerate(settings.team.members):
+        name = m if isinstance(m, str) else m.name
+        choices.append(questionary.Choice(title=name, value=i))
+    choices.append(questionary.Choice(title="Back", value=-1))
+
+    idx = questionary.select("Which member?", choices=choices).ask()
+    if idx is None or idx == -1:
+        return settings
+
+    member = settings.team.members[idx]
+
+    # Convert string member to MemberConfig for editing
+    if isinstance(member, str):
+        from vandelay.agents.factory import _resolve_member
+        member = _resolve_member(member)
+        settings.team.members[idx] = member
+
+    member = _offer_instructions_paste(member)
+    settings.team.members[idx] = member
+    return settings
+
+
+def _remove_team_member(settings: Settings) -> Settings:
+    """Remove a member from the team."""
+    if not settings.team.members:
+        console.print("  [dim]No members to remove.[/dim]")
+        return settings
+
+    choices = []
+    for i, m in enumerate(settings.team.members):
+        name = m if isinstance(m, str) else m.name
+        choices.append(questionary.Choice(title=name, value=i))
+    choices.append(questionary.Choice(title="Back", value=-1))
+
+    idx = questionary.select("Which member to remove?", choices=choices).ask()
+    if idx is None or idx == -1:
+        return settings
+
+    removed = settings.team.members.pop(idx)
+    name = removed if isinstance(removed, str) else removed.name
+    console.print(f"  [green]\u2713[/green] Removed member: {name}")
+    return settings
+
+
+def _offer_instructions_paste(mc: MemberConfig) -> MemberConfig:
+    """Offer to paste instructions for a member, saved to ~/.vandelay/members/<name>.md."""
+    from vandelay.config.constants import MEMBERS_DIR
+
+    # Show existing instructions if any
+    existing_file = MEMBERS_DIR / f"{mc.name}.md"
+    if existing_file.exists():
+        preview = existing_file.read_text(encoding="utf-8")[:200]
+        console.print(f"  [dim]Current instructions ({existing_file}):[/dim]")
+        console.print(f"  [dim]{preview}{'...' if len(preview) >= 200 else ''}[/dim]")
+
+    add_instructions = questionary.confirm(
+        f"Add/update instructions for {mc.name}? (paste markdown context)",
+        default=not existing_file.exists(),
+    ).ask()
+
+    if not add_instructions:
+        # Still set the instructions_file if it exists
+        if existing_file.exists() and not mc.instructions_file:
+            mc.instructions_file = f"{mc.name}.md"
+        return mc
+
+    console.print("  [bold]Paste your instructions below.[/bold]")
+    console.print("  [dim]When done, type END on its own line and press Enter.[/dim]")
+    console.print()
+
+    lines: list[str] = []
+    try:
+        while True:
+            line = input()
+            if line.strip() == "END":
+                break
+            lines.append(line)
+    except (EOFError, KeyboardInterrupt):
+        pass
+
+    if not lines:
+        console.print("  [yellow]\u26a0[/yellow] No instructions provided — skipped")
+        return mc
+
+    content = "\n".join(lines).strip()
+
+    # Save to ~/.vandelay/members/<name>.md
+    MEMBERS_DIR.mkdir(parents=True, exist_ok=True)
+    instructions_path = MEMBERS_DIR / f"{mc.name}.md"
+    instructions_path.write_text(content + "\n", encoding="utf-8")
+    mc.instructions_file = f"{mc.name}.md"
+
+    console.print(f"  [green]\u2713[/green] Instructions saved to {instructions_path}")
+    return mc
 
 
 def _daemon_restart_choice() -> list:
