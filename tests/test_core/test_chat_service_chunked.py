@@ -169,6 +169,7 @@ class TestRunChunked:
     async def test_team_events_work(self):
         """run_chunked should handle TeamRunContent events from Team streaming."""
         from agno.run.team import TeamRunEvent
+        from agno.team import Team
 
         async def _team_stream(*args, **kwargs):
             for delta in ["Team ", "response ", "here."]:
@@ -178,7 +179,7 @@ class TestRunChunked:
                 chunk.run_id = "team-1"
                 yield chunk
 
-        agent = MagicMock()
+        agent = MagicMock(spec=Team)
         agent.arun = _team_stream
 
         svc = ChatService(_make_provider(agent))

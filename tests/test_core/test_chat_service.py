@@ -181,6 +181,7 @@ class TestChatServiceRunStream:
         """run_stream should handle Team events (TeamRunContent etc.)."""
 
         from agno.run.team import TeamRunEvent
+        from agno.team import Team
 
         chunk1 = MagicMock()
         chunk1.event = TeamRunEvent.run_content.value
@@ -196,7 +197,7 @@ class TestChatServiceRunStream:
             for c in [chunk1, chunk2]:
                 yield c
 
-        agent = MagicMock()
+        agent = MagicMock(spec=Team)
         agent.arun = _fake_team_stream
 
         svc = ChatService(_make_provider(agent))
@@ -213,6 +214,7 @@ class TestChatServiceRunStream:
         """run_stream should handle Team tool call events."""
 
         from agno.run.team import TeamRunEvent
+        from agno.team import Team
 
         chunk1 = MagicMock()
         chunk1.event = TeamRunEvent.tool_call_started.value
@@ -237,7 +239,7 @@ class TestChatServiceRunStream:
             for c in [chunk1, chunk2, chunk3]:
                 yield c
 
-        agent = MagicMock()
+        agent = MagicMock(spec=Team)
         agent.arun = _fake_stream
 
         svc = ChatService(_make_provider(agent))

@@ -19,7 +19,9 @@ logger = logging.getLogger("vandelay.core.chat_service")
 
 # Event name sets that match both Agent and Team streaming events.
 # Agent emits "RunContent", Team emits "TeamRunContent", etc.
-_CONTENT_EVENTS = {RunEvent.run_content.value, TeamRunEvent.run_content.value}
+_AGENT_CONTENT_EVENTS = {RunEvent.run_content.value}
+_TEAM_CONTENT_EVENTS = {TeamRunEvent.run_content.value}
+_CONTENT_EVENTS = _AGENT_CONTENT_EVENTS | _TEAM_CONTENT_EVENTS
 _ERROR_EVENTS = {RunEvent.run_error.value, TeamRunEvent.run_error.value}
 _TOOL_STARTED_EVENTS = {
     RunEvent.tool_call_started.value,
@@ -163,6 +165,13 @@ class ChatService:
         """
         agent = self._get_agent()
 
+        # In team mode, only forward the leader's synthesized content
+        # (TeamRunContent), not individual member responses (RunContent).
+        from agno.team import Team
+
+        is_team = isinstance(agent, Team)
+        content_events = _TEAM_CONTENT_EVENTS if is_team else _AGENT_CONTENT_EVENTS
+
         # Pre-hooks
         for mw in self._middleware:
             await mw.before_run(message)
@@ -191,7 +200,7 @@ class ChatService:
                 event_type = getattr(chunk, "event", "")
                 run_id = getattr(chunk, "run_id", run_id)
 
-                if event_type in _CONTENT_EVENTS:
+                if event_type in content_events:
                     delta = getattr(chunk, "content", "")
                     if delta:
                         buffer += str(delta)
@@ -263,6 +272,11 @@ class ChatService:
         """Stream agent response as ``StreamChunk`` events."""
         agent = self._get_agent()
 
+        from agno.team import Team
+
+        is_team = isinstance(agent, Team)
+        content_events = _TEAM_CONTENT_EVENTS if is_team else _AGENT_CONTENT_EVENTS
+
         typing_task = None
         if typing:
             typing_task = asyncio.create_task(
@@ -285,7 +299,7 @@ class ChatService:
                 event_type = getattr(chunk, "event", "")
                 run_id = getattr(chunk, "run_id", run_id)
 
-                if event_type in _CONTENT_EVENTS:
+                if event_type in content_events:
                     delta = getattr(chunk, "content", "")
                     if delta:
                         full_content += str(delta)

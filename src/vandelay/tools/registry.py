@@ -31,12 +31,25 @@ _BASE_METHODS = frozenset({
 # Used when the module can't be imported (missing deps) and the convention-based
 # fallback (module_name → ModuleNameTools) would guess wrong.
 _CLASS_NAME_OVERRIDES: dict[str, str] = {
-    "duckduckgo": "DuckDuckGoTools",
+    "api": "CustomApiTools",
+    "brightdata": "BrightDataTools",
+    "calcom": "CalComTools",
+    "clickup": "ClickUpTools",
     "csv_toolkit": "CsvTools",
+    "duckduckgo": "DuckDuckGoTools",
     "google_bigquery": "BigQueryTools",
     "google_maps": "GoogleMapTools",
     "googlecalendar": "GoogleCalendarTools",
     "googlesheets": "GoogleSheetsTools",
+    "hackernews": "HackerNewsTools",
+    "jina": "JinaReaderTools",
+    "models_labs": "ModelsLabTools",
+    "openweather": "OpenWeatherTools",
+    "sql": "SQLTools",
+    "webbrowser": "WebBrowserTools",
+    "websearch": "WebSearchTools",
+    "webtools": "WebTools",
+    "whatsapp": "WhatsAppTools",
     "yfinance": "YFinanceTools",
 }
 

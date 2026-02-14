@@ -774,6 +774,26 @@ def _add_team_member(settings: Settings) -> Settings:
                 ],
             ).ask()
             if to_enable:
+                # Install dependencies for newly enabled tools
+                from vandelay.tools.manager import ToolManager
+
+                mgr = ToolManager()
+                for tool_name in to_enable:
+                    entry = mgr.registry.get(tool_name)
+                    if entry and not entry.is_builtin and entry.pip_dependencies:
+                        console.print(
+                            f"  Installing dependencies for [bold]{tool_name}[/bold]..."
+                        )
+                        result = mgr.install_deps(tool_name)
+                        if result.success:
+                            console.print(f"  [green]\u2713[/green] {result.message}")
+                        else:
+                            console.print(f"  [yellow]\u26a0[/yellow] {result.message}")
+                            console.print(
+                                f"  [dim]You can install manually later: "
+                                f"vandelay tools add {tool_name}[/dim]"
+                            )
+
                 settings.enabled_tools = list(settings.enabled_tools or []) + to_enable
                 enabled = set(settings.enabled_tools)
 
