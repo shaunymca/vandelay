@@ -175,3 +175,77 @@ class TestChatServiceRunStream:
         assert len(chunks) == 1
         assert chunks[0].event == "run_error"
         assert "stream boom" in chunks[0].content
+
+    @pytest.mark.asyncio
+    async def test_yields_team_stream_chunks(self):
+        """run_stream should handle Team events (TeamRunContent etc.)."""
+
+        from agno.run.team import TeamRunEvent
+
+        chunk1 = MagicMock()
+        chunk1.event = TeamRunEvent.run_content.value
+        chunk1.content = "Team "
+        chunk1.run_id = "team-run-1"
+
+        chunk2 = MagicMock()
+        chunk2.event = TeamRunEvent.run_content.value
+        chunk2.content = "response"
+        chunk2.run_id = "team-run-1"
+
+        async def _fake_team_stream(*args, **kwargs):
+            for c in [chunk1, chunk2]:
+                yield c
+
+        agent = MagicMock()
+        agent.arun = _fake_team_stream
+
+        svc = ChatService(_make_provider(agent))
+        chunks = []
+        async for sc in svc.run_stream(_make_incoming()):
+            chunks.append(sc)
+
+        events = [c.event for c in chunks]
+        assert events == ["content_delta", "content_delta", "content_done"]
+        assert chunks[-1].content == "Team response"
+
+    @pytest.mark.asyncio
+    async def test_team_tool_call_events(self):
+        """run_stream should handle Team tool call events."""
+
+        from agno.run.team import TeamRunEvent
+
+        chunk1 = MagicMock()
+        chunk1.event = TeamRunEvent.tool_call_started.value
+        chunk1.content = ""
+        chunk1.run_id = "team-run-1"
+        chunk1.tool = MagicMock()
+        chunk1.tool.tool_name = "search"
+
+        chunk2 = MagicMock()
+        chunk2.event = TeamRunEvent.tool_call_completed.value
+        chunk2.content = ""
+        chunk2.run_id = "team-run-1"
+        chunk2.tool = MagicMock()
+        chunk2.tool.tool_name = "search"
+
+        chunk3 = MagicMock()
+        chunk3.event = TeamRunEvent.run_content.value
+        chunk3.content = "Found it"
+        chunk3.run_id = "team-run-1"
+
+        async def _fake_stream(*args, **kwargs):
+            for c in [chunk1, chunk2, chunk3]:
+                yield c
+
+        agent = MagicMock()
+        agent.arun = _fake_stream
+
+        svc = ChatService(_make_provider(agent))
+        chunks = []
+        async for sc in svc.run_stream(_make_incoming()):
+            chunks.append(sc)
+
+        events = [c.event for c in chunks]
+        assert "tool_call" in events
+        assert "content_delta" in events
+        assert "content_done" in events

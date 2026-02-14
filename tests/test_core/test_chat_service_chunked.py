@@ -165,6 +165,31 @@ class TestRunChunked:
         assert chunks[0].error is None
 
 
+    @pytest.mark.asyncio
+    async def test_team_events_work(self):
+        """run_chunked should handle TeamRunContent events from Team streaming."""
+        from agno.run.team import TeamRunEvent
+
+        async def _team_stream(*args, **kwargs):
+            for delta in ["Team ", "response ", "here."]:
+                chunk = MagicMock()
+                chunk.event = TeamRunEvent.run_content.value
+                chunk.content = delta
+                chunk.run_id = "team-1"
+                yield chunk
+
+        agent = MagicMock()
+        agent.arun = _team_stream
+
+        svc = ChatService(_make_provider(agent))
+        chunks = []
+        async for resp in svc.run_chunked(_make_incoming()):
+            chunks.append(resp)
+
+        assert len(chunks) == 1
+        assert "Team response here." in chunks[0].content
+
+
 class TestInsideCodeFence:
     def test_no_fences(self):
         assert _inside_code_fence("just text") is False
