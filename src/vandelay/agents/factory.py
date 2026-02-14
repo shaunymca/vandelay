@@ -268,7 +268,7 @@ def create_agent(
     tools.append(tool_mgmt)
 
     # Always include workspace tools for persistent memory management
-    tools.append(WorkspaceTools(settings=settings))
+    tools.append(WorkspaceTools(settings=settings, db=db))
 
     # Include scheduler tools when engine is available
     if scheduler_engine is not None:
@@ -350,7 +350,7 @@ def create_team(
         settings=settings,
         reload_callback=reload_callback,
     )
-    workspace_tools = WorkspaceTools(settings=settings)
+    workspace_tools = WorkspaceTools(settings=settings, db=db)
     leader_tools: list = [tool_mgmt, workspace_tools]
 
     # Deep work tools (when enabled and manager provided)
