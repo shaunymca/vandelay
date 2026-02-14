@@ -111,7 +111,7 @@ class TeamConfig(BaseModel):
     """Agent Team settings (opt-in supervisor mode)."""
 
     enabled: bool = False
-    mode: str = "route"  # route | coordinate | broadcast | tasks
+    mode: str = "coordinate"  # coordinate | route | broadcast | tasks
     members: list[str | MemberConfig] = Field(
         default_factory=lambda: ["browser", "system", "scheduler", "knowledge"]
     )

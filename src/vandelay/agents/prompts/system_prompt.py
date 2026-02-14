@@ -181,8 +181,9 @@ def _build_member_roster(settings: Settings) -> str:
     lines: list[str] = [
         "# Your Team",
         "",
-        "Route tasks to the best member based on their specialization.",
-        "Don't execute tasks yourself — delegate to the right member.",
+        "Delegate tasks to the best member based on their specialization.",
+        "For multi-part requests, delegate to several members and synthesize their results.",
+        "For simple questions you can answer directly, just respond — no need to delegate.",
         "",
         "| Member | Role | Tools | Model |",
         "|--------|------|-------|-------|",

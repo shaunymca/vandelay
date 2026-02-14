@@ -636,12 +636,12 @@ def _configure_team(settings: Settings) -> Settings:
         "Team execution mode?",
         choices=[
             questionary.Choice(
-                title="Route — supervisor picks the best member per query (recommended)",
-                value="route",
+                title="Coordinate — supervisor delegates and synthesizes responses (recommended)",
+                value="coordinate",
             ),
             questionary.Choice(
-                title="Coordinate — supervisor delegates and synthesizes responses",
-                value="coordinate",
+                title="Route — supervisor picks one member, returns their response directly",
+                value="route",
             ),
             questionary.Choice(
                 title="Broadcast — all members respond, supervisor picks the best",

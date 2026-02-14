@@ -50,16 +50,16 @@ class TestTeamConfig:
     def test_defaults(self):
         cfg = TeamConfig()
         assert cfg.enabled is False
-        assert cfg.mode == "route"
+        assert cfg.mode == "coordinate"
         assert cfg.members == ["browser", "system", "scheduler", "knowledge"]
 
     def test_enabled(self):
         cfg = TeamConfig(enabled=True)
         assert cfg.enabled is True
 
-    def test_default_mode_is_route(self):
+    def test_default_mode_is_coordinate(self):
         cfg = TeamConfig()
-        assert cfg.mode == "route"
+        assert cfg.mode == "coordinate"
 
     def test_custom_mode(self):
         cfg = TeamConfig(mode="coordinate")
