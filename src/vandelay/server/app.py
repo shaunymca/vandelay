@@ -13,7 +13,7 @@ from vandelay.agents.factory import create_agent, create_team
 from vandelay.channels.router import ChannelRouter
 from vandelay.core import AppStateAgentProvider, ChatService
 from vandelay.knowledge.setup import create_knowledge
-from vandelay.memory.setup import create_db
+from vandelay.memory.setup import cleanup_stale_sessions, create_db
 from vandelay.server.lifespan import lifespan
 from vandelay.server.routes.health import health_router
 from vandelay.server.routes.ws import ws_router
@@ -49,6 +49,7 @@ def create_app(settings: Settings) -> FastAPI:
     # and wire the real engine after ChatService exists.
     cron_store = CronJobStore()
     db = create_db(settings)
+    cleanup_stale_sessions(db, settings.user_id or "default")
     knowledge = create_knowledge(settings)
 
     # Create shared agent/team and db with hot-reload support

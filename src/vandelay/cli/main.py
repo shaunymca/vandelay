@@ -354,6 +354,12 @@ async def _run_with_server(settings) -> None:
         console.print("[dim]Reloading agent with updated tools...[/dim]")
         agent_ref[0] = _create_agent_or_team(reload_callback=_reload_agent)
 
+    # Clean up sessions with mismatched user_id to prevent silent upsert failures
+    from vandelay.memory.setup import cleanup_stale_sessions, create_db as _create_db
+
+    _db = _create_db(settings)
+    cleanup_stale_sessions(_db, settings.user_id or "default")
+
     agent_ref[0] = _create_agent_or_team(reload_callback=_reload_agent)
 
     # ChatService with lazy provider — always uses the current agent_ref[0]
