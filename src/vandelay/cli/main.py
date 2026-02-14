@@ -172,7 +172,9 @@ def _show_status(settings, server_running: bool = False) -> None:
     console.print(f"  [bold]Knowledge:[/bold] {knowledge_str}")
 
     if settings.team.enabled:
-        members = ", ".join(settings.team.members)
+        members = ", ".join(
+            m if isinstance(m, str) else m.name for m in settings.team.members
+        )
         console.print(f"  [bold]Team:[/bold]      [green]enabled[/green] ({members})")
     else:
         console.print("  [bold]Team:[/bold]      [dim]disabled[/dim]")

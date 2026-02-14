@@ -28,7 +28,8 @@ class TestDeepWorkToolsRegistration:
         assert toolkit.name == "deep_work"
 
     def test_has_start_tool(self, toolkit):
-        names = list(toolkit.functions.keys())
+        # start_deep_work is async, so it's in async_functions
+        names = list(toolkit.async_functions.keys())
         assert "start_deep_work" in names
 
     def test_has_status_tool(self, toolkit):

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import TYPE_CHECKING
 
@@ -25,7 +24,7 @@ class DeepWorkTools(Toolkit):
         self.register(self.check_deep_work_status)
         self.register(self.cancel_deep_work)
 
-    def start_deep_work(
+    async def start_deep_work(
         self,
         objective: str,
         max_iterations: int | None = None,
@@ -50,41 +49,11 @@ class DeepWorkTools(Toolkit):
             str: Session launch confirmation with ID and limits, or error if
                 a session is already active.
         """
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # We're inside an async context — schedule as coroutine
-            future = asyncio.ensure_future(
-                self._manager.start_session(
-                    objective=objective,
-                    max_iterations=max_iterations,
-                    max_time_minutes=max_time_minutes,
-                )
-            )
-            # Block briefly to get the launch confirmation (session starts in background)
-            # The actual work runs as a separate asyncio task
-            try:
-                return loop.run_until_complete(future)
-            except RuntimeError:
-                # Already running — use a new task
-                import concurrent.futures
-
-                with concurrent.futures.ThreadPoolExecutor() as pool:
-                    return pool.submit(
-                        asyncio.run,
-                        self._manager.start_session(
-                            objective=objective,
-                            max_iterations=max_iterations,
-                            max_time_minutes=max_time_minutes,
-                        ),
-                    ).result(timeout=30)
-        else:
-            return asyncio.run(
-                self._manager.start_session(
-                    objective=objective,
-                    max_iterations=max_iterations,
-                    max_time_minutes=max_time_minutes,
-                )
-            )
+        return await self._manager.start_session(
+            objective=objective,
+            max_iterations=max_iterations,
+            max_time_minutes=max_time_minutes,
+        )
 
     def check_deep_work_status(self) -> str:
         """Check the status of the current or most recent deep work session.

@@ -52,8 +52,9 @@ def create_app(settings: Settings) -> FastAPI:
     knowledge = create_knowledge(settings)
 
     # Create shared agent/team and db with hot-reload support
-    # (scheduler_engine set after ChatService is created below)
+    # (scheduler_engine and deep_work_manager set after ChatService is created)
     scheduler_engine = None  # forward ref, set after ChatService
+    deep_work_manager = None  # forward ref, set after channel_router
     team_mode = settings.team.enabled
 
     def _build_agent_or_team(**extra_kwargs):
@@ -82,19 +83,14 @@ def create_app(settings: Settings) -> FastAPI:
     agent_provider = AppStateAgentProvider(base_app.state)
     chat_service = ChatService(agent_provider)
 
-    # Now create the scheduler engine with the real ChatService and
-    # recreate the agent/team so it gets SchedulerTools wired in.
+    # Now create the scheduler engine with the real ChatService.
     scheduler_engine = SchedulerEngine(settings, chat_service, cron_store)
-    agent = _build_agent_or_team(
-        reload_callback=_reload_agent,
-        scheduler_engine=scheduler_engine,
-    )
 
-    # Channel router for managing adapters
+    # Channel router for managing adapters (created before deep_work_manager
+    # so progress notifications can find adapters)
     channel_router = ChannelRouter()
 
-    # Deep work manager (created before channels so it can receive the router)
-    deep_work_manager = None
+    # Deep work manager — needs channel_router for progress notifications
     if settings.deep_work.enabled and settings.team.enabled:
         from vandelay.core.deep_work import DeepWorkManager
 
@@ -102,6 +98,12 @@ def create_app(settings: Settings) -> FastAPI:
             settings=settings,
             channel_router=channel_router,
         )
+
+    # Recreate agent/team now that scheduler + deep_work_manager are ready
+    agent = _build_agent_or_team(
+        reload_callback=_reload_agent,
+        scheduler_engine=scheduler_engine,
+    )
 
     agentos_interfaces = []
 
