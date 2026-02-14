@@ -114,15 +114,19 @@ class ToolManagementTools(Toolkit):
         if entry is None:
             return f"Unknown tool: '{name}'. Use list_available_tools() to see all tools."
 
-        if name in self._settings.enabled_tools:
-            return f"Tool '{name}' is already enabled."
+        already_enabled = name in self._settings.enabled_tools
 
-        # Install dependencies if needed
+        # Install dependencies if needed (even if already enabled — deps may be missing)
         if not entry.is_builtin:
             result = self._manager.install_deps(name)
             if not result.success:
                 return f"Failed to install dependencies for '{name}': {result.message}"
             logger.info("Installed deps for tool '%s': %s", name, result.message)
+
+        if already_enabled:
+            # Deps were (re)installed — reload to pick them up
+            self._reload_callback()
+            return f"Tool '{name}' was already enabled. Dependencies installed and reloaded."
 
         # Update settings
         self._settings.enabled_tools.append(name)
