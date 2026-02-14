@@ -179,18 +179,31 @@ class ToolManager:
 
                 # Special handling for Google OAuth tools — shared token
                 _goauth = {
-                    "gmail": ("token_path", "port"),
-                    "google_drive": ("token_path", "auth_port"),
-                    "googlecalendar": ("token_path", "oauth_port"),
-                    "googlesheets": ("token_path", "oauth_port"),
+                    "gmail": {"token_path": None, "port": 0},
+                    "google_drive": {"token_path": None, "auth_port": 0},
+                    "googlecalendar": {"token_path": None, "oauth_port": 0},
+                    "googlesheets": {"token_path": None, "oauth_port": 0},
                 }
                 if tool_name in _goauth:
                     from vandelay.config.constants import VANDELAY_HOME
                     mod = importlib.import_module(entry.module_path)
                     cls = getattr(mod, entry.class_name)
-                    tk, pk = _goauth[tool_name]
+                    kwargs = dict(_goauth[tool_name])
                     token = str(VANDELAY_HOME / "google_token.json")
-                    instances.append(cls(**{tk: token, pk: 0}))
+                    # Set token_path (key name varies per tool)
+                    for k in kwargs:
+                        if "token" in k:
+                            kwargs[k] = token
+                            break
+                    # Workaround: Agno's GoogleCalendarTools passes
+                    # DEFAULT_SCOPES dict keys ("read","write") instead of
+                    # URL values to Credentials.from_authorized_user_file.
+                    # Pass correct scopes explicitly.
+                    if tool_name == "googlecalendar":
+                        kwargs["scopes"] = [
+                            "https://www.googleapis.com/auth/calendar",
+                        ]
+                    instances.append(cls(**kwargs))
                     continue
 
                 mod = importlib.import_module(entry.module_path)
