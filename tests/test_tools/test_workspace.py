@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -33,6 +34,16 @@ def test_settings(tmp_path: Path, workspace_dir: Path) -> Settings:
 @pytest.fixture
 def toolkit(test_settings: Settings) -> WorkspaceTools:
     return WorkspaceTools(settings=test_settings)
+
+
+@pytest.fixture
+def mock_db() -> MagicMock:
+    return MagicMock()
+
+
+@pytest.fixture
+def toolkit_with_db(test_settings: Settings, mock_db: MagicMock) -> WorkspaceTools:
+    return WorkspaceTools(settings=test_settings, db=mock_db)
 
 
 class TestAppendMethods:
@@ -129,3 +140,42 @@ class TestReplaceWorkspaceFile:
         result = toolkit.replace_workspace_file("TOOLS.md", "# Tools\n")
         assert "Replaced TOOLS.md" in result
         assert (workspace_dir / "TOOLS.md").exists()
+
+
+class TestDbBackedMemory:
+    def test_update_memory_uses_db_when_available(
+        self, toolkit_with_db: WorkspaceTools, mock_db: MagicMock, workspace_dir: Path
+    ):
+        result = toolkit_with_db.update_memory("User likes dark mode")
+        assert "Memory saved" in result
+        mock_db.upsert_user_memory.assert_called_once()
+
+        memory = mock_db.upsert_user_memory.call_args[0][0]
+        assert memory.memory == "User likes dark mode"
+        assert memory.topics == ["workspace_memory"]
+
+        # Should NOT have written to file
+        assert not (workspace_dir / "MEMORY.md").exists()
+
+    def test_update_memory_falls_back_to_file_without_db(
+        self, toolkit: WorkspaceTools, workspace_dir: Path
+    ):
+        result = toolkit.update_memory("Fallback entry")
+        assert "Appended to MEMORY.md" in result
+        assert (workspace_dir / "MEMORY.md").exists()
+
+    def test_update_memory_falls_back_on_db_error(
+        self, toolkit_with_db: WorkspaceTools, mock_db: MagicMock, workspace_dir: Path
+    ):
+        mock_db.upsert_user_memory.side_effect = RuntimeError("DB error")
+        result = toolkit_with_db.update_memory("Error entry")
+        assert "Appended to MEMORY.md" in result
+        assert (workspace_dir / "MEMORY.md").exists()
+
+    def test_other_append_methods_unaffected_by_db(
+        self, toolkit_with_db: WorkspaceTools, mock_db: MagicMock, workspace_dir: Path
+    ):
+        """update_user_profile and update_tools_notes should still use file append."""
+        toolkit_with_db.update_user_profile("Name is Shaun")
+        assert (workspace_dir / "USER.md").exists()
+        mock_db.upsert_user_memory.assert_not_called()

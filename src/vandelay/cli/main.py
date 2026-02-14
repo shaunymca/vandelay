@@ -11,6 +11,7 @@ from vandelay import __version__
 from vandelay.cli.cron_commands import app as cron_app
 from vandelay.cli.daemon import app as daemon_app
 from vandelay.cli.knowledge_commands import app as knowledge_app
+from vandelay.cli.memory_commands import app as memory_app
 from vandelay.cli.tools_commands import app as tools_app
 
 app = typer.Typer(
@@ -22,6 +23,7 @@ app = typer.Typer(
 app.add_typer(tools_app, name="tools")
 app.add_typer(cron_app, name="cron")
 app.add_typer(knowledge_app, name="knowledge")
+app.add_typer(memory_app, name="memory")
 app.add_typer(daemon_app, name="daemon")
 console = Console()
 

@@ -62,6 +62,18 @@ async def lifespan(app: FastAPI):
     # Inject channel credentials into env vars
     _inject_channel_env_vars(settings)
 
+    # Suggest memory migration if needed
+    try:
+        from vandelay.core.memory_migration import check_migration_needed
+
+        if check_migration_needed(settings):
+            logger.info(
+                "MEMORY.md has entries that can be migrated to native memory. "
+                "Run: vandelay memory migrate"
+            )
+    except Exception:
+        pass  # Non-critical — don't block startup
+
     # Start scheduler engine
     scheduler_engine = getattr(app.state, "scheduler_engine", None)
     if scheduler_engine is not None:

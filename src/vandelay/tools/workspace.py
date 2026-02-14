@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 from agno.tools import Toolkit
 
 if TYPE_CHECKING:
+    from agno.db.sqlite import SqliteDb
+
     from vandelay.config.settings import Settings
 
 logger = logging.getLogger("vandelay.tools.workspace")
@@ -29,9 +31,11 @@ class WorkspaceTools(Toolkit):
     gives the agent a safe, structured way to maintain them.
     """
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, db: SqliteDb | None = None) -> None:
         super().__init__(name="workspace")
         self._workspace_dir = Path(settings.workspace_dir)
+        self._db = db
+        self._user_id = settings.user_id or "default"
 
         self.register(self.update_memory)
         self.register(self.update_user_profile)
@@ -63,18 +67,53 @@ class WorkspaceTools(Toolkit):
         logger.info("Appended to %s: %s", filename, entry[:80])
         return f"Appended to {filename}."
 
+    def _write_memory_to_db(self, entry: str) -> str | None:
+        """Try writing a memory entry to Agno's native DB.
+
+        Returns a confirmation string on success, or None if DB is unavailable.
+        """
+        if self._db is None:
+            return None
+
+        try:
+            from agno.memory import UserMemory
+
+            from vandelay.core.memory_migration import _content_to_memory_id
+
+            memory = UserMemory(
+                memory_id=_content_to_memory_id(entry),
+                user_id=self._user_id,
+                memory=entry,
+                topics=["workspace_memory"],
+            )
+            self._db.upsert_user_memory(memory)
+            logger.info("Wrote memory to DB: %s", entry[:80])
+            return f"Memory saved: {entry[:80]}"
+        except Exception:
+            logger.exception("Failed to write memory to DB, falling back to file")
+            return None
+
     def update_memory(self, entry: str) -> str:
-        """Append a timestamped entry to MEMORY.md — your long-term memory.
+        """Save a long-term memory entry.
+
+        When native memory is active, writes to the database for better
+        retrieval. Falls back to MEMORY.md file append otherwise.
 
         Use this when you learn something important: user preferences,
         key decisions, lessons learned, or facts worth remembering.
 
         Args:
-            entry: The text to append (one line, no markdown header needed).
+            entry: The text to save (one line, no markdown header needed).
 
         Returns:
             str: Confirmation message.
         """
+        # Try DB-backed memory first
+        result = self._write_memory_to_db(entry)
+        if result is not None:
+            return result
+
+        # Fall back to file append
         return self._append_entry("MEMORY.md", entry)
 
     def update_user_profile(self, entry: str) -> str:
