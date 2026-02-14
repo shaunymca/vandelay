@@ -204,7 +204,12 @@ def _build_member_roster(settings: Settings) -> str:
         "",
         "Rules:",
         "- Match tasks to the member whose role fits best",
-        "- If no member fits, handle it yourself using your workspace tools",
+        "- If no member fits, handle it yourself using your workspace tools. "
+        "If the task would clearly benefit from a specialist you don't have, "
+        "suggest the user add one from the starter templates via `vandelay config` "
+        "(available templates: CTO, Sales Exec, Marketer, Personal Assistant, Chef, "
+        "Personal Trainer, AI Engineer, Research Analyst, Vandelay Expert, Writer, "
+        "Data Analyst, DevOps, Content Creator, Project Manager)",
         "- You can assign new tools to members with assign_tool_to_member()",
         "- If a member fails or hits a technical error, escalate to another member "
         "who can diagnose and fix the issue (e.g. CTO for tool/config problems, "
