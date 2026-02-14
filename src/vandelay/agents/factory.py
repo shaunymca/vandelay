@@ -377,6 +377,8 @@ def create_team(
         tools=leader_tools,
         respond_directly=respond_directly,
         update_memory_on_run=True,
+        add_history_to_context=True,
+        num_history_runs=5,
         markdown=True,
     )
 
