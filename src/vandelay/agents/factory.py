@@ -9,7 +9,11 @@ from typing import TYPE_CHECKING, Any
 
 from agno.agent import Agent
 
-from vandelay.agents.prompts.system_prompt import build_personality_brief, build_system_prompt
+from vandelay.agents.prompts.system_prompt import (
+    build_personality_brief,
+    build_system_prompt,
+    build_team_leader_prompt,
+)
 from vandelay.config.models import MemberConfig
 from vandelay.memory.setup import create_db
 
@@ -198,8 +202,12 @@ def _build_member_agent(
 
         tools.append(SchedulerTools(engine=scheduler_engine))
 
-    # Build instructions: personality brief → file contents → inline
-    instructions: list[str] = []
+    # Build instructions: tag → personality brief → file contents → inline
+    tag = mc.name.upper()
+    instructions: list[str] = [
+        f"You are the [{tag}] specialist. Always prefix your responses with [{tag}] "
+        f"so the user knows which team member is speaking.",
+    ]
     if personality_brief:
         instructions.append(personality_brief)
 
@@ -313,7 +321,7 @@ def create_team(
     db = create_db(settings)
     model = _get_model(settings)
     workspace_dir = Path(settings.workspace_dir)
-    instructions = build_system_prompt(
+    instructions = build_team_leader_prompt(
         agent_name=settings.agent_name,
         workspace_dir=workspace_dir,
         settings=settings,

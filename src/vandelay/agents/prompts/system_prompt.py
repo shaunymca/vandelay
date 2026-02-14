@@ -135,3 +135,124 @@ def build_system_prompt(
             sections.append(bootstrap_path.read_text(encoding="utf-8"))
 
     return "\n\n---\n\n".join(sections)
+
+
+# Sections to keep in the slim AGENTS.md for the team leader.
+# The leader doesn't need "Working Directory" or "Delegation" — those are
+# replaced by the dynamic member roster.
+_LEADER_AGENTS_SECTIONS = {
+    "## Workspace Files",
+    "## Safety Rules",
+    "## Response Style",
+    "## Error Handling",
+}
+
+
+def _build_agents_slim(workspace_dir: Path | None = None) -> str:
+    """Load AGENTS.md and keep only sections relevant to the team leader.
+
+    Drops "Working Directory" and "Delegation" (replaced by the member roster).
+    """
+    agents = get_template_content("AGENTS.md", workspace_dir)
+    if not agents:
+        return ""
+
+    # Split into sections by ## headings
+    kept: list[str] = []
+    capturing = False
+
+    for line in agents.splitlines():
+        if line.startswith("## "):
+            capturing = line.strip() in _LEADER_AGENTS_SECTIONS
+        if capturing:
+            kept.append(line)
+
+    return "\n".join(kept).strip() if kept else ""
+
+
+def _build_member_roster(settings: Settings) -> str:
+    """Generate a markdown roster of team members from config."""
+    from vandelay.agents.factory import _resolve_member
+
+    members = settings.team.members
+    if not members:
+        return ""
+
+    lines: list[str] = [
+        "# Your Team",
+        "",
+        "Route tasks to the best member based on their specialization.",
+        "Don't execute tasks yourself — delegate to the right member.",
+        "",
+        "| Member | Role | Tools | Model |",
+        "|--------|------|-------|-------|",
+    ]
+
+    for entry in members:
+        mc = _resolve_member(entry)
+        name = mc.name
+        role = mc.role or "(no role)"
+        tools = ", ".join(mc.tools) if mc.tools else "none"
+        if mc.model_provider and mc.model_id:
+            model_str = f"{mc.model_provider} / {mc.model_id}"
+        else:
+            model_str = "inherited"
+        lines.append(f"| {name} | {role} | {tools} | {model_str} |")
+
+    lines.extend([
+        "",
+        "Rules:",
+        "- Match tasks to the member whose role fits best",
+        "- If no member fits, handle it yourself using your workspace tools",
+        "- You can assign new tools to members with assign_tool_to_member()",
+    ])
+
+    return "\n".join(lines)
+
+
+def build_team_leader_prompt(
+    agent_name: str = "Art",
+    workspace_dir: Path | None = None,
+    settings: Settings | None = None,
+) -> str:
+    """Assemble a slim system prompt for the team leader.
+
+    Compared to ``build_system_prompt()``, this:
+    - Skips TOOLS.md and the tool catalog (members handle tool execution)
+    - Uses a slim AGENTS.md (workspace, safety, style only — no delegation)
+    - Adds a dynamic member roster generated from config
+    """
+    sections: list[str] = []
+
+    # Agent identity preamble
+    sections.append(f"Your name is **{agent_name}**.")
+
+    soul = get_template_content("SOUL.md", workspace_dir)
+    if soul:
+        sections.append(soul)
+
+    user = get_template_content("USER.md", workspace_dir)
+    if user:
+        sections.append(user)
+
+    agents_slim = _build_agents_slim(workspace_dir)
+    if agents_slim:
+        sections.append(agents_slim)
+
+    # Dynamic member roster (instead of TOOLS.md + catalog)
+    if settings is not None:
+        roster = _build_member_roster(settings)
+        if roster:
+            sections.append(roster)
+
+    memory = get_template_content("MEMORY.md", workspace_dir)
+    if memory:
+        sections.append(memory)
+
+    # Bootstrap — same logic as standalone prompt
+    if workspace_dir:
+        bootstrap_path = workspace_dir / "BOOTSTRAP.md"
+        if bootstrap_path.exists():
+            sections.append(bootstrap_path.read_text(encoding="utf-8"))
+
+    return "\n\n---\n\n".join(sections)

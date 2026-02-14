@@ -22,7 +22,7 @@ class TestCreateTeam:
     @patch("agno.team.Team")
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
-    @patch("vandelay.agents.factory.build_system_prompt")
+    @patch("vandelay.agents.factory.build_team_leader_prompt")
     @patch("vandelay.agents.factory.build_personality_brief")
     def test_create_team_builds_team(
         self,
@@ -60,7 +60,7 @@ class TestCreateTeam:
     @patch("agno.team.Team")
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
-    @patch("vandelay.agents.factory.build_system_prompt")
+    @patch("vandelay.agents.factory.build_team_leader_prompt")
     @patch("vandelay.agents.factory.build_personality_brief")
     def test_user_id_passed_to_team(
         self,
@@ -98,7 +98,7 @@ class TestCreateTeam:
     @patch("agno.team.Team")
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
-    @patch("vandelay.agents.factory.build_system_prompt")
+    @patch("vandelay.agents.factory.build_team_leader_prompt")
     @patch("vandelay.agents.factory.build_personality_brief")
     def test_user_id_defaults_when_empty(
         self,
@@ -134,7 +134,7 @@ class TestCreateTeam:
     @patch("agno.team.Team")
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
-    @patch("vandelay.agents.factory.build_system_prompt")
+    @patch("vandelay.agents.factory.build_team_leader_prompt")
     @patch("vandelay.agents.factory.build_personality_brief")
     def test_mode_comes_from_config(
         self,
@@ -171,7 +171,7 @@ class TestCreateTeam:
     @patch("agno.team.Team")
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
-    @patch("vandelay.agents.factory.build_system_prompt")
+    @patch("vandelay.agents.factory.build_team_leader_prompt")
     @patch("vandelay.agents.factory.build_personality_brief")
     def test_route_mode_respond_directly(
         self,
@@ -208,7 +208,7 @@ class TestCreateTeam:
     @patch("agno.team.Team")
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
-    @patch("vandelay.agents.factory.build_system_prompt")
+    @patch("vandelay.agents.factory.build_team_leader_prompt")
     @patch("vandelay.agents.factory.build_personality_brief")
     def test_mixed_string_and_memberconfig_members(
         self,
@@ -247,7 +247,7 @@ class TestCreateTeam:
     @patch("agno.team.Team")
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
-    @patch("vandelay.agents.factory.build_system_prompt")
+    @patch("vandelay.agents.factory.build_team_leader_prompt")
     @patch("vandelay.agents.factory.build_personality_brief")
     def test_personality_brief_injected(
         self,
@@ -285,7 +285,7 @@ class TestCreateTeam:
     @patch("agno.team.Team")
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
-    @patch("vandelay.agents.factory.build_system_prompt")
+    @patch("vandelay.agents.factory.build_team_leader_prompt")
     @patch("vandelay.agents.factory.build_personality_brief")
     def test_includes_tool_management(
         self,
@@ -326,7 +326,7 @@ class TestBackwardCompatibility:
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory._get_tools")
     @patch("vandelay.agents.factory.create_db")
-    @patch("vandelay.agents.factory.build_system_prompt")
+    @patch("vandelay.agents.factory.build_team_leader_prompt")
     def test_create_agent_still_works(
         self,
         mock_prompt,

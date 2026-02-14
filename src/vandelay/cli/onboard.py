@@ -681,20 +681,34 @@ def _configure_team(settings: Settings) -> Settings:
 
 
 def _add_team_member(settings: Settings) -> Settings:
-    """Add a new member to the team."""
+    """Add a new member to the team with guided flow."""
+    # Step 1 — Name
     name = questionary.text("Member name (e.g. cto, research, writer):").ask()
     if not name:
         return settings
     name = name.strip().lower().replace(" ", "-")
 
+    # Check for duplicates
+    existing_names = [
+        m if isinstance(m, str) else m.name for m in settings.team.members
+    ]
+    if name in existing_names:
+        console.print(f"  [yellow]⚠[/yellow] Member '{name}' already exists.")
+        return settings
+
+    # Step 2 — Role (with guidance)
+    console.print(
+        "  [dim]The team leader uses this description to decide when to route"
+        " tasks to this member. Be specific about what they specialize in.[/dim]"
+    )
     role = questionary.text(
-        "Role description (optional):",
+        "Role description:",
         default="",
     ).ask()
     if role is None:
         return settings
 
-    # Tool selection from enabled tools
+    # Step 3 — Tools from enabled tools
     tools: list[str] = []
     if settings.enabled_tools:
         selected = questionary.checkbox(
@@ -707,13 +721,60 @@ def _add_team_member(settings: Settings) -> Settings:
         if selected:
             tools = selected
 
-    # Instructions — paste option
-    mc = MemberConfig(name=name, role=role, tools=tools)
+    # Step 4 — Model override
+    model_provider = ""
+    model_id = ""
+    use_custom_model = questionary.confirm(
+        "Use a different model for this member? (default: inherits main model)",
+        default=False,
+    ).ask()
+    if use_custom_model:
+        model_provider, model_id = _select_provider()
+
+    # Step 5 — Instructions (paste flow)
+    mc = MemberConfig(
+        name=name,
+        role=role,
+        tools=tools,
+        model_provider=model_provider,
+        model_id=model_id,
+    )
     mc = _offer_instructions_paste(mc)
+
+    # Step 6 — Preview
+    _preview_member_config(mc, settings)
+
+    confirm = questionary.confirm("Add this member?", default=True).ask()
+    if not confirm:
+        console.print("  [dim]Member not added.[/dim]")
+        return settings
 
     settings.team.members.append(mc)
     console.print(f"  [green]\u2713[/green] Added member: {name}")
     return settings
+
+
+def _preview_member_config(mc: MemberConfig, settings: Settings) -> None:
+    """Show a rich preview panel of a member config before confirming."""
+    if mc.model_provider and mc.model_id:
+        model_str = f"{mc.model_provider} / {mc.model_id}"
+    else:
+        model_str = f"inherited ({settings.model.provider} / {settings.model.model_id})"
+
+    tools_str = ", ".join(mc.tools) if mc.tools else "none"
+    instructions_str = mc.instructions_file if mc.instructions_file else "none"
+
+    content = (
+        f"[bold]{mc.name}[/bold]\n\n"
+        f"Role: {mc.role or '(none)'}\n"
+        f"Tools: {tools_str}\n"
+        f"Model: {model_str}\n"
+        f"Instructions: {instructions_str}"
+    )
+
+    console.print()
+    console.print(Panel(content, title="Member Preview", border_style="cyan"))
+    console.print()
 
 
 def _edit_member_instructions(settings: Settings) -> Settings:

@@ -271,7 +271,8 @@ class TestLoadInstructionsFile:
 
         kwargs = mock_agent.call_args[1]
         instructions = kwargs["instructions"]
-        # Order: personality brief, file, inline
-        assert instructions[0] == "Brief."
-        assert instructions[1] == "File instructions here."
-        assert instructions[2] == "Inline instruction."
+        # Order: tag, personality brief, file, inline
+        assert "[CTO]" in instructions[0]
+        assert instructions[1] == "Brief."
+        assert instructions[2] == "File instructions here."
+        assert instructions[3] == "Inline instruction."
