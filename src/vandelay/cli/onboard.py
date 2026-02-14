@@ -690,66 +690,167 @@ def _configure_team(settings: Settings) -> Settings:
 
 def _add_team_member(settings: Settings) -> Settings:
     """Add a new member to the team with guided flow."""
-    # Step 1 — Name
-    name = questionary.text("Member name (e.g. cto, research, writer):").ask()
-    if not name:
-        return settings
-    name = name.strip().lower().replace(" ", "-")
-
-    # Check for duplicates
-    existing_names = [
-        m if isinstance(m, str) else m.name for m in settings.team.members
-    ]
-    if name in existing_names:
-        console.print(f"  [yellow]⚠[/yellow] Member '{name}' already exists.")
-        return settings
-
-    # Step 2 — Role (with guidance)
-    console.print(
-        "  [dim]The team leader uses this description to decide when to route"
-        " tasks to this member. Be specific about what they specialize in.[/dim]"
+    from vandelay.agents.templates import (
+        STARTER_TEMPLATES,
+        get_template_content,
+        list_templates,
     )
-    role = questionary.text(
-        "Role description:",
-        default="",
+    from vandelay.config.constants import MEMBERS_DIR
+
+    # Step 0 — Offer starter templates
+    use_template = questionary.confirm(
+        "Start from a template?", default=True
     ).ask()
-    if role is None:
+    if use_template is None:
         return settings
 
-    # Step 3 — Tools from enabled tools
-    tools: list[str] = []
-    if settings.enabled_tools:
-        selected = questionary.checkbox(
-            "Which tools should this member have access to?",
-            choices=[
-                questionary.Choice(title=t, value=t, checked=False)
-                for t in settings.enabled_tools
-            ],
+    template = None
+    if use_template:
+        templates = list_templates()
+        choices = [
+            questionary.Choice(
+                title=f"{t.name} — {t.role}",
+                value=t.slug,
+            )
+            for t in templates
+        ]
+        choices.append(questionary.Choice(title="Blank (start from scratch)", value=""))
+
+        slug = questionary.select("Choose a template:", choices=choices).ask()
+        if slug is None:
+            return settings
+        if slug:
+            template = STARTER_TEMPLATES[slug]
+
+    if template:
+        # Pre-fill from template
+        name = template.slug
+        role = template.role
+
+        # Check for duplicates — offer rename
+        existing_names = [
+            m if isinstance(m, str) else m.name for m in settings.team.members
+        ]
+        if name in existing_names:
+            console.print(
+                f"  [yellow]\u26a0[/yellow] Member '{name}' already exists."
+            )
+            name = questionary.text(
+                "Enter a different name:",
+                default=f"{name}-2",
+            ).ask()
+            if not name:
+                return settings
+            name = name.strip().lower().replace(" ", "-")
+            if name in existing_names:
+                console.print(f"  [yellow]\u26a0[/yellow] '{name}' also exists. Aborting.")
+                return settings
+
+        # Copy template .md to ~/.vandelay/members/
+        MEMBERS_DIR.mkdir(parents=True, exist_ok=True)
+        instructions_path = MEMBERS_DIR / f"{name}.md"
+        content = get_template_content(template.slug)
+        instructions_path.write_text(content, encoding="utf-8")
+        console.print(f"  [green]\u2713[/green] Template saved to {instructions_path}")
+
+        # Pre-select suggested tools that are enabled
+        suggested = set(template.suggested_tools)
+        tools: list[str] = []
+        if settings.enabled_tools:
+            selected = questionary.checkbox(
+                "Which tools should this member have access to?",
+                choices=[
+                    questionary.Choice(
+                        title=t, value=t, checked=t in suggested
+                    )
+                    for t in settings.enabled_tools
+                ],
+            ).ask()
+            if selected:
+                tools = selected
+
+        # Model override
+        model_provider = ""
+        model_id = ""
+        use_custom_model = questionary.confirm(
+            "Use a different model for this member? (default: inherits main model)",
+            default=False,
         ).ask()
-        if selected:
-            tools = selected
+        if use_custom_model:
+            model_provider, model_id = _select_provider()
 
-    # Step 4 — Model override
-    model_provider = ""
-    model_id = ""
-    use_custom_model = questionary.confirm(
-        "Use a different model for this member? (default: inherits main model)",
-        default=False,
-    ).ask()
-    if use_custom_model:
-        model_provider, model_id = _select_provider()
+        mc = MemberConfig(
+            name=name,
+            role=role,
+            tools=tools,
+            model_provider=model_provider,
+            model_id=model_id,
+            instructions_file=f"{name}.md",
+        )
 
-    # Step 5 — Instructions (paste flow)
-    mc = MemberConfig(
-        name=name,
-        role=role,
-        tools=tools,
-        model_provider=model_provider,
-        model_id=model_id,
-    )
-    mc = _offer_instructions_paste(mc)
+        # Offer to customize before adding
+        customize = questionary.confirm(
+            "Customize before adding?", default=False
+        ).ask()
+        if customize:
+            new_role = questionary.text("Role description:", default=role).ask()
+            if new_role is not None:
+                mc.role = new_role
+            mc = _offer_instructions_paste(mc)
 
-    # Step 6 — Preview
+    else:
+        # Blank flow — original behavior
+        name = questionary.text("Member name (e.g. cto, research, writer):").ask()
+        if not name:
+            return settings
+        name = name.strip().lower().replace(" ", "-")
+
+        existing_names = [
+            m if isinstance(m, str) else m.name for m in settings.team.members
+        ]
+        if name in existing_names:
+            console.print(f"  [yellow]\u26a0[/yellow] Member '{name}' already exists.")
+            return settings
+
+        console.print(
+            "  [dim]The team leader uses this description to decide when to route"
+            " tasks to this member. Be specific about what they specialize in.[/dim]"
+        )
+        role = questionary.text("Role description:", default="").ask()
+        if role is None:
+            return settings
+
+        tools = []
+        if settings.enabled_tools:
+            selected = questionary.checkbox(
+                "Which tools should this member have access to?",
+                choices=[
+                    questionary.Choice(title=t, value=t, checked=False)
+                    for t in settings.enabled_tools
+                ],
+            ).ask()
+            if selected:
+                tools = selected
+
+        model_provider = ""
+        model_id = ""
+        use_custom_model = questionary.confirm(
+            "Use a different model for this member? (default: inherits main model)",
+            default=False,
+        ).ask()
+        if use_custom_model:
+            model_provider, model_id = _select_provider()
+
+        mc = MemberConfig(
+            name=name,
+            role=role,
+            tools=tools,
+            model_provider=model_provider,
+            model_id=model_id,
+        )
+        mc = _offer_instructions_paste(mc)
+
+    # Preview and confirm
     _preview_member_config(mc, settings)
 
     confirm = questionary.confirm("Add this member?", default=True).ask()
@@ -758,7 +859,7 @@ def _add_team_member(settings: Settings) -> Settings:
         return settings
 
     settings.team.members.append(mc)
-    console.print(f"  [green]\u2713[/green] Added member: {name}")
+    console.print(f"  [green]\u2713[/green] Added member: {mc.name}")
     return settings
 
 
