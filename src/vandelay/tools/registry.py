@@ -34,6 +34,9 @@ _CLASS_NAME_OVERRIDES: dict[str, str] = {
     "duckduckgo": "DuckDuckGoTools",
     "csv_toolkit": "CsvTools",
     "google_bigquery": "BigQueryTools",
+    "google_maps": "GoogleMapTools",
+    "googlecalendar": "GoogleCalendarTools",
+    "googlesheets": "GoogleSheetsTools",
     "yfinance": "YFinanceTools",
 }
 
