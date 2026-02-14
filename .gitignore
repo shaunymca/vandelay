@@ -24,6 +24,7 @@ env/
 .claude/
 .mcp.json
 CLAUDE.md
+ROADMAP.md
 
 # Environment & secrets
 .env

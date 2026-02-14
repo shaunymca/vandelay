@@ -304,6 +304,7 @@ def create_team(
     settings: Settings,
     reload_callback: Callable[[], None] | None = None,
     scheduler_engine: object | None = None,
+    deep_work_manager: object | None = None,
 ) -> Any:
     """Build an Agno Team with configurable members for supervisor mode.
 
@@ -350,6 +351,13 @@ def create_team(
         reload_callback=reload_callback,
     )
     workspace_tools = WorkspaceTools(settings=settings)
+    leader_tools: list = [tool_mgmt, workspace_tools]
+
+    # Deep work tools (when enabled and manager provided)
+    if settings.deep_work.enabled and deep_work_manager is not None:
+        from vandelay.tools.deep_work import DeepWorkTools
+
+        leader_tools.append(DeepWorkTools(manager=deep_work_manager))
 
     # Determine respond_directly based on mode
     mode = settings.team.mode
@@ -366,7 +374,7 @@ def create_team(
         knowledge=knowledge,
         search_knowledge=knowledge is not None,
         instructions=instructions,
-        tools=[tool_mgmt, workspace_tools],
+        tools=leader_tools,
         respond_directly=respond_directly,
         update_memory_on_run=True,
         markdown=True,

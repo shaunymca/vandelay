@@ -181,8 +181,9 @@ def _build_member_roster(settings: Settings) -> str:
     lines: list[str] = [
         "# Your Team",
         "",
-        "Route tasks to the best member based on their specialization.",
-        "Don't execute tasks yourself — delegate to the right member.",
+        "Delegate tasks to the best member based on their specialization.",
+        "For multi-part requests, delegate to several members and synthesize their results.",
+        "For simple questions you can answer directly, just respond — no need to delegate.",
         "",
         "| Member | Role | Tools | Model |",
         "|--------|------|-------|-------|",
@@ -206,6 +207,65 @@ def _build_member_roster(settings: Settings) -> str:
         "- If no member fits, handle it yourself using your workspace tools",
         "- You can assign new tools to members with assign_tool_to_member()",
     ])
+
+    return "\n".join(lines)
+
+
+def _build_deep_work_prompt(settings: Settings) -> str:
+    """Generate a deep work section for the team leader prompt.
+
+    Only included when deep_work.enabled is True.
+    """
+    cfg = settings.deep_work
+    if not cfg.enabled:
+        return ""
+
+    activation_desc = {
+        "suggest": (
+            "When you detect a complex request that would benefit from extended "
+            "autonomous work (multi-step research, large implementations, etc.), "
+            "suggest using deep work to the user. Wait for their confirmation."
+        ),
+        "explicit": (
+            "Only use deep work when the user explicitly asks for it. "
+            "Do not suggest it proactively."
+        ),
+        "auto": (
+            "Automatically start deep work for complex requests without asking. "
+            "Use your judgment to determine when a task warrants deep work."
+        ),
+    }
+
+    lines = [
+        "# Deep Work",
+        "",
+        "You have access to **deep work** — autonomous background execution for "
+        "complex, multi-step tasks. When activated, a separate team runs in the "
+        "background, breaking down the objective into tasks, delegating to "
+        "specialists, and iterating until done.",
+        "",
+        "## When to Use",
+        activation_desc.get(cfg.activation, activation_desc["suggest"]),
+        "",
+        "Good candidates for deep work:",
+        "- Research projects requiring multiple searches and synthesis",
+        "- Multi-step implementations across several files",
+        "- Tasks that would take many tool calls and iterations",
+        "- Overnight or long-running work",
+        "",
+        "## Tools",
+        "- `start_deep_work(objective)` — Launch a background session",
+        "- `check_deep_work_status()` — Check progress of active session",
+        "- `cancel_deep_work()` — Stop the active session",
+        "",
+        "## Safeguards",
+        f"- Max iterations: {cfg.max_iterations}",
+        f"- Time limit: {cfg.max_time_minutes} minutes",
+        f"- Progress updates every {cfg.progress_interval_minutes} minutes",
+        "- User can cancel at any time",
+        "",
+        "Normal chat continues uninterrupted while deep work runs in the background.",
+    ]
 
     return "\n".join(lines)
 
@@ -244,6 +304,10 @@ def build_team_leader_prompt(
         roster = _build_member_roster(settings)
         if roster:
             sections.append(roster)
+
+        deep_work_prompt = _build_deep_work_prompt(settings)
+        if deep_work_prompt:
+            sections.append(deep_work_prompt)
 
     memory = get_template_content("MEMORY.md", workspace_dir)
     if memory:

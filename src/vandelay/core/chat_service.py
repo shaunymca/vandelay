@@ -10,11 +10,25 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from agno.run.agent import RunEvent
+from agno.run.team import TeamRunEvent
 
 from vandelay.channels.base import IncomingMessage
 from vandelay.core.agent_provider import AgentProvider
 
 logger = logging.getLogger("vandelay.core.chat_service")
+
+# Event name sets that match both Agent and Team streaming events.
+# Agent emits "RunContent", Team emits "TeamRunContent", etc.
+_CONTENT_EVENTS = {RunEvent.run_content.value, TeamRunEvent.run_content.value}
+_ERROR_EVENTS = {RunEvent.run_error.value, TeamRunEvent.run_error.value}
+_TOOL_STARTED_EVENTS = {
+    RunEvent.tool_call_started.value,
+    TeamRunEvent.tool_call_started.value,
+}
+_TOOL_COMPLETED_EVENTS = {
+    RunEvent.tool_call_completed.value,
+    TeamRunEvent.tool_call_completed.value,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -177,7 +191,7 @@ class ChatService:
                 event_type = getattr(chunk, "event", "")
                 run_id = getattr(chunk, "run_id", run_id)
 
-                if event_type == RunEvent.run_content.value:
+                if event_type in _CONTENT_EVENTS:
                     delta = getattr(chunk, "content", "")
                     if delta:
                         buffer += str(delta)
@@ -210,7 +224,7 @@ class ChatService:
                             # Too small — keep accumulating
                             break
 
-                elif event_type == RunEvent.run_error.value:
+                elif event_type in _ERROR_EVENTS:
                     error_msg = getattr(chunk, "content", "Unknown error")
                     yield ChatResponse(error=str(error_msg), run_id=run_id)
                     return
@@ -271,7 +285,7 @@ class ChatService:
                 event_type = getattr(chunk, "event", "")
                 run_id = getattr(chunk, "run_id", run_id)
 
-                if event_type == RunEvent.run_content.value:
+                if event_type in _CONTENT_EVENTS:
                     delta = getattr(chunk, "content", "")
                     if delta:
                         full_content += str(delta)
@@ -281,7 +295,7 @@ class ChatService:
                             run_id=run_id,
                         )
 
-                elif event_type == RunEvent.run_error.value:
+                elif event_type in _ERROR_EVENTS:
                     error_msg = getattr(chunk, "content", "Unknown error")
                     yield StreamChunk(
                         event="run_error",
@@ -290,7 +304,7 @@ class ChatService:
                     )
                     return
 
-                elif event_type == RunEvent.tool_call_started.value:
+                elif event_type in _TOOL_STARTED_EVENTS:
                     tool = getattr(chunk, "tool", None)
                     tool_name = (
                         getattr(tool, "tool_name", "unknown") if tool else "unknown"
@@ -302,7 +316,7 @@ class ChatService:
                         run_id=run_id,
                     )
 
-                elif event_type == RunEvent.tool_call_completed.value:
+                elif event_type in _TOOL_COMPLETED_EVENTS:
                     tool = getattr(chunk, "tool", None)
                     tool_name = (
                         getattr(tool, "tool_name", "unknown") if tool else "unknown"
