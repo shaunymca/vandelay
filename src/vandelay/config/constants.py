@@ -15,6 +15,7 @@ KNOWLEDGE_DIR = WORKSPACE_DIR / "knowledge"
 LOGS_DIR = VANDELAY_HOME / "logs"
 CRON_FILE = VANDELAY_HOME / "cron_jobs.json"
 TOOL_REGISTRY_FILE = VANDELAY_HOME / "tool_registry.json"
+MEMBERS_DIR = VANDELAY_HOME / "members"
 
 # Database defaults
 DEFAULT_DB_FILE = DB_DIR / "vandelay.db"

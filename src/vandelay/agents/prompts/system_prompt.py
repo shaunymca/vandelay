@@ -11,6 +11,29 @@ if TYPE_CHECKING:
     from vandelay.config.settings import Settings
 
 
+def build_personality_brief(workspace_dir: Path | None = None) -> str:
+    """Extract Core Truths and Vibe sections from SOUL.md for member injection.
+
+    Returns a short personality brief (~6 lines) that gives specialist agents
+    a consistent voice even when they respond directly (route mode).
+    """
+    soul = get_template_content("SOUL.md", workspace_dir)
+    if not soul:
+        return ""
+
+    sections_to_extract = ("## Core Truths", "## Vibe")
+    lines: list[str] = []
+    capturing = False
+
+    for line in soul.splitlines():
+        if line.startswith("## "):
+            capturing = line.strip() in sections_to_extract
+        if capturing:
+            lines.append(line)
+
+    return "\n".join(lines).strip() if lines else ""
+
+
 def _build_tool_catalog(settings: Settings) -> str:
     """Generate a markdown section listing all available tools by category.
 

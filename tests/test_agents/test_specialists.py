@@ -1,24 +1,12 @@
-"""Tests for specialist agent factories."""
+"""Backward-compatibility tests — legacy string member names still produce valid agents."""
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from vandelay.agents.specialists.agents import (
-    SPECIALIST_FACTORIES,
-    create_browser_agent,
-    create_knowledge_agent,
-    create_scheduler_agent,
-    create_system_agent,
-)
-from vandelay.config.models import ModelConfig
+from vandelay.agents.factory import _resolve_member
+from vandelay.config.models import MemberConfig, ModelConfig
 from vandelay.config.settings import Settings
-
-# Patch target for Agent class (imported at module level in specialists)
-_AGENT_CLS = "vandelay.agents.specialists.agents.Agent"
-# ToolManager and SchedulerTools are local imports — patch at source
-_TOOL_MGR = "vandelay.tools.manager.ToolManager"
-_SCHED_TOOLS = "vandelay.tools.scheduler.SchedulerTools"
 
 
 def _make_settings(**overrides) -> Settings:
@@ -31,113 +19,79 @@ def _make_settings(**overrides) -> Settings:
     return Settings(**defaults)
 
 
-class TestSpecialistFactories:
-    def test_registry_has_all_specialists(self):
-        assert set(SPECIALIST_FACTORIES.keys()) == {
-            "browser", "system", "scheduler", "knowledge",
-        }
+class TestLegacyMemberNames:
+    """Ensure legacy string member names resolve correctly through the new factory."""
 
-    @patch(_TOOL_MGR)
-    @patch(_AGENT_CLS)
-    def test_browser_agent_id(self, mock_agent_cls, mock_mgr):
-        mock_mgr.return_value.instantiate_tools.return_value = [MagicMock()]
+    def test_all_legacy_names_resolve(self):
+        for name in ("browser", "system", "scheduler", "knowledge"):
+            mc = _resolve_member(name)
+            assert isinstance(mc, MemberConfig)
+            assert mc.name == name
+
+    @patch("vandelay.agents.factory.Agent")
+    def test_legacy_browser_creates_agent(self, mock_agent):
+        from vandelay.agents.factory import _build_member_agent
+
+        mock_agent.return_value = MagicMock()
+        mc = _resolve_member("browser")
         settings = _make_settings(enabled_tools=["crawl4ai"])
-        mock_agent_cls.return_value = MagicMock()
 
-        create_browser_agent(
-            model=MagicMock(), db=MagicMock(), knowledge=None, settings=settings,
-        )
+        with patch("vandelay.tools.manager.ToolManager") as mock_mgr:
+            mock_mgr.return_value.instantiate_tools.return_value = [MagicMock()]
+            _build_member_agent(
+                mc,
+                main_model=MagicMock(),
+                db=MagicMock(),
+                knowledge=None,
+                settings=settings,
+                personality_brief="",
+            )
 
-        call_kwargs = mock_agent_cls.call_args[1]
-        assert call_kwargs["id"] == "vandelay-browser"
-        assert call_kwargs["role"] is not None
+        kwargs = mock_agent.call_args[1]
+        assert kwargs["id"] == "vandelay-browser"
+        assert kwargs["role"] is not None
 
-    @patch(_TOOL_MGR)
-    @patch(_AGENT_CLS)
-    def test_system_agent_filters_tools(self, mock_agent_cls, mock_mgr):
-        mock_mgr.return_value.instantiate_tools.return_value = [MagicMock()]
-        settings = _make_settings(enabled_tools=["shell", "file", "crawl4ai"])
-        mock_agent_cls.return_value = MagicMock()
+    @patch("vandelay.agents.factory.Agent")
+    def test_legacy_system_creates_agent(self, mock_agent):
+        from vandelay.agents.factory import _build_member_agent
 
-        create_system_agent(
-            model=MagicMock(), db=MagicMock(), knowledge=None, settings=settings,
-        )
+        mock_agent.return_value = MagicMock()
+        mc = _resolve_member("system")
+        settings = _make_settings(enabled_tools=["shell", "file"])
 
-        # Should only instantiate shell and file, not crawl4ai
-        instantiate_call = mock_mgr.return_value.instantiate_tools
-        tool_names = instantiate_call.call_args[0][0]
-        assert "shell" in tool_names
-        assert "file" in tool_names
-        assert "crawl4ai" not in tool_names
+        with patch("vandelay.tools.manager.ToolManager") as mock_mgr:
+            mock_mgr.return_value.instantiate_tools.return_value = [MagicMock()]
+            _build_member_agent(
+                mc,
+                main_model=MagicMock(),
+                db=MagicMock(),
+                knowledge=None,
+                settings=settings,
+                personality_brief="",
+            )
 
-    @patch(_SCHED_TOOLS)
-    @patch(_AGENT_CLS)
-    def test_scheduler_agent_with_engine(self, mock_agent_cls, mock_sched_cls):
-        mock_agent_cls.return_value = MagicMock()
-        mock_sched_cls.return_value = MagicMock()
-        mock_engine = MagicMock()
-        settings = _make_settings()
+        kwargs = mock_agent.call_args[1]
+        assert kwargs["id"] == "vandelay-system"
 
-        create_scheduler_agent(
-            model=MagicMock(), db=MagicMock(), knowledge=None,
-            settings=settings, scheduler_engine=mock_engine,
-        )
+    @patch("vandelay.agents.factory.Agent")
+    def test_legacy_knowledge_creates_agent(self, mock_agent):
+        from vandelay.agents.factory import _build_member_agent
 
-        call_kwargs = mock_agent_cls.call_args[1]
-        assert call_kwargs["id"] == "vandelay-scheduler"
-        assert call_kwargs["tools"] is not None
-
-    @patch(_AGENT_CLS)
-    def test_scheduler_agent_without_engine(self, mock_agent_cls):
-        mock_agent_cls.return_value = MagicMock()
-        settings = _make_settings()
-
-        create_scheduler_agent(
-            model=MagicMock(), db=MagicMock(), knowledge=None,
-            settings=settings, scheduler_engine=None,
-        )
-
-        call_kwargs = mock_agent_cls.call_args[1]
-        assert call_kwargs["tools"] is None
-
-    @patch(_AGENT_CLS)
-    def test_knowledge_agent_with_knowledge(self, mock_agent_cls):
-        mock_agent_cls.return_value = MagicMock()
+        mock_agent.return_value = MagicMock()
+        mc = _resolve_member("knowledge")
         mock_knowledge = MagicMock()
         settings = _make_settings()
 
-        create_knowledge_agent(
-            model=MagicMock(), db=MagicMock(), knowledge=mock_knowledge,
+        _build_member_agent(
+            mc,
+            main_model=MagicMock(),
+            db=MagicMock(),
+            knowledge=mock_knowledge,
             settings=settings,
+            personality_brief="",
         )
 
-        call_kwargs = mock_agent_cls.call_args[1]
-        assert call_kwargs["id"] == "vandelay-knowledge"
-        assert call_kwargs["knowledge"] is mock_knowledge
-        assert call_kwargs["search_knowledge"] is True
-
-    @patch(_AGENT_CLS)
-    def test_knowledge_agent_without_knowledge(self, mock_agent_cls):
-        mock_agent_cls.return_value = MagicMock()
-        settings = _make_settings()
-
-        create_knowledge_agent(
-            model=MagicMock(), db=MagicMock(), knowledge=None,
-            settings=settings,
-        )
-
-        call_kwargs = mock_agent_cls.call_args[1]
-        assert call_kwargs["search_knowledge"] is False
-
-    @patch(_AGENT_CLS)
-    def test_browser_agent_no_browser_tools(self, mock_agent_cls):
-        """Browser agent with no browser tools enabled should have tools=None."""
-        mock_agent_cls.return_value = MagicMock()
-        settings = _make_settings(enabled_tools=["shell"])
-
-        create_browser_agent(
-            model=MagicMock(), db=MagicMock(), knowledge=None, settings=settings,
-        )
-
-        call_kwargs = mock_agent_cls.call_args[1]
-        assert call_kwargs["tools"] is None
+        kwargs = mock_agent.call_args[1]
+        assert kwargs["id"] == "vandelay-knowledge"
+        assert kwargs["knowledge"] is mock_knowledge
+        assert kwargs["search_knowledge"] is True

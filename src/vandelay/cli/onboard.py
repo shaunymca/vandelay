@@ -15,6 +15,7 @@ from vandelay.config.models import (
     ChannelConfig,
     HeartbeatConfig,
     KnowledgeConfig,
+    MemberConfig,
     ModelConfig,
     SafetyConfig,
     ServerConfig,
@@ -511,7 +512,7 @@ def run_config_menu(settings: Settings, exit_label: str = "Back to chat") -> Set
                     value="knowledge",
                 ),
                 questionary.Choice(
-                    title=f"Team mode       [{'enabled' if settings.team.enabled else 'disabled'}]",
+                    title=f"Team mode       [{_team_summary(settings)}]",
                     value="team",
                 ),
                 questionary.Choice(
@@ -581,14 +582,7 @@ def run_config_menu(settings: Settings, exit_label: str = "Back to chat") -> Set
             settings.knowledge.enabled = enabled
 
         elif section == "team":
-            toggle = questionary.confirm(
-                "Enable team mode? (routes queries to specialist agents)",
-                default=settings.team.enabled,
-            ).ask()
-            if toggle is not None:
-                settings.team.enabled = toggle
-                state = "enabled" if toggle else "disabled"
-                console.print(f"  [green]\u2713[/green] Team mode {state}")
+            settings = _configure_team(settings)
 
         elif section == "heartbeat":
             settings.heartbeat = _configure_heartbeat(settings.heartbeat, settings.timezone)
@@ -600,6 +594,71 @@ def run_config_menu(settings: Settings, exit_label: str = "Back to chat") -> Set
         settings.save()
         console.print("  [dim]Config saved.[/dim]")
 
+    return settings
+
+
+def _team_summary(settings: Settings) -> str:
+    """One-line summary of team config for the config menu."""
+    if not settings.team.enabled:
+        return "disabled"
+    member_names = []
+    for m in settings.team.members:
+        if isinstance(m, (str, MemberConfig)):
+            name = m if isinstance(m, str) else m.name
+            member_names.append(name)
+    return f"{settings.team.mode}, {len(member_names)} members"
+
+
+def _configure_team(settings: Settings) -> Settings:
+    """Interactive team configuration — toggle, mode, and members summary."""
+    toggle = questionary.confirm(
+        "Enable team mode? (routes queries to specialist agents)",
+        default=settings.team.enabled,
+    ).ask()
+    if toggle is None:
+        return settings
+
+    settings.team.enabled = toggle
+    if not toggle:
+        console.print("  [green]\u2713[/green] Team mode disabled")
+        return settings
+
+    # Mode selection
+    mode = questionary.select(
+        "Team execution mode?",
+        choices=[
+            questionary.Choice(
+                title="Route — supervisor picks the best member per query (recommended)",
+                value="route",
+            ),
+            questionary.Choice(
+                title="Coordinate — supervisor delegates and synthesizes responses",
+                value="coordinate",
+            ),
+            questionary.Choice(
+                title="Broadcast — all members respond, supervisor picks the best",
+                value="broadcast",
+            ),
+        ],
+        default=settings.team.mode,
+    ).ask()
+    if mode is None:
+        return settings
+
+    settings.team.mode = mode
+
+    # Show current members
+    member_names = []
+    for m in settings.team.members:
+        name = m if isinstance(m, str) else m.name
+        member_names.append(name)
+    console.print(f"  Members: {', '.join(member_names) or 'none'}")
+    console.print(
+        "  [dim]Edit members in config.json or via the API"
+        " — see docs for MemberConfig format[/dim]"
+    )
+
+    console.print(f"  [green]\u2713[/green] Team: {mode} mode, {len(member_names)} members")
     return settings
 
 
