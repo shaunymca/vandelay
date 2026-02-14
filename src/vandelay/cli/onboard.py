@@ -463,8 +463,15 @@ def _tools_summary(enabled_tools: list[str]) -> str:
     return f"{count} enabled" if count else "none"
 
 
-def run_config_menu(settings: Settings, exit_label: str = "Back to chat") -> Settings:
+def run_config_menu(settings: Settings, exit_label: str | None = None) -> Settings:
     """Interactive config editor — pick a section to change."""
+    # Detect running daemon to determine exit behavior
+    from vandelay.cli.daemon import is_daemon_running, is_daemon_supported
+
+    daemon_running = is_daemon_supported() and is_daemon_running()
+    if exit_label is None:
+        exit_label = "Save & restart" if daemon_running else "Done"
+
     while True:
         console.print()
         section = questionary.select(
@@ -524,7 +531,6 @@ def run_config_menu(settings: Settings, exit_label: str = "Back to chat") -> Set
                     title=f"Heartbeat       [{_heartbeat_summary(settings)}]",
                     value="heartbeat",
                 ),
-                *_daemon_restart_choice(),
                 questionary.Choice(
                     title=exit_label,
                     value="done",
@@ -533,6 +539,8 @@ def run_config_menu(settings: Settings, exit_label: str = "Back to chat") -> Set
         ).ask()
 
         if section is None or section == "done":
+            if daemon_running:
+                _do_daemon_restart()
             break
 
         if section == "name":
@@ -594,10 +602,6 @@ def run_config_menu(settings: Settings, exit_label: str = "Back to chat") -> Set
 
         elif section == "heartbeat":
             settings.heartbeat = _configure_heartbeat(settings.heartbeat, settings.timezone)
-
-        elif section == "restart_daemon":
-            _do_daemon_restart()
-            continue  # skip save — no settings changed
 
         settings.save()
         console.print("  [dim]Config saved.[/dim]")
@@ -1007,17 +1011,6 @@ def _offer_instructions_paste(mc: MemberConfig) -> MemberConfig:
     console.print(f"  [green]\u2713[/green] Instructions saved to {instructions_path}")
     return mc
 
-
-def _daemon_restart_choice() -> list:
-    """Return a restart choice if the daemon is running, else empty list."""
-    from vandelay.cli.daemon import is_daemon_running, is_daemon_supported
-
-    if is_daemon_supported() and is_daemon_running():
-        return [questionary.Choice(
-            title="Restart daemon  [apply config changes]",
-            value="restart_daemon",
-        )]
-    return []
 
 
 def _do_daemon_restart() -> None:
