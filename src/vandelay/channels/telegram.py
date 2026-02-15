@@ -7,6 +7,8 @@ import contextlib
 import logging
 from typing import TYPE_CHECKING, Any
 
+import re
+
 import httpx
 from agno.media import Audio, File, Image, Video
 
@@ -157,8 +159,29 @@ class TelegramAdapter(ChannelAdapter):
 
         await self._send_text(chat_id, message.text)
 
+    @staticmethod
+    def _strip_markdown(text: str) -> str:
+        """Strip common markdown notation so Telegram shows clean plain text."""
+        # Headers: "## Heading" → "Heading"
+        text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
+        # Bold/italic: **text**, __text__, *text*, _text_
+        text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+        text = re.sub(r"__(.+?)__", r"\1", text)
+        text = re.sub(r"\*(.+?)\*", r"\1", text)
+        text = re.sub(r"(?<!\w)_(.+?)_(?!\w)", r"\1", text)
+        # Inline code: `code`
+        text = re.sub(r"`([^`]+)`", r"\1", text)
+        # Code blocks: ```lang\n...\n```
+        text = re.sub(r"```\w*\n?", "", text)
+        # Links: [text](url) → text (url)
+        text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1 (\2)", text)
+        # Bullet markers: "- item" → "• item"
+        text = re.sub(r"^[-*]\s+", "• ", text, flags=re.MULTILINE)
+        return text.strip()
+
     async def _send_text(self, chat_id: str, text: str) -> None:
         """Send text via Telegram Bot API (chunked at 4096 chars)."""
+        text = self._strip_markdown(text)
         max_len = 4096
         chunks = [text[i : i + max_len] for i in range(0, len(text), max_len)]
 

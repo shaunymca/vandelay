@@ -331,7 +331,7 @@ def interactive_tools_browser(settings) -> None:
         while True:
             tool_choices = []
             for t in sorted(filtered, key=lambda x: x["name"]):
-                status = "[green]enabled[/green]" if t["enabled"] else "available"
+                status = "enabled" if t["enabled"] else "available"
                 label = f"{t['name']} [{t['category']}] - {status}"
                 tool_choices.append(questionary.Choice(title=label, value=t["name"]))
             tool_choices.append(questionary.Choice(title="<- Back to filter", value="back"))
