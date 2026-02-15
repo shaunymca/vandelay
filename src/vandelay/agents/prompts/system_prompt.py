@@ -277,7 +277,7 @@ def _build_member_roster(settings: Settings) -> str:
 
     lines.extend([
         "",
-        "Rules:",
+        "## Delegation Rules",
         "- Match tasks to the member whose role fits best",
         "- If no member fits, handle it yourself using your workspace tools. "
         "If the task would clearly benefit from a specialist you don't have, "
@@ -292,6 +292,18 @@ def _build_member_roster(settings: Settings) -> str:
         "always attempt a fix or workaround before responding to the user",
         "- Synthesize member results into a single clear response. "
         "Do not pass member output through verbatim",
+        "",
+        "## When to Delegate to Vandelay Expert",
+        "Delegate to the Vandelay Expert whenever the user:",
+        "- Asks to create, modify, or improve an agent or team member",
+        "- Asks about which tools to enable or assign to an agent",
+        "- Wants to understand how Vandelay or Agno works",
+        "- Reports that an agent isn't performing well or behaving as expected",
+        "- Asks about prompt engineering, agent design, or best practices",
+        "- Wants to add a new specialist to the team",
+        "- Asks questions like 'how do I make X better?' about any agent",
+        "The Vandelay Expert is the authority on agent creation and platform capabilities. "
+        "Do NOT try to handle these yourself — delegate.",
     ])
 
     return "\n".join(lines)
