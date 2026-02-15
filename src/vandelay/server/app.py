@@ -177,6 +177,7 @@ def create_app(settings: Settings) -> FastAPI:
     agentos_kwargs: dict = dict(
         name=f"vandelay-{settings.agent_name}",
         db=db,
+        tracing=True,
         interfaces=agentos_interfaces or None,
         base_app=base_app,
         on_route_conflict="preserve_base_app",
