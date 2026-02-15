@@ -96,8 +96,12 @@ def build_system_prompt(
     """
     sections: list[str] = []
 
-    # Agent identity preamble
-    sections.append(f"Your name is **{agent_name}**.")
+    # Agent identity preamble + current date/time so the agent never
+    # falls back to its training-cutoff date for scheduling tasks.
+    from datetime import datetime
+
+    now = datetime.now().strftime("%A, %B %d, %Y %I:%M %p")
+    sections.append(f"Your name is **{agent_name}**.\n\nCurrent date and time: {now}")
 
     soul = get_template_content("SOUL.md", workspace_dir)
     if soul:
@@ -295,8 +299,12 @@ def build_team_leader_prompt(
     """
     sections: list[str] = []
 
-    # Agent identity preamble
-    sections.append(f"Your name is **{agent_name}**.")
+    # Agent identity preamble + current date/time so the agent never
+    # falls back to its training-cutoff date for scheduling tasks.
+    from datetime import datetime
+
+    now = datetime.now().strftime("%A, %B %d, %Y %I:%M %p")
+    sections.append(f"Your name is **{agent_name}**.\n\nCurrent date and time: {now}")
 
     soul = get_template_content("SOUL.md", workspace_dir)
     if soul:

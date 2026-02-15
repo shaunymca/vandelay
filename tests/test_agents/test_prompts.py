@@ -39,6 +39,30 @@ def test_build_prompt_includes_agent_name(tmp_workspace):
     assert "TestBot" in prompt
 
 
+def test_build_prompt_includes_current_datetime(tmp_workspace):
+    """Prompt should include the current date so agents don't default to training cutoff."""
+    from datetime import datetime
+
+    prompt = build_system_prompt(agent_name="TestBot", workspace_dir=tmp_workspace)
+    today = datetime.now().strftime("%B %d, %Y")
+    assert "Current date and time:" in prompt
+    assert today in prompt
+
+
+def test_team_leader_prompt_includes_current_datetime(tmp_workspace, prompt_settings):
+    """Team leader prompt should also include the current date."""
+    from datetime import datetime
+
+    prompt = build_team_leader_prompt(
+        agent_name="TestBot",
+        workspace_dir=tmp_workspace,
+        settings=prompt_settings,
+    )
+    today = datetime.now().strftime("%B %d, %Y")
+    assert "Current date and time:" in prompt
+    assert today in prompt
+
+
 def test_build_prompt_includes_soul(tmp_workspace):
     """Prompt should include SOUL.md content."""
     prompt = build_system_prompt(workspace_dir=tmp_workspace)

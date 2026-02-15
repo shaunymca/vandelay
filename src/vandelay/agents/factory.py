@@ -244,6 +244,7 @@ def create_agent(
     reload_callback: Callable[[], None] | None = None,
     scheduler_engine: object | None = None,
     task_store: object | None = None,
+    channel_router: object | None = None,
 ) -> Agent:
     """Build the main Agno Agent with memory, storage, and instructions.
 
@@ -255,6 +256,8 @@ def create_agent(
             SchedulerTools are added to the agent's toolkit.
         task_store: Optional TaskStore instance. When provided,
             TaskQueueTools are added to the agent's toolkit.
+        channel_router: Optional ChannelRouter instance. When provided,
+            NotifyTools are added so the agent can send proactive messages.
     """
     from vandelay.tools.tool_management import ToolManagementTools
     from vandelay.tools.workspace import WorkspaceTools
@@ -291,6 +294,12 @@ def create_agent(
 
         tools.append(TaskQueueTools(store=task_store))
 
+    # Proactive notification tools when channel router is available
+    if channel_router is not None:
+        from vandelay.tools.notify import NotifyTools
+
+        tools.append(NotifyTools(channel_router=channel_router))
+
     # Knowledge/RAG
     from vandelay.knowledge.setup import create_knowledge
 
@@ -321,6 +330,7 @@ def create_team(
     scheduler_engine: object | None = None,
     deep_work_manager: object | None = None,
     task_store: object | None = None,
+    channel_router: object | None = None,
 ) -> Any:
     """Build an Agno Team with configurable members for supervisor mode.
 
@@ -379,6 +389,12 @@ def create_team(
         from vandelay.tools.deep_work import DeepWorkTools
 
         leader_tools.append(DeepWorkTools(manager=deep_work_manager))
+
+    # Proactive notification tools for the leader
+    if channel_router is not None:
+        from vandelay.tools.notify import NotifyTools
+
+        leader_tools.append(NotifyTools(channel_router=channel_router))
 
     # Determine respond_directly based on mode
     mode = settings.team.mode
