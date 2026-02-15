@@ -104,6 +104,46 @@ async def terminal_websocket(websocket: WebSocket) -> None:
                     await conn.send_event("error", error="Empty message")
                     continue
 
+                # Intercept /thread commands
+                registry = getattr(websocket.app.state, "thread_registry", None)
+                if registry and text.startswith("/thread"):
+                    from vandelay.threads.commands import parse_thread_command
+
+                    cmd = parse_thread_command(text)
+                    channel_key = f"ws:{settings.user_id or 'default'}"
+                    base_sid = conn.session_id
+
+                    if cmd.action == "switch":
+                        sid, created = registry.switch_thread(
+                            channel_key, cmd.thread_name, base_sid
+                        )
+                        conn.session_id = sid
+                        verb = "Created and switched to" if created else "Switched to"
+                        await conn.send_event(
+                            "thread_switched",
+                            thread=cmd.thread_name,
+                            session_id=sid,
+                            created=created,
+                            message=f"{verb} thread: {cmd.thread_name}",
+                        )
+                        continue
+                    elif cmd.action == "show_current":
+                        name = registry.get_active_thread_name(channel_key)
+                        await conn.send_event(
+                            "thread_current",
+                            thread=name,
+                            message=f"Current thread: {name}",
+                        )
+                        continue
+                    elif cmd.action == "list":
+                        threads = registry.list_threads(channel_key)
+                        await conn.send_event(
+                            "thread_list",
+                            threads=threads,
+                            message="Thread list",
+                        )
+                        continue
+
                 # Allow client to override session_id to resume a session
                 sid = msg.get("session_id") or conn.session_id
                 await _handle_chat(chat_service, conn, text, sid, settings)

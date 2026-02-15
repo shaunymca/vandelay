@@ -5,9 +5,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from typing import TYPE_CHECKING, Any
-
 import re
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from agno.media import Audio, File, Image, Video
@@ -17,6 +16,7 @@ from vandelay.config.settings import get_settings
 
 if TYPE_CHECKING:
     from vandelay.core.chat_service import ChatService
+    from vandelay.threads.registry import ThreadRegistry
 
 logger = logging.getLogger("vandelay.channels.telegram")
 
@@ -39,12 +39,14 @@ class TelegramAdapter(ChannelAdapter):
         chat_id: str = "",
         webhook_url: str = "",
         default_user_id: str = "",
+        thread_registry: ThreadRegistry | None = None,
     ) -> None:
         self.bot_token = bot_token
         self.chat_service = chat_service
         self.chat_id = chat_id
         self.webhook_url = webhook_url
         self.default_user_id = default_user_id
+        self.thread_registry = thread_registry
         self._bot_username: str | None = None
         self._polling_task: asyncio.Task | None = None
         self._stop_event = asyncio.Event()
@@ -150,7 +152,9 @@ class TelegramAdapter(ChannelAdapter):
 
     async def send(self, message: OutgoingMessage) -> None:
         """Send a text message to a Telegram chat."""
-        chat_id = message.session_id.removeprefix("tg:")
+        # Extract numeric chat_id — handles both "tg:123" and "tg:123:thread:foo"
+        raw_id = message.session_id.removeprefix("tg:")
+        chat_id = raw_id.split(":")[0] if ":" in raw_id else raw_id
         if not chat_id:
             chat_id = self.chat_id
         if not chat_id:
@@ -219,7 +223,7 @@ class TelegramAdapter(ChannelAdapter):
         chat_id = str(message["chat"]["id"])
         user = message.get("from", {})
         tg_user_id = str(user.get("id", ""))
-        session_id = f"tg:{chat_id}"
+        base_session_id = f"tg:{chat_id}"
 
         # Auto-capture chat_id on first incoming message
         if not self.chat_id:
@@ -237,6 +241,25 @@ class TelegramAdapter(ChannelAdapter):
 
         # Extract text — could be message text or media caption
         text = message.get("text") or message.get("caption") or ""
+
+        # Intercept thread commands before they reach the agent
+        if text and self.thread_registry:
+            from vandelay.threads.commands import parse_thread_command
+
+            cmd = parse_thread_command(text)
+            if cmd.action != "none":
+                await self._handle_thread_command(
+                    cmd, f"tg:{chat_id}", base_session_id, chat_id
+                )
+                return
+
+        # Resolve thread-aware session_id
+        if self.thread_registry:
+            session_id = self.thread_registry.get_active_session_id(
+                f"tg:{chat_id}", base_session_id
+            )
+        else:
+            session_id = base_session_id
 
         # Extract media attachments
         images: list[Image] = []
@@ -318,6 +341,41 @@ class TelegramAdapter(ChannelAdapter):
 
         if not sent_any:
             await self._send_text(chat_id, "(no response)")
+
+    # ------------------------------------------------------------------
+    # Thread commands
+    # ------------------------------------------------------------------
+
+    async def _handle_thread_command(
+        self,
+        cmd: Any,
+        channel_key: str,
+        base_session_id: str,
+        chat_id: str,
+    ) -> None:
+        """Handle /thread and /threads commands directly."""
+        assert self.thread_registry is not None
+        if cmd.action == "switch":
+            sid, created = self.thread_registry.switch_thread(
+                channel_key, cmd.thread_name, base_session_id
+            )
+            verb = "Created and switched to" if created else "Switched to"
+            await self._send_text(chat_id, f"{verb} thread: {cmd.thread_name}")
+        elif cmd.action == "show_current":
+            name = self.thread_registry.get_active_thread_name(channel_key)
+            await self._send_text(chat_id, f"Current thread: {name}")
+        elif cmd.action == "list":
+            threads = self.thread_registry.list_threads(channel_key)
+            if not threads:
+                await self._send_text(
+                    chat_id, "No threads yet. Use /thread <name> to create one."
+                )
+            else:
+                lines = []
+                for t in threads:
+                    marker = " (active)" if t["active"] else ""
+                    lines.append(f"  {t['name']}{marker}")
+                await self._send_text(chat_id, "Threads:\n" + "\n".join(lines))
 
     # ------------------------------------------------------------------
     # File downloads

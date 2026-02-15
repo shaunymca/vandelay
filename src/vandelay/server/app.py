@@ -97,6 +97,12 @@ def create_app(settings: Settings) -> FastAPI:
     # so progress notifications can find adapters)
     channel_router = ChannelRouter()
 
+    # Thread registry for conversation threading (/thread command)
+    from vandelay.threads.registry import ThreadRegistry
+
+    thread_registry = ThreadRegistry()
+    base_app.state.thread_registry = thread_registry
+
     # Deep work manager — needs channel_router for progress notifications
     if settings.deep_work.enabled and settings.team.enabled:
         from vandelay.core.deep_work import DeepWorkManager
@@ -126,6 +132,7 @@ def create_app(settings: Settings) -> FastAPI:
                 chat_service=chat_service,
                 chat_id=settings.channels.telegram_chat_id,
                 default_user_id=settings.user_id or "default",
+                thread_registry=thread_registry,
             )
             channel_router.register(tg_adapter)
             base_app.state.telegram_adapter = tg_adapter
