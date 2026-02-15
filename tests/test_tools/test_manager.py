@@ -91,3 +91,39 @@ def test_refresh(tmp_manager: ToolManager):
     """refresh() should re-scan and return count."""
     count = tmp_manager.refresh()
     assert count > 0
+
+
+# --- Google Sheets output truncation ---
+
+class _FakeSheetTool:
+    """Minimal stand-in for GoogleSheetsTools with a read_sheet method."""
+    def read_sheet(self, *args, **kwargs):
+        return self._response
+
+
+def test_sheet_output_truncated_when_large():
+    """read_sheet output exceeding 50K chars should be truncated with guidance."""
+    from vandelay.tools.manager import _cap_sheet_output
+
+    fake = _FakeSheetTool()
+    fake._response = "x" * 100_000
+    _cap_sheet_output(fake)
+
+    result = fake.read_sheet()
+    assert len(result) < 100_000
+    assert result.startswith("x" * 50_000)
+    assert "[TRUNCATED" in result
+    assert "100,000 chars" in result
+    assert "spreadsheet_range" in result
+
+
+def test_sheet_output_unchanged_when_small():
+    """read_sheet output under the limit should pass through untouched."""
+    from vandelay.tools.manager import _cap_sheet_output
+
+    fake = _FakeSheetTool()
+    fake._response = "small data"
+    _cap_sheet_output(fake)
+
+    result = fake.read_sheet()
+    assert result == "small data"
