@@ -21,6 +21,76 @@ if TYPE_CHECKING:
     from vandelay.config.settings import Settings
 
 
+def _google_all_scopes() -> list[str]:
+    """All OAuth scopes needed across Google tools."""
+    return [
+        "https://www.googleapis.com/auth/gmail.modify",
+        "https://www.googleapis.com/auth/calendar",
+        "https://www.googleapis.com/auth/drive",
+        "https://www.googleapis.com/auth/spreadsheets",
+    ]
+
+
+def _inject_google_creds(tool_instance: Any, token_path: str) -> None:
+    """Pre-load Google credentials and inject into a tool instance.
+
+    This prevents Agno's per-tool ``_auth()`` from overwriting
+    Vandelay's unified multi-scope token or attempting to open a
+    browser for OAuth on a headless server.
+    """
+    import logging
+    from pathlib import Path
+    from types import MethodType
+
+    logger = logging.getLogger("vandelay.tools")
+    token_file = Path(token_path)
+    all_scopes = _google_all_scopes()
+
+    if token_file.exists():
+        try:
+            from google.auth.transport.requests import Request
+            from google.oauth2.credentials import Credentials
+
+            creds = Credentials.from_authorized_user_file(str(token_file), all_scopes)
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+                token_file.write_text(creds.to_json())
+            if creds and creds.valid:
+                tool_instance.creds = creds
+        except Exception as e:
+            logger.warning("Failed to pre-load Google creds: %s", e)
+
+    # Replace _auth() with a safe version that only refreshes — never
+    # opens a browser or overwrites the token with single-scope creds.
+    def _safe_auth(self: Any) -> None:
+        if self.creds and self.creds.valid:
+            return
+        _token = Path(token_path)
+        if not _token.exists():
+            logger.error(
+                "Google token missing. Run: vandelay tools auth-google"
+            )
+            return
+        try:
+            from google.auth.transport.requests import Request as _Req
+            from google.oauth2.credentials import Credentials as _Creds
+
+            self.creds = _Creds.from_authorized_user_file(
+                str(_token), all_scopes
+            )
+            if self.creds and self.creds.expired and self.creds.refresh_token:
+                self.creds.refresh(_Req())
+                _token.write_text(self.creds.to_json())
+            if not self.creds or not self.creds.valid:
+                logger.error(
+                    "Google token expired. Run: vandelay tools auth-google --reauth"
+                )
+        except Exception as exc:
+            logger.error("Google auth refresh failed: %s", exc)
+
+    tool_instance._auth = MethodType(_safe_auth, tool_instance)
+
+
 class InstallResult:
     """Result of a tool install/uninstall operation."""
 
@@ -188,6 +258,17 @@ class ToolManager:
                     continue
 
                 # Special handling for Google OAuth tools — shared token
+                # and unified credential management.
+                #
+                # Problem: Each Agno Google tool has its own _auth() that can
+                # (a) load the token with wrong/tool-specific scopes,
+                # (b) overwrite the token file with single-scope credentials,
+                # (c) try to open a browser for OAuth on a headless server.
+                #
+                # Fix: Pre-load credentials from Vandelay's unified token
+                # (all 4 scopes) and inject into the tool instance. Replace
+                # _auth() with a safe version that only refreshes — never
+                # re-runs OAuth.
                 _goauth = {
                     "gmail": {"token_path": None, "port": 0},
                     "google_drive": {"token_path": None, "auth_port": 0},
@@ -205,19 +286,17 @@ class ToolManager:
                         if "token" in k:
                             kwargs[k] = token
                             break
-                    # Workaround: Agno's GoogleCalendarTools passes
-                    # DEFAULT_SCOPES dict keys ("read","write") instead of
-                    # URL values to Credentials.from_authorized_user_file.
-                    # Pass correct scopes explicitly.
+                    # Pass all scopes to every Google tool so scope
+                    # validation works and refreshes keep all scopes.
+                    kwargs["scopes"] = _google_all_scopes()
                     if tool_name == "googlecalendar":
                         from vandelay.config.settings import get_settings
                         _settings = get_settings()
-                        kwargs["scopes"] = [
-                            "https://www.googleapis.com/auth/calendar",
-                        ]
                         kwargs["calendar_id"] = _settings.google.calendar_id
                         kwargs["allow_update"] = True
-                    instances.append(cls(**kwargs))
+                    instance = cls(**kwargs)
+                    _inject_google_creds(instance, token)
+                    instances.append(instance)
                     continue
 
                 mod = importlib.import_module(entry.module_path)
