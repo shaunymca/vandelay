@@ -14,6 +14,7 @@ BROWSER_PROFILE_DIR = VANDELAY_HOME / "browser_profile"
 KNOWLEDGE_DIR = WORKSPACE_DIR / "knowledge"
 LOGS_DIR = VANDELAY_HOME / "logs"
 CRON_FILE = VANDELAY_HOME / "cron_jobs.json"
+TASK_QUEUE_FILE = VANDELAY_HOME / "task_queue.json"
 TOOL_REGISTRY_FILE = VANDELAY_HOME / "tool_registry.json"
 MEMBERS_DIR = VANDELAY_HOME / "members"
 

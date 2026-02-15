@@ -177,6 +177,7 @@ def _build_member_agent(
     knowledge,
     settings: Settings,
     scheduler_engine: object | None = None,
+    task_store: object | None = None,
 ) -> Agent:
     """Create an Agent from a MemberConfig."""
     from vandelay.tools.manager import ToolManager
@@ -199,6 +200,12 @@ def _build_member_agent(
         from vandelay.tools.scheduler import SchedulerTools
 
         tools.append(SchedulerTools(engine=scheduler_engine))
+
+    # All members get task queue tools
+    if task_store is not None:
+        from vandelay.tools.tasks import TaskQueueTools
+
+        tools.append(TaskQueueTools(store=task_store))
 
     # Build instructions: tag → file contents → inline (no personality brief —
     # members have their own instructions files and don't need the leader's persona)
@@ -236,6 +243,7 @@ def create_agent(
     settings: Settings,
     reload_callback: Callable[[], None] | None = None,
     scheduler_engine: object | None = None,
+    task_store: object | None = None,
 ) -> Agent:
     """Build the main Agno Agent with memory, storage, and instructions.
 
@@ -245,6 +253,8 @@ def create_agent(
             to trigger an agent hot-reload. If None, a no-op is used.
         scheduler_engine: Optional SchedulerEngine instance. When provided,
             SchedulerTools are added to the agent's toolkit.
+        task_store: Optional TaskStore instance. When provided,
+            TaskQueueTools are added to the agent's toolkit.
     """
     from vandelay.tools.tool_management import ToolManagementTools
     from vandelay.tools.workspace import WorkspaceTools
@@ -275,6 +285,12 @@ def create_agent(
 
         tools.append(SchedulerTools(engine=scheduler_engine))
 
+    # Include task queue tools when store is available
+    if task_store is not None:
+        from vandelay.tools.tasks import TaskQueueTools
+
+        tools.append(TaskQueueTools(store=task_store))
+
     # Knowledge/RAG
     from vandelay.knowledge.setup import create_knowledge
 
@@ -304,6 +320,7 @@ def create_team(
     reload_callback: Callable[[], None] | None = None,
     scheduler_engine: object | None = None,
     deep_work_manager: object | None = None,
+    task_store: object | None = None,
 ) -> Any:
     """Build an Agno Team with configurable members for supervisor mode.
 
@@ -339,6 +356,7 @@ def create_team(
             knowledge=knowledge,
             settings=settings,
             scheduler_engine=scheduler_engine,
+            task_store=task_store,
         )
         members.append(agent)
 
@@ -349,6 +367,12 @@ def create_team(
     )
     workspace_tools = WorkspaceTools(settings=settings, db=db)
     leader_tools: list = [tool_mgmt, workspace_tools]
+
+    # Task queue tools for the leader
+    if task_store is not None:
+        from vandelay.tools.tasks import TaskQueueTools
+
+        leader_tools.append(TaskQueueTools(store=task_store))
 
     # Deep work tools (when enabled and manager provided)
     if settings.deep_work.enabled and deep_work_manager is not None:

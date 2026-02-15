@@ -6,9 +6,10 @@ When you wake up for a heartbeat, run through this list. Only alert the user if 
 
 ## Checks
 
-1. **System health** — Disk space, memory, CPU. Alert if critical (>90%).
-2. **Pending tasks** — Any scheduled jobs that failed or were missed?
-3. **Service status** — Are monitored services/URLs responsive?
+1. **Task queue** — Call check_open_tasks(). Resume in-progress tasks. Pick up pending tasks by priority. Mark stuck tasks as failed.
+2. **System health** — Disk space, memory, CPU. Alert if critical (>90%).
+3. **Pending scheduled jobs** — Any scheduled jobs that failed or were missed?
+4. **Service status** — Are monitored services/URLs responsive?
 
 ## Response Rules
 

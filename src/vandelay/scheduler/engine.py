@@ -27,6 +27,14 @@ HEARTBEAT_COMMAND = (
     "Respond with HEARTBEAT_OK if everything is fine, "
     "or alert the user on their primary channel if something needs attention."
 )
+STARTUP_HEARTBEAT_DELAY = 3.0  # seconds after start
+STARTUP_HEARTBEAT_COMMAND = (
+    "You just started up after a restart. "
+    "Check for open tasks using check_open_tasks(). "
+    "If there are pending or in-progress tasks, resume working on them. "
+    "Then run your normal HEARTBEAT.md checklist. "
+    "Respond with HEARTBEAT_OK if everything is fine."
+)
 
 
 class SchedulerEngine:
@@ -60,6 +68,15 @@ class SchedulerEngine:
         self._scheduler.start()
         count = len(self._store.all())
         logger.info("Scheduler started with %d jobs", count)
+
+        # Fire a one-shot startup heartbeat so the agent checks for pending
+        # tasks immediately after a restart (before the first scheduled heartbeat).
+        import asyncio
+
+        loop = asyncio.get_event_loop()
+        loop.call_later(STARTUP_HEARTBEAT_DELAY, lambda: asyncio.ensure_future(
+            self._fire_startup_heartbeat()
+        ))
 
     async def stop(self) -> None:
         """Gracefully shut down the scheduler."""
@@ -128,6 +145,29 @@ class SchedulerEngine:
     def get_job(self, job_id: str) -> CronJob | None:
         """Retrieve a single job by ID."""
         return self._store.get(job_id)
+
+    # -- Startup heartbeat -----------------------------------------------------
+
+    async def _fire_startup_heartbeat(self) -> None:
+        """Send a one-shot startup heartbeat so the agent checks pending tasks."""
+        logger.info("Firing startup heartbeat")
+        message = IncomingMessage(
+            text=STARTUP_HEARTBEAT_COMMAND,
+            session_id="scheduler-startup",
+            user_id="scheduler",
+            channel="scheduler",
+        )
+        try:
+            result = await self._chat_service.run(message)
+            if result.content and "HEARTBEAT_OK" in result.content:
+                logger.info("Startup heartbeat OK")
+            else:
+                logger.info(
+                    "Startup heartbeat response: %s",
+                    (result.content or result.error or "")[:200],
+                )
+        except Exception:
+            logger.exception("Startup heartbeat failed")
 
     # -- Execution callback ----------------------------------------------------
 
