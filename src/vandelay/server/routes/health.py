@@ -30,6 +30,8 @@ class StatusResponse(BaseModel):
     server_port: int
     started_at: str
     version: str
+    traces_endpoint: str = "/traces"
+    total_traces: int = 0
 
 
 @health_router.get("/health", response_model=HealthResponse)
@@ -54,6 +56,16 @@ async def status(request: Request) -> StatusResponse:
     channel_router = getattr(request.app.state, "channel_router", None)
     channels: list[str] = channel_router.active_channels if channel_router else []
 
+    # Get trace count if tracing is enabled
+    total_traces = 0
+    db = getattr(request.app.state, "db", None)
+    if db is not None:
+        try:
+            _, count = db.get_traces(limit=1)
+            total_traces = count or 0
+        except Exception:
+            pass
+
     return StatusResponse(
         agent_name=settings.agent_name,
         model_provider=settings.model.provider,
@@ -65,4 +77,5 @@ async def status(request: Request) -> StatusResponse:
         server_port=settings.server.port,
         started_at=started_at.isoformat(),
         version=__version__,
+        total_traces=total_traces,
     )
