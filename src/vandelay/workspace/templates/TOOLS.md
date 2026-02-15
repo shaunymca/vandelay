@@ -68,7 +68,10 @@ API keys and secrets are stored in `~/.vandelay/.env`. This file is loaded autom
 - To check which keys are configured: read `~/.vandelay/.env` (values are redacted in tool output)
 - To add or update a key: edit `~/.vandelay/.env` directly, one `KEY=value` per line
 - Common keys: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `TAVILY_API_KEY`, `GITHUB_TOKEN`
-- After changing `.env`, the daemon needs a restart for new values to take effect
+- After changing `.env`, restart the daemon for new values to take effect
+
+To restart the daemon safely, run: `systemctl --user restart vandelay`
+This is safe — systemd will bring you back up immediately. You will lose your current conversation context, so only restart when the user confirms or when you've finished making config/.env changes.
 
 If a tool fails with an authentication or missing-key error, check `~/.vandelay/.env` first before asking the user.
 
