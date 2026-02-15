@@ -171,6 +171,16 @@ class ToolManager:
                     instances.append(instance)
                     continue
 
+                # Special handling for file — sandbox to ~/work/
+                if tool_name == "file":
+                    from pathlib import Path
+                    work_dir = Path.home() / "work"
+                    work_dir.mkdir(exist_ok=True)
+                    mod = importlib.import_module(entry.module_path)
+                    cls = getattr(mod, entry.class_name)
+                    instances.append(cls(base_dir=work_dir))
+                    continue
+
                 # Special handling for camofox — pass base_url
                 if tool_name == "camofox":
                     from vandelay.tools.camofox import CamofoxTools

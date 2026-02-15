@@ -93,6 +93,27 @@ def test_check_safety_needs_approval(safe_shell: SafeShellTools):
     assert "NEEDS APPROVAL" in result
 
 
+def test_default_blocks_source_code_paths():
+    """Default blocked_patterns should prevent writes to src/vandelay."""
+    from vandelay.config.models import SafetyConfig
+
+    defaults = SafetyConfig()
+    shell = SafeShellTools(
+        mode="trust",
+        blocked_patterns=defaults.blocked_patterns,
+        timeout=10,
+    )
+    # Unix-style path
+    result = shell.run_command("sed -i 's/foo/bar/' src/vandelay/tools/manager.py")
+    assert "BLOCKED" in result
+    # Windows-style path
+    result = shell.run_command("echo bad > src\\vandelay\\tools\\manager.py")
+    assert "BLOCKED" in result
+    # Should not block unrelated commands
+    result = shell.check_safety("echo hello")
+    assert "BLOCKED" not in result
+
+
 def test_command_timeout():
     """Commands that exceed timeout should fail gracefully."""
     shell = SafeShellTools(mode="trust", timeout=1)

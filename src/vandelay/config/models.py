@@ -29,6 +29,8 @@ class SafetyConfig(BaseModel):
         default_factory=lambda: [
             "rm -rf /", "mkfs", "dd if=", ":(){:|:&};:",
             "chmod -R 777 /", "shutdown", "reboot", "halt",
+            # Prevent agent from editing its own source code
+            "src/vandelay", "src\\vandelay",
         ]
     )
     command_timeout_seconds: int = 120

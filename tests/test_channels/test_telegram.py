@@ -226,3 +226,49 @@ class TestSend:
         call_args = mock_client.post.call_args
         assert call_args[1]["json"]["chat_id"] == "99999"
         assert call_args[1]["json"]["text"] == "Hi!"
+
+
+class TestStripMarkdown:
+    def test_headers(self):
+        assert TelegramAdapter._strip_markdown("## Heading") == "Heading"
+        assert TelegramAdapter._strip_markdown("# H1\n## H2") == "H1\nH2"
+
+    def test_bold(self):
+        assert TelegramAdapter._strip_markdown("**bold**") == "bold"
+
+    def test_italic(self):
+        assert TelegramAdapter._strip_markdown("*italic*") == "italic"
+
+    def test_underscore_italic(self):
+        assert TelegramAdapter._strip_markdown("_italic_") == "italic"
+
+    def test_inline_code(self):
+        assert TelegramAdapter._strip_markdown("`code`") == "code"
+
+    def test_code_block(self):
+        text = "```python\nprint('hi')\n```"
+        result = TelegramAdapter._strip_markdown(text)
+        assert "```" not in result
+        assert "print('hi')" in result
+
+    def test_links(self):
+        result = TelegramAdapter._strip_markdown("[Google](https://google.com)")
+        assert result == "Google (https://google.com)"
+
+    def test_bullets(self):
+        result = TelegramAdapter._strip_markdown("- item 1\n- item 2")
+        assert result == "• item 1\n• item 2"
+
+    def test_plain_text_unchanged(self):
+        text = "Just some normal text with no markdown"
+        assert TelegramAdapter._strip_markdown(text) == text
+
+    def test_mixed_formatting(self):
+        text = "## Status\n\n**Server**: running\n- CPU: 45%\n- Memory: `2.1GB`"
+        result = TelegramAdapter._strip_markdown(text)
+        assert "##" not in result
+        assert "**" not in result
+        assert "`" not in result
+        assert "Status" in result
+        assert "Server" in result
+        assert "2.1GB" in result
