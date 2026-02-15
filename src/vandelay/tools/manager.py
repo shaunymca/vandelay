@@ -32,21 +32,42 @@ def _google_all_scopes() -> list[str]:
     ]
 
 
-_SOURCE_BLOCKED_PATHS = ["src/vandelay", "src\\vandelay"]
-
-
 def _guard_file_writes(tool_instance: Any) -> None:
-    """Wrap FileTools write methods to block edits to source code."""
+    """Wrap FileTools write methods to only allow writes to safe directories.
 
-    def _is_blocked(path: str) -> str | None:
-        p = path.lower().replace("\\", "/")
-        for pattern in _SOURCE_BLOCKED_PATHS:
-            if pattern.lower().replace("\\", "/") in p:
-                return (
-                    f"BLOCKED: Cannot modify '{path}' — it is part of the Vandelay "
-                    "source code. Ask the user if you need source changes."
-                )
-        return None
+    Allowed write targets:
+      - ~/work/          — agent scratchpad for scripts and output
+      - ~/.vandelay/workspace/  — workspace templates and memory
+      - ~/.vandelay/.env        — API key management
+      - ~/.vandelay/cron_jobs.json  — cron config
+      - ~/.vandelay/task_queue.json — task queue
+
+    Everything else under home is read-only.
+    """
+    from pathlib import Path
+
+    from vandelay.config.constants import VANDELAY_HOME
+
+    home = Path.home()
+    _WRITE_ALLOWED = [
+        home / "work",
+        VANDELAY_HOME / "workspace",
+        VANDELAY_HOME / ".env",
+        VANDELAY_HOME / "cron_jobs.json",
+        VANDELAY_HOME / "task_queue.json",
+    ]
+
+    def _is_allowed(path_str: str) -> bool:
+        try:
+            p = Path(path_str).resolve()
+        except (OSError, ValueError):
+            return False
+        for allowed in _WRITE_ALLOWED:
+            allowed_r = allowed.resolve()
+            # Exact file match or path is inside allowed directory
+            if p == allowed_r or allowed_r in p.parents:
+                return True
+        return False
 
     for method_name in ("save_file", "replace_file_chunk", "delete_file"):
         original = getattr(tool_instance, method_name, None)
@@ -56,9 +77,12 @@ def _guard_file_writes(tool_instance: Any) -> None:
         @wraps(original)
         def guarded(*, _orig=original, _mname=method_name, **kwargs):
             file_name = kwargs.get("file_name", "")
-            blocked = _is_blocked(file_name)
-            if blocked:
-                return blocked
+            if not _is_allowed(file_name):
+                return (
+                    f"BLOCKED: Cannot write to '{file_name}'. "
+                    "Writes are only allowed in ~/work/ and ~/.vandelay/workspace/. "
+                    "Ask the user if you need to write elsewhere."
+                )
             return _orig(**kwargs)
 
         setattr(tool_instance, method_name, guarded)

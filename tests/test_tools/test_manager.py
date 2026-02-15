@@ -129,7 +129,7 @@ def test_sheet_output_unchanged_when_small():
     assert result == "small data"
 
 
-# --- FileTools source code write protection ---
+# --- FileTools write allowlist ---
 
 class _FakeFileTools:
     """Minimal stand-in for Agno FileTools."""
@@ -143,49 +143,105 @@ class _FakeFileTools:
         return f"deleted {file_name}"
 
 
+def _home(*parts: str) -> str:
+    """Build a path under the real home directory for test assertions."""
+    from pathlib import Path
+    return str(Path.home() / Path(*parts))
+
+
+def test_file_write_allowed_in_work_dir():
+    """Writes to ~/work/ should pass through."""
+    from vandelay.tools.manager import _guard_file_writes
+
+    fake = _FakeFileTools()
+    _guard_file_writes(fake)
+
+    path = _home("work", "script.py")
+    result = fake.save_file(contents="ok", file_name=path)
+    assert result == f"saved {path}"
+
+
+def test_file_write_allowed_in_workspace():
+    """Writes to ~/.vandelay/workspace/ should pass through."""
+    from vandelay.tools.manager import _guard_file_writes
+
+    fake = _FakeFileTools()
+    _guard_file_writes(fake)
+
+    path = _home(".vandelay", "workspace", "MEMORY.md")
+    result = fake.save_file(contents="notes", file_name=path)
+    assert result == f"saved {path}"
+
+
+def test_file_write_allowed_for_env():
+    """Writes to ~/.vandelay/.env should pass through."""
+    from vandelay.tools.manager import _guard_file_writes
+
+    fake = _FakeFileTools()
+    _guard_file_writes(fake)
+
+    path = _home(".vandelay", ".env")
+    result = fake.save_file(contents="KEY=val", file_name=path)
+    assert result == f"saved {path}"
+
+
 def test_file_write_blocked_for_source_code():
-    """FileTools should block writes to src/vandelay paths."""
+    """Writes to source code paths should be blocked."""
     from vandelay.tools.manager import _guard_file_writes
 
     fake = _FakeFileTools()
     _guard_file_writes(fake)
 
-    result = fake.save_file(contents="hack", file_name="/home/vandelay/vandelay/src/vandelay/tools/manager.py")
-    assert "BLOCKED" in result
-    assert "source code" in result
-
-
-def test_file_delete_blocked_for_source_code():
-    """FileTools should block deletes of src/vandelay paths."""
-    from vandelay.tools.manager import _guard_file_writes
-
-    fake = _FakeFileTools()
-    _guard_file_writes(fake)
-
-    result = fake.delete_file(file_name="/home/vandelay/vandelay/src/vandelay/core/chat_service.py")
+    path = _home("vandelay", "src", "vandelay", "tools", "manager.py")
+    result = fake.save_file(contents="hack", file_name=path)
     assert "BLOCKED" in result
 
 
-def test_file_replace_blocked_for_source_code():
-    """FileTools should block replace_file_chunk on src/vandelay paths."""
+def test_file_write_blocked_for_arbitrary_home_path():
+    """Writes to arbitrary paths under home should be blocked."""
     from vandelay.tools.manager import _guard_file_writes
 
     fake = _FakeFileTools()
     _guard_file_writes(fake)
 
-    result = fake.replace_file_chunk(file_name="src/vandelay/config/models.py", start_line=1, end_line=5, chunk="bad")
+    path = _home(".bashrc")
+    result = fake.save_file(contents="alias rm='rm -rf /'", file_name=path)
     assert "BLOCKED" in result
 
 
-def test_file_write_allowed_for_non_source():
-    """FileTools should allow writes to paths outside src/vandelay."""
+def test_file_delete_blocked_outside_allowed():
+    """Deletes outside allowed dirs should be blocked."""
     from vandelay.tools.manager import _guard_file_writes
 
     fake = _FakeFileTools()
     _guard_file_writes(fake)
 
-    result = fake.save_file(contents="ok", file_name="/home/vandelay/work/script.py")
-    assert result == "saved /home/vandelay/work/script.py"
+    path = _home("important_data.csv")
+    result = fake.delete_file(file_name=path)
+    assert "BLOCKED" in result
 
-    result = fake.delete_file(file_name="/home/vandelay/work/old.txt")
-    assert result == "deleted /home/vandelay/work/old.txt"
+
+def test_file_delete_allowed_in_work():
+    """Deletes inside ~/work/ should pass through."""
+    from vandelay.tools.manager import _guard_file_writes
+
+    fake = _FakeFileTools()
+    _guard_file_writes(fake)
+
+    path = _home("work", "old.txt")
+    result = fake.delete_file(file_name=path)
+    assert result == f"deleted {path}"
+
+
+def test_file_replace_blocked_outside_allowed():
+    """replace_file_chunk outside allowed dirs should be blocked."""
+    from vandelay.tools.manager import _guard_file_writes
+
+    fake = _FakeFileTools()
+    _guard_file_writes(fake)
+
+    path = _home(".vandelay", "config.json")
+    result = fake.replace_file_chunk(
+        file_name=path, start_line=1, end_line=5, chunk="bad",
+    )
+    assert "BLOCKED" in result

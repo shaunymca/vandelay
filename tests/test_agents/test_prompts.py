@@ -8,6 +8,7 @@ from vandelay.agents.prompts.system_prompt import (
     build_system_prompt,
     build_team_leader_prompt,
     _build_agents_slim,
+    _build_credentials_summary,
     _build_deep_work_prompt,
     _build_member_roster,
 )
@@ -61,6 +62,23 @@ def test_team_leader_prompt_includes_current_datetime(tmp_workspace, prompt_sett
     today = datetime.now().strftime("%B %d, %Y")
     assert "Current date and time:" in prompt
     assert today in prompt
+
+
+def test_build_prompt_includes_credentials_summary(tmp_workspace):
+    """Prompt should include a credentials summary section."""
+    prompt = build_system_prompt(agent_name="TestBot", workspace_dir=tmp_workspace)
+    assert "Your Configured Credentials" in prompt
+    assert "Do NOT ask the user to configure them" in prompt
+
+
+def test_team_leader_prompt_includes_credentials_summary(tmp_workspace, prompt_settings):
+    """Team leader prompt should also include credentials summary."""
+    prompt = build_team_leader_prompt(
+        agent_name="TestBot",
+        workspace_dir=tmp_workspace,
+        settings=prompt_settings,
+    )
+    assert "Your Configured Credentials" in prompt
 
 
 def test_build_prompt_includes_soul(tmp_workspace):
@@ -417,3 +435,51 @@ class TestDeepWorkPrompt:
             workspace_dir=tmp_workspace, settings=settings,
         )
         assert "Deep Work" not in prompt
+
+
+class TestCredentialsSummary:
+    """Tests for dynamic credentials summary in system prompt."""
+
+    def test_always_shows_google_status(self):
+        """Should always mention Google OAuth status."""
+        result = _build_credentials_summary()
+        assert "Google OAuth" in result
+
+    def test_shows_configured_env_keys(self, tmp_path, monkeypatch):
+        """Should list API keys found in .env file."""
+        vandelay_home = tmp_path / ".vandelay"
+        vandelay_home.mkdir()
+        env_file = vandelay_home / ".env"
+        env_file.write_text("ANTHROPIC_API_KEY=sk-test\nTAVILY_API_KEY=tvly-test\n")
+
+        import vandelay.config.constants as consts
+        monkeypatch.setattr(consts, "VANDELAY_HOME", vandelay_home)
+
+        result = _build_credentials_summary()
+        assert "Anthropic" in result
+        assert "Tavily" in result
+        # OpenAI not in .env, should not appear
+        assert "OpenAI" not in result
+
+    def test_shows_google_authenticated_when_token_exists(self, tmp_path, monkeypatch):
+        """Should show Google as authenticated when token file exists."""
+        vandelay_home = tmp_path / ".vandelay"
+        vandelay_home.mkdir()
+        (vandelay_home / "google_token.json").write_text("{}")
+
+        import vandelay.config.constants as consts
+        monkeypatch.setattr(consts, "VANDELAY_HOME", vandelay_home)
+
+        result = _build_credentials_summary()
+        assert "authenticated" in result
+
+    def test_shows_google_not_set_up_without_token(self, tmp_path, monkeypatch):
+        """Should show Google as not set up when no token file."""
+        vandelay_home = tmp_path / ".vandelay"
+        vandelay_home.mkdir()
+
+        import vandelay.config.constants as consts
+        monkeypatch.setattr(consts, "VANDELAY_HOME", vandelay_home)
+
+        result = _build_credentials_summary()
+        assert "not set up" in result
