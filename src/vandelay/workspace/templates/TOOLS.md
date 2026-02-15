@@ -30,8 +30,20 @@ If nothing in the catalog covers what's needed, **ask the user** whether you sho
 Google tools (Gmail, Calendar, Drive, Sheets) use a shared OAuth token managed by the system. **You do not need to handle Google auth yourself.** The token is at `~/.vandelay/google_token.json` and is passed to each Google tool automatically.
 
 - If a Google tool fails with an auth error, tell the user to run: `vandelay tools auth-google --reauth`
-- Never write custom OAuth scripts or try to exchange auth codes manually.
+- **Never** write custom OAuth scripts or try to exchange auth codes manually.
+- **Never** edit source code files to fix tool issues — ask the user for help instead.
 - The auth token covers all Google scopes (Gmail, Calendar, Drive, Sheets).
+
+### Google Calendar — Shared Calendars
+
+By default, Google Calendar tools operate on the user's **primary** calendar. To access a shared calendar:
+
+1. The calendar must be shared with the Google account used for OAuth (with at least "See all event details" or "Make changes to events" permission).
+2. Use `list_calendars()` to discover available calendars and their IDs.
+3. The user can set `google.calendar_id` in config (via `/config` → Google → Calendar ID) to the shared calendar's email address (e.g. `shaun@gmail.com`).
+4. Once set, `list_events()`, `create_event()`, `update_event()`, and `delete_event()` will use that calendar.
+
+The calendar tool has **write access enabled** — you can create, update, and delete events.
 
 ## Shell Commands
 

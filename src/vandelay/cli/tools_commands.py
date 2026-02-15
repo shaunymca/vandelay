@@ -172,13 +172,11 @@ _GOOGLE_OAUTH_TOOLS = {
 }
 
 
-@app.command("auth-google")
-def auth_google(
-    reauth: bool = typer.Option(
-        False, "--reauth", "-r", help="Re-authenticate even if token exists",
-    ),
-):
-    """Authenticate Google services (Gmail, Calendar, Drive, Sheets)."""
+def run_google_oauth_flow(reauth: bool = False) -> bool:
+    """Run the Google OAuth flow. Returns True on success, False on failure.
+
+    Reusable by both the ``auth-google`` CLI command and the onboarding wizard.
+    """
     import os
 
     from vandelay.config.constants import VANDELAY_HOME
@@ -188,7 +186,7 @@ def auth_google(
     if token_path.exists() and not reauth:
         console.print(f"  [dim]Token already exists at {token_path}[/dim]")
         console.print("  [dim]Run with --reauth to re-authenticate.[/dim]")
-        raise typer.Exit()
+        return True
 
     # Load .env so Google credentials are available
     from vandelay.agents.factory import _load_env
@@ -204,7 +202,7 @@ def auth_google(
         console.print("    GOOGLE_CLIENT_ID=...")
         console.print("    GOOGLE_CLIENT_SECRET=...")
         console.print("    GOOGLE_PROJECT_ID=...")
-        raise typer.Exit(1)
+        return False
 
     try:
         from google_auth_oauthlib.flow import InstalledAppFlow
@@ -214,7 +212,7 @@ def auth_google(
             "  Run: uv add google-api-python-client"
             " google-auth-httplib2 google-auth-oauthlib"
         )
-        raise typer.Exit(1) from None
+        return False
 
     client_config = {
         "installed": {
@@ -256,7 +254,7 @@ def auth_google(
     code = input("Authorization code: ").strip()
     if not code:
         console.print("[red]No code provided.[/red]")
-        raise typer.Exit(1)
+        return False
 
     try:
         flow.fetch_token(code=code)
@@ -269,9 +267,22 @@ def auth_google(
         console.print(
             "  [dim]Covers: Gmail, Calendar, Drive, Sheets[/dim]"
         )
+        return True
     except Exception as e:
         console.print(f"  [red]\u2717[/red] OAuth failed: {e}")
-        raise typer.Exit(1) from None
+        return False
+
+
+@app.command("auth-google")
+def auth_google(
+    reauth: bool = typer.Option(
+        False, "--reauth", "-r", help="Re-authenticate even if token exists",
+    ),
+):
+    """Authenticate Google services (Gmail, Calendar, Drive, Sheets)."""
+    success = run_google_oauth_flow(reauth=reauth)
+    if not success:
+        raise typer.Exit(1)
 
 
 @app.command("browse")

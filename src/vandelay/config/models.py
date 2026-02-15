@@ -84,6 +84,12 @@ class KnowledgeConfig(BaseModel):
     embedder: EmbedderConfig = Field(default_factory=EmbedderConfig)
 
 
+class GoogleConfig(BaseModel):
+    """Google tools settings."""
+
+    calendar_id: str = "primary"
+
+
 class MemberConfig(BaseModel):
     """Configuration for a single team member."""
 
