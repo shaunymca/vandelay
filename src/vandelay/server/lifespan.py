@@ -12,30 +12,6 @@ from fastapi import FastAPI
 logger = logging.getLogger("vandelay.server")
 
 
-def _inject_channel_env_vars(settings) -> None:
-    """Bridge channel config values into environment variables.
-
-    AgentOS WhatsApp and Telegram tools read credentials from env vars.
-    We inject them from config.json so users don't need to set both.
-    """
-    ch = settings.channels
-
-    # Telegram
-    if ch.telegram_enabled and ch.telegram_bot_token:
-        os.environ.setdefault("TELEGRAM_TOKEN", ch.telegram_bot_token)
-
-    # WhatsApp
-    if ch.whatsapp_enabled:
-        if ch.whatsapp_access_token:
-            os.environ.setdefault("WHATSAPP_ACCESS_TOKEN", ch.whatsapp_access_token)
-        if ch.whatsapp_phone_number_id:
-            os.environ.setdefault("WHATSAPP_PHONE_NUMBER_ID", ch.whatsapp_phone_number_id)
-        if ch.whatsapp_verify_token:
-            os.environ.setdefault("WHATSAPP_VERIFY_TOKEN", ch.whatsapp_verify_token)
-        if ch.whatsapp_app_secret:
-            os.environ.setdefault("WHATSAPP_APP_SECRET", ch.whatsapp_app_secret)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown hooks for vandelay."""
@@ -56,11 +32,8 @@ async def lifespan(app: FastAPI):
     if settings.server.secret_key == "change-me-to-a-random-string":
         logger.warning(
             "Server is using the default secret_key. "
-            "Set a strong key in config or via VANDELAY_SERVER__SECRET_KEY."
+            "Set VANDELAY_SECRET_KEY in ~/.vandelay/.env."
         )
-
-    # Inject channel credentials into env vars
-    _inject_channel_env_vars(settings)
 
     # Suggest memory migration if needed
     try:

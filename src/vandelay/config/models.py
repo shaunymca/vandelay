@@ -38,14 +38,14 @@ class ChannelConfig(BaseModel):
     """Messaging channel settings."""
 
     telegram_enabled: bool = False
-    telegram_bot_token: str = ""
+    telegram_bot_token: str = Field(default="", exclude=True)
     telegram_chat_id: str = ""
 
     whatsapp_enabled: bool = False
-    whatsapp_access_token: str = ""
+    whatsapp_access_token: str = Field(default="", exclude=True)
     whatsapp_phone_number_id: str = ""
-    whatsapp_verify_token: str = ""
-    whatsapp_app_secret: str = ""
+    whatsapp_verify_token: str = Field(default="", exclude=True)
+    whatsapp_app_secret: str = Field(default="", exclude=True)
 
 
 class HeartbeatConfig(BaseModel):
@@ -63,7 +63,7 @@ class ServerConfig(BaseModel):
 
     host: str = "0.0.0.0"
     port: int = 8000
-    secret_key: str = "change-me-to-a-random-string"
+    secret_key: str = Field(default="change-me-to-a-random-string", exclude=True)
 
 
 class EmbedderConfig(BaseModel):
@@ -71,7 +71,7 @@ class EmbedderConfig(BaseModel):
 
     provider: str = ""  # openai | google | ollama | "" (auto)
     model: str = ""  # e.g. "text-embedding-3-small"
-    api_key: str = ""  # only if different from model provider
+    api_key: str = Field(default="", exclude=True)  # only if different from model provider
     base_url: str = ""  # custom endpoint
 
 
@@ -115,3 +115,15 @@ class TeamConfig(BaseModel):
     members: list[str | MemberConfig] = Field(
         default_factory=lambda: ["browser", "system", "scheduler", "knowledge"]
     )
+
+
+# Maps (nested_key_tuple) -> env_var_name for secret fields.
+# Used by the migration and env-loading logic in settings.py.
+SECRET_FIELD_ENV_MAP: dict[tuple[str, ...], str] = {
+    ("channels", "telegram_bot_token"): "TELEGRAM_TOKEN",
+    ("channels", "whatsapp_access_token"): "WHATSAPP_ACCESS_TOKEN",
+    ("channels", "whatsapp_verify_token"): "WHATSAPP_VERIFY_TOKEN",
+    ("channels", "whatsapp_app_secret"): "WHATSAPP_APP_SECRET",
+    ("server", "secret_key"): "VANDELAY_SECRET_KEY",
+    ("knowledge", "embedder", "api_key"): "VANDELAY_EMBEDDER_API_KEY",
+}

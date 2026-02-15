@@ -57,28 +57,9 @@ def _select_provider() -> tuple[str, str]:
 
 def _write_env_key(env_key: str, value: str) -> None:
     """Write or update a key in the project .env file."""
-    from vandelay.config.constants import VANDELAY_HOME
+    from vandelay.config.env_utils import write_env_key
 
-    env_path = VANDELAY_HOME / ".env"
-    env_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Read existing lines
-    lines: list[str] = []
-    if env_path.exists():
-        lines = env_path.read_text(encoding="utf-8").splitlines()
-
-    # Update existing key or append
-    found = False
-    for i, line in enumerate(lines):
-        if line.startswith(f"{env_key}="):
-            lines[i] = f"{env_key}={value}"
-            found = True
-            break
-
-    if not found:
-        lines.append(f"{env_key}={value}")
-
-    env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_env_key(env_key, value)
 
 
 def _configure_auth(provider: str) -> str:
@@ -335,7 +316,6 @@ def _configure_channels(channel_cfg: ChannelConfig) -> ChannelConfig:
         bot_token = questionary.password("  Bot token:").ask()
         if bot_token:
             channel_cfg.telegram_enabled = True
-            channel_cfg.telegram_bot_token = bot_token
             _write_env_key("TELEGRAM_TOKEN", bot_token)
 
             chat_id = questionary.text(
@@ -373,15 +353,11 @@ def _configure_channels(channel_cfg: ChannelConfig) -> ChannelConfig:
 
         if access_token and phone_id:
             channel_cfg.whatsapp_enabled = True
-            channel_cfg.whatsapp_access_token = access_token
             channel_cfg.whatsapp_phone_number_id = phone_id
-            channel_cfg.whatsapp_verify_token = verify_token or "vandelay-verify"
-            if app_secret:
-                channel_cfg.whatsapp_app_secret = app_secret
 
             _write_env_key("WHATSAPP_ACCESS_TOKEN", access_token)
             _write_env_key("WHATSAPP_PHONE_NUMBER_ID", phone_id)
-            _write_env_key("WHATSAPP_VERIFY_TOKEN", channel_cfg.whatsapp_verify_token)
+            _write_env_key("WHATSAPP_VERIFY_TOKEN", verify_token or "vandelay-verify")
             if app_secret:
                 _write_env_key("WHATSAPP_APP_SECRET", app_secret)
 
@@ -1361,24 +1337,25 @@ def run_onboarding() -> Settings:
 
 
 def _headless_channels() -> ChannelConfig:
-    """Auto-detect channel configuration from environment variables."""
+    """Auto-detect channel configuration from environment variables.
+
+    Only non-secret fields (enabled flags, IDs) are set on the config.
+    Secret tokens are picked up from env vars at runtime via
+    ``Settings._apply_env_to_secrets()``.
+    """
     cfg = ChannelConfig()
 
     telegram_token = os.environ.get("TELEGRAM_TOKEN", "")
     telegram_chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
     if telegram_token:
         cfg.telegram_enabled = True
-        cfg.telegram_bot_token = telegram_token
         cfg.telegram_chat_id = telegram_chat_id
 
     wa_token = os.environ.get("WHATSAPP_ACCESS_TOKEN", "")
     wa_phone = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
     if wa_token and wa_phone:
         cfg.whatsapp_enabled = True
-        cfg.whatsapp_access_token = wa_token
         cfg.whatsapp_phone_number_id = wa_phone
-        cfg.whatsapp_verify_token = os.environ.get("WHATSAPP_VERIFY_TOKEN", "vandelay-verify")
-        cfg.whatsapp_app_secret = os.environ.get("WHATSAPP_APP_SECRET", "")
 
     return cfg
 
