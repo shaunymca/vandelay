@@ -51,7 +51,7 @@ class TestTeamConfig:
         cfg = TeamConfig()
         assert cfg.enabled is False
         assert cfg.mode == "coordinate"
-        assert cfg.members == ["browser", "system", "scheduler", "knowledge"]
+        assert cfg.members == []
 
     def test_enabled(self):
         cfg = TeamConfig(enabled=True)

@@ -112,9 +112,7 @@ class TeamConfig(BaseModel):
 
     enabled: bool = False
     mode: str = "coordinate"  # coordinate | route | broadcast | tasks
-    members: list[str | MemberConfig] = Field(
-        default_factory=lambda: ["browser", "system", "scheduler", "knowledge"]
-    )
+    members: list[str | MemberConfig] = Field(default_factory=list)
 
 
 # Maps (nested_key_tuple) -> env_var_name for secret fields.

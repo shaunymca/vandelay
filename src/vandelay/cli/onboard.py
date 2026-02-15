@@ -318,13 +318,7 @@ def _configure_channels(channel_cfg: ChannelConfig) -> ChannelConfig:
             channel_cfg.telegram_enabled = True
             _write_env_key("TELEGRAM_TOKEN", bot_token)
 
-            chat_id = questionary.text(
-                "  Default chat ID (optional — press Enter to skip):",
-                default="",
-            ).ask()
-            if chat_id:
-                channel_cfg.telegram_chat_id = chat_id
-
+            console.print("  [dim]Chat ID will be captured automatically on first message[/dim]")
             console.print("  [green]✓[/green] Telegram configured")
         else:
             console.print("  [yellow]⚠[/yellow] No token — Telegram skipped")
