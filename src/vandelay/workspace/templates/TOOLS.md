@@ -25,6 +25,14 @@ If no enabled tool fits but you see one marked `[available]` in the catalog that
 ### 3. Ask the user about creating a new tool
 If nothing in the catalog covers what's needed, **ask the user** whether you should create a custom tool for this. Do not silently fall back to raw API calls or code — always check with the user first.
 
+## Filesystem Navigation
+
+Before searching the filesystem with `find`, `ls`, or `search_files`:
+
+1. **Check task results first.** Call `check_open_tasks()` or `get_task()` — completed tasks often contain file paths and project locations in their results. This is faster than searching.
+2. **Use known paths.** If a task result or previous conversation mentions a directory (e.g. `/home/vandelay/sf_import/`), go there directly instead of searching from root.
+3. **Be specific.** Search in the narrowest directory possible. Never `find /` or `find ~` when you know the project directory.
+
 ## Google Tools Authentication
 
 Google tools (Gmail, Calendar, Drive, Sheets) use a shared OAuth token managed by the system. **You do not need to handle Google auth yourself.** The token is at `~/.vandelay/google_token.json` and is passed to each Google tool automatically.

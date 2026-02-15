@@ -114,6 +114,34 @@ def test_default_blocks_source_code_paths():
     assert "BLOCKED" not in result
 
 
+def test_find_auto_excludes_noise_dirs():
+    """find commands should get exclusion patterns for noise directories."""
+    shell = SafeShellTools(mode="trust", timeout=10)
+    processed = shell._preprocess_command('find . -name "*.py"')
+    assert '-not -path "*/.venv/*"' in processed
+    assert '-not -path "*/.cache/*"' in processed
+    assert '-not -path "*/node_modules/*"' in processed
+    assert '-not -path "*/__pycache__/*"' in processed
+    assert '-not -path "*/.git/*"' in processed
+    # Original command preserved at the start
+    assert processed.startswith('find . -name "*.py"')
+
+
+def test_find_preserves_explicit_prune():
+    """find with -prune should be left unchanged."""
+    shell = SafeShellTools(mode="trust", timeout=10)
+    cmd = 'find . -prune -name "*.py"'
+    assert shell._preprocess_command(cmd) == cmd
+
+
+def test_non_find_commands_unchanged():
+    """Non-find commands should pass through untouched."""
+    shell = SafeShellTools(mode="trust", timeout=10)
+    assert shell._preprocess_command("ls -la") == "ls -la"
+    assert shell._preprocess_command("grep -r foo .") == "grep -r foo ."
+    assert shell._preprocess_command("echo find me") == "echo find me"
+
+
 def test_command_timeout():
     """Commands that exceed timeout should fail gracefully."""
     shell = SafeShellTools(mode="trust", timeout=1)
