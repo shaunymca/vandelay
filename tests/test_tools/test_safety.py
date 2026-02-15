@@ -134,11 +134,40 @@ def test_find_preserves_explicit_prune():
     assert shell._preprocess_command(cmd) == cmd
 
 
+def test_grep_recursive_auto_excludes():
+    """grep -r commands should get --exclude-dir patterns."""
+    shell = SafeShellTools(mode="trust", timeout=10)
+    processed = shell._preprocess_command("grep -r foo .")
+    assert "--exclude-dir=.venv" in processed
+    assert "--exclude-dir=node_modules" in processed
+    assert "--exclude-dir=__pycache__" in processed
+    assert processed.startswith("grep -r foo .")
+
+
+def test_grep_R_auto_excludes():
+    """grep -R should also get exclusions."""
+    shell = SafeShellTools(mode="trust", timeout=10)
+    processed = shell._preprocess_command("grep -R pattern src/")
+    assert "--exclude-dir=.venv" in processed
+
+
+def test_grep_recursive_preserves_explicit_exclude():
+    """grep with --exclude-dir should be left unchanged."""
+    shell = SafeShellTools(mode="trust", timeout=10)
+    cmd = "grep -r --exclude-dir=.git foo ."
+    assert shell._preprocess_command(cmd) == cmd
+
+
+def test_grep_non_recursive_unchanged():
+    """Non-recursive grep should pass through untouched."""
+    shell = SafeShellTools(mode="trust", timeout=10)
+    assert shell._preprocess_command("grep foo bar.txt") == "grep foo bar.txt"
+
+
 def test_non_find_commands_unchanged():
-    """Non-find commands should pass through untouched."""
+    """Non-find/grep commands should pass through untouched."""
     shell = SafeShellTools(mode="trust", timeout=10)
     assert shell._preprocess_command("ls -la") == "ls -la"
-    assert shell._preprocess_command("grep -r foo .") == "grep -r foo ."
     assert shell._preprocess_command("echo find me") == "echo find me"
 
 

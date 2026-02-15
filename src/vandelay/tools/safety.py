@@ -51,18 +51,28 @@ class SafeShellTools(Toolkit):
     ]
 
     def _preprocess_command(self, command: str) -> str:
-        """Inject noise-directory exclusions into bare find commands."""
+        """Inject noise-directory exclusions into find and grep commands."""
         stripped = command.strip()
-        if not stripped.startswith("find "):
-            return command
-        # Don't modify if user already has explicit pruning
-        if "-prune" in stripped:
-            return command
-        # Build exclusion clauses
-        excludes = " ".join(
-            f'-not -path "*/{d}/*"' for d in self._FIND_EXCLUDE_DIRS
-        )
-        return f"{stripped} {excludes}"
+
+        # find: add -not -path exclusions
+        if stripped.startswith("find ") and "-prune" not in stripped:
+            excludes = " ".join(
+                f'-not -path "*/{d}/*"' for d in self._FIND_EXCLUDE_DIRS
+            )
+            return f"{stripped} {excludes}"
+
+        # grep -r / grep --recursive: add --exclude-dir patterns
+        if (
+            stripped.startswith("grep ")
+            and (" -r" in stripped or " --recursive" in stripped or " -R" in stripped)
+            and "--exclude-dir" not in stripped
+        ):
+            excludes = " ".join(
+                f"--exclude-dir={d}" for d in self._FIND_EXCLUDE_DIRS
+            )
+            return f"{stripped} {excludes}"
+
+        return command
 
     def run_command(self, command: str) -> str:
         """Execute a shell command with safety checks applied."""
