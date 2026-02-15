@@ -127,3 +127,65 @@ def test_sheet_output_unchanged_when_small():
 
     result = fake.read_sheet()
     assert result == "small data"
+
+
+# --- FileTools source code write protection ---
+
+class _FakeFileTools:
+    """Minimal stand-in for Agno FileTools."""
+    def save_file(self, contents="", file_name="", **kw):
+        return f"saved {file_name}"
+
+    def replace_file_chunk(self, file_name="", start_line=0, end_line=0, chunk="", **kw):
+        return f"replaced in {file_name}"
+
+    def delete_file(self, file_name=""):
+        return f"deleted {file_name}"
+
+
+def test_file_write_blocked_for_source_code():
+    """FileTools should block writes to src/vandelay paths."""
+    from vandelay.tools.manager import _guard_file_writes
+
+    fake = _FakeFileTools()
+    _guard_file_writes(fake)
+
+    result = fake.save_file(contents="hack", file_name="/home/vandelay/vandelay/src/vandelay/tools/manager.py")
+    assert "BLOCKED" in result
+    assert "source code" in result
+
+
+def test_file_delete_blocked_for_source_code():
+    """FileTools should block deletes of src/vandelay paths."""
+    from vandelay.tools.manager import _guard_file_writes
+
+    fake = _FakeFileTools()
+    _guard_file_writes(fake)
+
+    result = fake.delete_file(file_name="/home/vandelay/vandelay/src/vandelay/core/chat_service.py")
+    assert "BLOCKED" in result
+
+
+def test_file_replace_blocked_for_source_code():
+    """FileTools should block replace_file_chunk on src/vandelay paths."""
+    from vandelay.tools.manager import _guard_file_writes
+
+    fake = _FakeFileTools()
+    _guard_file_writes(fake)
+
+    result = fake.replace_file_chunk(file_name="src/vandelay/config/models.py", start_line=1, end_line=5, chunk="bad")
+    assert "BLOCKED" in result
+
+
+def test_file_write_allowed_for_non_source():
+    """FileTools should allow writes to paths outside src/vandelay."""
+    from vandelay.tools.manager import _guard_file_writes
+
+    fake = _FakeFileTools()
+    _guard_file_writes(fake)
+
+    result = fake.save_file(contents="ok", file_name="/home/vandelay/work/script.py")
+    assert result == "saved /home/vandelay/work/script.py"
+
+    result = fake.delete_file(file_name="/home/vandelay/work/old.txt")
+    assert result == "deleted /home/vandelay/work/old.txt"

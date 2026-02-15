@@ -32,6 +32,38 @@ def _google_all_scopes() -> list[str]:
     ]
 
 
+_SOURCE_BLOCKED_PATHS = ["src/vandelay", "src\\vandelay"]
+
+
+def _guard_file_writes(tool_instance: Any) -> None:
+    """Wrap FileTools write methods to block edits to source code."""
+
+    def _is_blocked(path: str) -> str | None:
+        p = path.lower().replace("\\", "/")
+        for pattern in _SOURCE_BLOCKED_PATHS:
+            if pattern.lower().replace("\\", "/") in p:
+                return (
+                    f"BLOCKED: Cannot modify '{path}' — it is part of the Vandelay "
+                    "source code. Ask the user if you need source changes."
+                )
+        return None
+
+    for method_name in ("save_file", "replace_file_chunk", "delete_file"):
+        original = getattr(tool_instance, method_name, None)
+        if original is None:
+            continue
+
+        @wraps(original)
+        def guarded(*, _orig=original, _mname=method_name, **kwargs):
+            file_name = kwargs.get("file_name", "")
+            blocked = _is_blocked(file_name)
+            if blocked:
+                return blocked
+            return _orig(**kwargs)
+
+        setattr(tool_instance, method_name, guarded)
+
+
 def _cap_sheet_output(tool_instance: Any, max_chars: int = 50_000) -> None:
     """Wrap read_sheet to truncate large results and prevent token overflow."""
     original = tool_instance.read_sheet
@@ -261,12 +293,15 @@ class ToolManager:
                     continue
 
                 # Special handling for file — sandbox to user home
+                # and block writes to source code
                 if tool_name == "file":
                     from pathlib import Path
                     home_dir = Path.home()
                     mod = importlib.import_module(entry.module_path)
                     cls = getattr(mod, entry.class_name)
-                    instances.append(cls(base_dir=home_dir))
+                    instance = cls(base_dir=home_dir)
+                    _guard_file_writes(instance)
+                    instances.append(instance)
                     continue
 
                 # Special handling for camofox — pass base_url
