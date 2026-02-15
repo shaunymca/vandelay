@@ -23,7 +23,8 @@ class TestHeadlessChannels:
         }, clear=True):
             cfg = _headless_channels()
             assert cfg.telegram_enabled is True
-            assert cfg.telegram_bot_token == "bot123:abc"
+            # Secrets are NOT stored on the config object (populated from env at runtime)
+            assert cfg.telegram_bot_token == ""
             assert cfg.telegram_chat_id == "456"
 
     def test_whatsapp_enabled(self):
@@ -34,9 +35,10 @@ class TestHeadlessChannels:
         }, clear=True):
             cfg = _headless_channels()
             assert cfg.whatsapp_enabled is True
-            assert cfg.whatsapp_access_token == "wa-token"
+            # Secrets are NOT stored on the config object (populated from env at runtime)
+            assert cfg.whatsapp_access_token == ""
             assert cfg.whatsapp_phone_number_id == "12345"
-            assert cfg.whatsapp_verify_token == "my-verify"
+            assert cfg.whatsapp_verify_token == ""
 
     def test_whatsapp_needs_both_fields(self):
         """WhatsApp requires both access token AND phone number ID."""

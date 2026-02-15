@@ -17,11 +17,11 @@ from vandelay.config.constants import (
     WORKSPACE_DIR,
 )
 from vandelay.config.models import (
+    SECRET_FIELD_ENV_MAP,
     ChannelConfig,
     DeepWorkConfig,
     HeartbeatConfig,
     KnowledgeConfig,
-    MemberConfig,
     ModelConfig,
     SafetyConfig,
     ServerConfig,
@@ -71,43 +71,89 @@ class Settings(BaseSettings):
         if CONFIG_FILE.exists():
             try:
                 file_data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+                # Migrate any secrets out of config.json into .env
+                cls._migrate_secrets_from_config(file_data)
                 # File values are the base; explicit values override
                 merged = {**file_data, **{k: v for k, v in values.items() if v is not None}}
                 values = merged
             except (json.JSONDecodeError, OSError):
                 pass
 
-        # Map VANDELAY_HOST/PORT/SECRET_KEY env vars into nested server config
+        # Populate secret fields from env vars / .env
+        cls._apply_env_to_secrets(values)
+        # Map VANDELAY_HOST/PORT env vars into nested server config
         cls._apply_env_to_server(values)
         return values
 
     @classmethod
-    def _apply_env_to_server(cls, values: dict) -> None:
-        """Map flat VANDELAY_HOST/PORT/SECRET_KEY env vars into server sub-config."""
+    def _migrate_secrets_from_config(cls, file_data: dict) -> None:
+        """Move any secrets found in config.json into .env and strip them.
+
+        Runs once per load — only writes to .env if secrets are actually present
+        in the JSON data. After migration, re-writes config.json without the
+        secret values.
+        """
+        from vandelay.config.env_utils import write_env_key
+
+        migrated = False
+        for key_path, env_var in SECRET_FIELD_ENV_MAP.items():
+            # Walk into the nested dict
+            node = file_data
+            for part in key_path[:-1]:
+                node = node.get(part, {})
+                if not isinstance(node, dict):
+                    node = {}
+                    break
+
+            field = key_path[-1]
+            value = node.get(field, "")
+            if value and isinstance(value, str):
+                write_env_key(env_var, value)
+                node[field] = ""
+                migrated = True
+
+        if migrated:
+            # Re-write config.json without the secrets
+            CONFIG_FILE.write_text(
+                json.dumps(file_data, indent=2), encoding="utf-8"
+            )
+
+    @classmethod
+    def _apply_env_to_secrets(cls, values: dict) -> None:
+        """Populate secret fields from environment variables and .env file."""
         import os
+
+        from vandelay.config.env_utils import read_env_file
+
+        env_file_vals = read_env_file()
+
+        for key_path, env_var in SECRET_FIELD_ENV_MAP.items():
+            val = os.environ.get(env_var) or env_file_vals.get(env_var)
+            if not val:
+                continue
+
+            # Walk into the nested values dict, creating sub-dicts as needed
+            node = values
+            for part in key_path[:-1]:
+                if part not in node or not isinstance(node[part], dict):
+                    node[part] = {}
+                node = node[part]
+
+            node[key_path[-1]] = val
+
+    @classmethod
+    def _apply_env_to_server(cls, values: dict) -> None:
+        """Map flat VANDELAY_HOST/PORT env vars into server sub-config."""
+        import os
+
+        from vandelay.config.env_utils import read_env_file
 
         env_map = {
             "VANDELAY_HOST": "host",
             "VANDELAY_PORT": "port",
-            "VANDELAY_SECRET_KEY": "secret_key",
         }
 
-        # Also check ~/.vandelay/.env for these values
-        env_file_vals: dict[str, str] = {}
-        env_path = VANDELAY_HOME / ".env"
-        if env_path.exists():
-            try:
-                for line in env_path.read_text(encoding="utf-8").splitlines():
-                    line = line.strip()
-                    if not line or line.startswith("#") or "=" not in line:
-                        continue
-                    k, _, v = line.partition("=")
-                    k = k.strip()
-                    if " #" in v:
-                        v = v[:v.index(" #")]
-                    env_file_vals[k] = v.strip()
-            except OSError:
-                pass
+        env_file_vals = read_env_file()
 
         server = values.get("server", {})
         if not isinstance(server, dict):
