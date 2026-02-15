@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -29,6 +30,24 @@ def _google_all_scopes() -> list[str]:
         "https://www.googleapis.com/auth/drive",
         "https://www.googleapis.com/auth/spreadsheets",
     ]
+
+
+def _cap_sheet_output(tool_instance: Any, max_chars: int = 50_000) -> None:
+    """Wrap read_sheet to truncate large results and prevent token overflow."""
+    original = tool_instance.read_sheet
+
+    @wraps(original)
+    def capped_read_sheet(*args, **kwargs):
+        result = original(*args, **kwargs)
+        if isinstance(result, str) and len(result) > max_chars:
+            return (
+                result[:max_chars]
+                + f"\n\n[TRUNCATED — output was {len(result):,} chars, limit is {max_chars:,}. "
+                "Use a narrower spreadsheet_range (e.g. 'Sheet1!A1:F50') to read smaller sections.]"
+            )
+        return result
+
+    tool_instance.read_sheet = capped_read_sheet
 
 
 def _inject_google_creds(tool_instance: Any, token_path: str) -> None:
@@ -295,6 +314,8 @@ class ToolManager:
                         kwargs["allow_update"] = True
                     instance = cls(**kwargs)
                     _inject_google_creds(instance, token)
+                    if tool_name == "googlesheets":
+                        _cap_sheet_output(instance)
                     instances.append(instance)
                     continue
 
