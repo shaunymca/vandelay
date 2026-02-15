@@ -210,9 +210,13 @@ class ToolManager:
                     # URL values to Credentials.from_authorized_user_file.
                     # Pass correct scopes explicitly.
                     if tool_name == "googlecalendar":
+                        from vandelay.config.settings import get_settings
+                        _settings = get_settings()
                         kwargs["scopes"] = [
                             "https://www.googleapis.com/auth/calendar",
                         ]
+                        kwargs["calendar_id"] = _settings.google.calendar_id
+                        kwargs["allow_update"] = True
                     instances.append(cls(**kwargs))
                     continue
 

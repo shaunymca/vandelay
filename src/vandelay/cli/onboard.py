@@ -427,6 +427,194 @@ def _offer_daemon_install() -> None:
     console.print()
 
 
+def _google_summary(settings: Settings) -> str:
+    """One-line summary of Google config for the config menu."""
+    from vandelay.config.constants import VANDELAY_HOME
+
+    token_exists = (VANDELAY_HOME / "google_token.json").exists()
+    cal_id = settings.google.calendar_id
+    parts = []
+    parts.append("authenticated" if token_exists else "not authenticated")
+    if cal_id != "primary":
+        parts.append(f"calendar: {cal_id}")
+    return ", ".join(parts)
+
+
+def _configure_google_settings(settings: Settings) -> Settings:
+    """Config menu handler for Google settings (calendar_id, re-auth, status)."""
+    from vandelay.config.constants import VANDELAY_HOME
+
+    token_path = VANDELAY_HOME / "google_token.json"
+    token_exists = token_path.exists()
+
+    console.print()
+    console.print(f"  [bold]Calendar ID:[/bold]  {settings.google.calendar_id}")
+    console.print(
+        f"  [bold]Auth token:[/bold]  "
+        f"{'[green]exists[/green]' if token_exists else '[red]not found[/red]'}"
+    )
+    console.print()
+
+    action = questionary.select(
+        "Google settings",
+        choices=[
+            questionary.Choice(
+                title=f"Calendar ID     [{settings.google.calendar_id}]",
+                value="calendar_id",
+            ),
+            questionary.Choice(
+                title="Re-authenticate Google",
+                value="reauth",
+            ),
+            questionary.Choice(title="Back", value="back"),
+        ],
+    ).ask()
+
+    if action is None or action == "back":
+        return settings
+
+    if action == "calendar_id":
+        console.print(
+            "  [dim]Use 'primary' for your main calendar, or enter"
+            " an email address for a shared calendar.[/dim]"
+        )
+        console.print(
+            "  [dim]Tip: ask your agent to run list_calendars()"
+            " to see available calendars.[/dim]"
+        )
+        cal_id = questionary.text(
+            "Calendar ID:",
+            default=settings.google.calendar_id,
+        ).ask()
+        if cal_id is not None:
+            settings.google.calendar_id = cal_id.strip()
+            console.print(
+                f"  [green]✓[/green] Calendar ID set to {settings.google.calendar_id}"
+            )
+
+    elif action == "reauth":
+        from vandelay.cli.tools_commands import run_google_oauth_flow
+        run_google_oauth_flow(reauth=True)
+
+    return settings
+
+
+def _configure_google(
+    enabled_tools: list[str] | None = None,
+) -> tuple[bool, list[str]]:
+    """Interactive Google tools setup for onboarding.
+
+    Returns (setup_done, updated_enabled_tools).
+    """
+    setup = questionary.confirm(
+        "Set up Google tools? (Gmail, Calendar, Drive, Sheets)",
+        default=False,
+    ).ask()
+
+    if setup is None:
+        raise KeyboardInterrupt
+
+    if not setup:
+        console.print(
+            "  [dim]Google skipped — enable later with:"
+            " vandelay tools auth-google[/dim]"
+        )
+        return False, list(enabled_tools or [])
+
+    console.print()
+    console.print("  [bold]Google Cloud Setup Checklist[/bold]")
+    console.print()
+    console.print("  1. Create a Google Cloud project at console.cloud.google.com")
+    console.print("  2. Enable APIs: Gmail, Calendar, Drive, Sheets")
+    console.print("  3. Configure OAuth consent screen (External, Testing mode)")
+    console.print("     Add scopes: gmail.modify, calendar, drive, spreadsheets")
+    console.print("     Add your email as a test user")
+    console.print("  4. Create OAuth credentials (Desktop app)")
+    console.print()
+    console.print("  [dim]See the README for a detailed walkthrough.[/dim]")
+    console.print()
+
+    ready = questionary.confirm(
+        "Do you have your Client ID and Client Secret ready?",
+        default=True,
+    ).ask()
+
+    if not ready:
+        console.print(
+            "  [dim]No worries — run vandelay tools auth-google"
+            " when you're ready.[/dim]"
+        )
+        return False, list(enabled_tools or [])
+
+    # Collect credentials
+    client_id = questionary.text("  Google Client ID:").ask()
+    if not client_id:
+        console.print("  [yellow]⚠[/yellow] No Client ID — Google skipped")
+        return False, list(enabled_tools or [])
+
+    client_secret = questionary.password("  Google Client Secret:").ask()
+    if not client_secret:
+        console.print("  [yellow]⚠[/yellow] No Client Secret — Google skipped")
+        return False, list(enabled_tools or [])
+
+    project_id = questionary.text("  Google Project ID:").ask()
+    if not project_id:
+        console.print("  [yellow]⚠[/yellow] No Project ID — Google skipped")
+        return False, list(enabled_tools or [])
+
+    # Save to .env
+    import os
+    _write_env_key("GOOGLE_CLIENT_ID", client_id.strip())
+    _write_env_key("GOOGLE_CLIENT_SECRET", client_secret.strip())
+    _write_env_key("GOOGLE_PROJECT_ID", project_id.strip())
+    os.environ["GOOGLE_CLIENT_ID"] = client_id.strip()
+    os.environ["GOOGLE_CLIENT_SECRET"] = client_secret.strip()
+    os.environ["GOOGLE_PROJECT_ID"] = project_id.strip()
+    console.print("  [green]✓[/green] Google credentials saved to ~/.vandelay/.env")
+
+    # Run OAuth flow
+    console.print()
+    from vandelay.cli.tools_commands import run_google_oauth_flow
+    success = run_google_oauth_flow()
+
+    if not success:
+        console.print(
+            "  [yellow]⚠[/yellow] OAuth failed — run"
+            " vandelay tools auth-google to retry"
+        )
+        return False, list(enabled_tools or [])
+
+    # Ask which Google tools to enable
+    selected = questionary.checkbox(
+        "Which Google tools to enable?",
+        choices=[
+            questionary.Choice(title="Gmail", value="gmail", checked=True),
+            questionary.Choice(
+                title="Google Calendar", value="googlecalendar", checked=True,
+            ),
+            questionary.Choice(
+                title="Google Drive", value="google_drive", checked=True,
+            ),
+            questionary.Choice(
+                title="Google Sheets", value="googlesheets", checked=True,
+            ),
+        ],
+    ).ask()
+
+    tools = list(enabled_tools or [])
+    if selected:
+        for t in selected:
+            if t not in tools:
+                tools.append(t)
+        console.print(
+            f"  [green]✓[/green] Enabled: {', '.join(selected)}"
+        )
+    else:
+        console.print("  [dim]No Google tools selected.[/dim]")
+
+    return True, tools
+
+
 def _tools_summary(enabled_tools: list[str]) -> str:
     """One-line summary of enabled tool count."""
     count = len(enabled_tools)
@@ -492,6 +680,10 @@ def run_config_menu(settings: Settings, exit_label: str | None = None) -> Settin
                 questionary.Choice(
                     title=f"Team mode       [{_team_summary(settings)}]",
                     value="team",
+                ),
+                questionary.Choice(
+                    title=f"Google          [{_google_summary(settings)}]",
+                    value="google",
                 ),
                 questionary.Choice(
                     title=f"Deep work       [{_deep_work_summary(settings)}]",
@@ -563,6 +755,9 @@ def run_config_menu(settings: Settings, exit_label: str | None = None) -> Settin
         elif section == "knowledge":
             enabled = _configure_knowledge(settings.model.provider)
             settings.knowledge.enabled = enabled
+
+        elif section == "google":
+            settings = _configure_google_settings(settings)
 
         elif section == "team":
             settings = _configure_team(settings)
@@ -1239,36 +1434,36 @@ def run_onboarding() -> Settings:
     console.print()
 
     # Step 1: Identity
-    console.print("[bold]1/8[/bold] — Identity")
+    console.print("[bold]1/9[/bold] — Identity")
     agent_name = _configure_agent_name()
     user_id = _configure_user_id()
     console.print()
 
     # Step 2: Model provider
-    console.print("[bold]2/8[/bold] — AI Model")
+    console.print("[bold]2/9[/bold] — AI Model")
     provider, model_id = _select_provider()
     auth_method = _configure_auth(provider)
     console.print()
 
     # Step 3: Safety mode
-    console.print("[bold]3/8[/bold] — Safety")
+    console.print("[bold]3/9[/bold] — Safety")
     safety_mode = _select_safety_mode()
     console.print()
 
     # Step 4: Timezone
-    console.print("[bold]4/8[/bold] — Timezone")
+    console.print("[bold]4/9[/bold] — Timezone")
     timezone = _select_timezone()
     console.print(f"  [green]✓[/green] Timezone set to {timezone}")
     console.print()
 
     # Step 5: Browser Tools
-    console.print("[bold]5/8[/bold] — Browser Tools")
+    console.print("[bold]5/9[/bold] — Browser Tools")
     enabled_tools: list[str] = []
     enabled_tools = _configure_browser_tools(enabled_tools)
     console.print()
 
     # Step 6: Workspace
-    console.print("[bold]6/8[/bold] — Workspace")
+    console.print("[bold]6/9[/bold] — Workspace")
     ws = init_workspace()
     console.print(f"  [green]✓[/green] Workspace initialized at {ws}")
     console.print()
@@ -1277,12 +1472,17 @@ def run_onboarding() -> Settings:
     _populate_user_md(ws, timezone=timezone)
 
     # Step 7: Messaging channels
-    console.print("[bold]7/8[/bold] — Messaging Channels")
+    console.print("[bold]7/9[/bold] — Messaging Channels")
     channel_cfg = _configure_channels(ChannelConfig())
     console.print()
 
-    # Step 8: Knowledge base
-    console.print("[bold]8/8[/bold] — Knowledge Base")
+    # Step 8: Google tools
+    console.print("[bold]8/9[/bold] — Google Tools")
+    _google_setup_done, enabled_tools = _configure_google(enabled_tools)
+    console.print()
+
+    # Step 9: Knowledge base
+    console.print("[bold]9/9[/bold] — Knowledge Base")
     knowledge_enabled = _configure_knowledge(provider)
     console.print()
 

@@ -20,6 +20,7 @@ from vandelay.config.models import (
     SECRET_FIELD_ENV_MAP,
     ChannelConfig,
     DeepWorkConfig,
+    GoogleConfig,
     HeartbeatConfig,
     KnowledgeConfig,
     ModelConfig,
@@ -55,6 +56,7 @@ class Settings(BaseSettings):
     knowledge: KnowledgeConfig = Field(default_factory=KnowledgeConfig)
     deep_work: DeepWorkConfig = Field(default_factory=DeepWorkConfig)
     team: TeamConfig = Field(default_factory=TeamConfig)
+    google: GoogleConfig = Field(default_factory=GoogleConfig)
 
     # --- Top-level settings ---
     agent_name: str = "Art"

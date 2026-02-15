@@ -69,7 +69,7 @@ uv run vandelay onboard
 uv run vandelay start
 ```
 
-The onboard wizard walks you through 8 steps — identity, model, auth, safety mode, browser tools, workspace, messaging channels, and knowledge base. Config is saved to `~/.vandelay/config.json` and can be changed anytime with `/config` in chat.
+The onboard wizard walks you through 9 steps — identity, model, auth, safety mode, browser tools, workspace, messaging channels, and knowledge base. Config is saved to `~/.vandelay/config.json` and can be changed anytime with `/config` in chat.
 
 After `vandelay start`, you get:
 - **Terminal chat** — talk to your agent directly in the console
@@ -146,6 +146,7 @@ Each layer is a sealed compartment — memory, tools, and channels operate indep
 | `vandelay tools add <name>` | Enable a tool + install its deps |
 | `vandelay tools remove <name>` | Disable a tool |
 | `vandelay tools info <name>` | Show tool details |
+| `vandelay tools auth-google` | Authenticate Google services (OAuth flow) |
 | `vandelay tools refresh` | Rescan Agno for new tools |
 
 ### Cron Jobs
@@ -214,7 +215,7 @@ uv sync --extra all          # All providers
 uv run vandelay onboard
 ```
 
-Before we go any further — here's exactly what the onboarding does, so there are no surprises. The wizard guides you through **8 steps**:
+Before we go any further — here's exactly what the onboarding does, so there are no surprises. The wizard guides you through **9 steps**:
 
 1. **Identity** — Name your agent (default: "Claw") and set your user ID
 2. **AI Model** — Pick provider (Anthropic/OpenAI/Google/Ollama/OpenRouter) and model
@@ -223,7 +224,8 @@ Before we go any further — here's exactly what the onboarding does, so there a
 5. **Browser Tools** — Crawl4ai (recommended) and/or Camofox (experimental)
 6. **Workspace** — Initializes `~/.vandelay/workspace/` with personality templates
 7. **Channels** — Telegram and/or WhatsApp (optional)
-8. **Knowledge Base** — Enable document search / RAG (optional)
+8. **Google Tools** — Gmail, Calendar, Drive, Sheets (optional, requires Google Cloud project)
+9. **Knowledge Base** — Enable document search / RAG (optional)
 
 On Linux and macOS, you'll also be offered the option to install Vandelay as a system service.
 
@@ -322,7 +324,72 @@ Enable both during onboarding or via `vandelay tools add`.
 </details>
 
 <details>
-<summary><strong>7. Safety Modes Explained</strong></summary>
+<summary><strong>7. Google Tools Setup (Gmail, Calendar, Drive, Sheets)</strong></summary>
+
+Google tools require a one-time OAuth setup. You can do this during onboarding (`vandelay onboard`) or later with `vandelay tools auth-google`.
+
+**Step 1: Create a Google Cloud Project**
+- Go to [console.cloud.google.com](https://console.cloud.google.com) → **New Project**
+- Note the **Project ID** (you'll need it later)
+
+**Step 2: Enable APIs**
+- Navigate to **APIs & Services → Library**
+- Search for and enable each of these:
+  - Gmail API
+  - Google Calendar API
+  - Google Drive API
+  - Google Sheets API
+
+**Step 3: Configure OAuth Consent Screen**
+- Go to **APIs & Services → OAuth consent screen**
+- User type: **External** (or Internal for Google Workspace)
+- Fill in app name and support email
+- In the **Data Access** section, add these scopes:
+  - `https://www.googleapis.com/auth/gmail.modify`
+  - `https://www.googleapis.com/auth/calendar`
+  - `https://www.googleapis.com/auth/drive`
+  - `https://www.googleapis.com/auth/spreadsheets`
+- Under **Audience**, add your email as a test user (and the agent's email if using a separate Google account)
+- Leave the app in **Testing** mode — no verification needed for personal use
+
+**Step 4: Create OAuth Credentials**
+- Go to **APIs & Services → Credentials → Create Credentials → OAuth 2.0 Client ID**
+- Application type: **Desktop app**
+- Copy the **Client ID** and **Client Secret**
+
+**Step 5: Configure Vandelay**
+
+```bash
+# Add to ~/.vandelay/.env:
+GOOGLE_CLIENT_ID=your-client-id
+GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_PROJECT_ID=your-project-id
+```
+
+**Step 6: Authenticate**
+
+```bash
+vandelay tools auth-google
+```
+
+This opens a console-based OAuth flow — paste the authorization URL in your browser, sign in, and paste the code back. The token is saved to `~/.vandelay/google_token.json` and covers all four APIs.
+
+> **Note:** Gmail and Drive are "restricted" scopes. In Testing mode this is fine — just add yourself (and the agent's account if separate) as test users. For production/public use, Google requires app verification.
+
+**Calendar Sharing (Optional)**
+
+If the agent has its own Google account and you want it to access your calendar:
+
+1. Open Google Calendar → Settings → your calendar → **Share with specific people**
+2. Add the agent's email with **"Make changes to events"** permission
+3. In Vandelay, set `google.calendar_id` to your email address (e.g. `shaun@gmail.com`) via `/config` → Google → Calendar ID
+
+The agent can also call `list_calendars()` to discover available shared calendars.
+
+</details>
+
+<details>
+<summary><strong>8. Safety Modes Explained</strong></summary>
 
 Controls how shell commands are executed:
 
@@ -339,7 +406,7 @@ Change your safety mode anytime with `/config` in chat.
 </details>
 
 <details>
-<summary><strong>8. Cron Jobs & Scheduling</strong></summary>
+<summary><strong>9. Cron Jobs & Scheduling</strong></summary>
 
 Schedule recurring tasks using standard cron expressions. Jobs are saved to `~/.vandelay/cron_jobs.json` and executed by the APScheduler engine.
 
@@ -364,7 +431,7 @@ You can also ask your agent to schedule jobs via natural language in chat — th
 </details>
 
 <details>
-<summary><strong>9. Knowledge / RAG</strong></summary>
+<summary><strong>10. Knowledge / RAG</strong></summary>
 
 Give your agent access to your documents. Vandelay uses LanceDB for vector storage and supports OpenAI, Google, or Ollama embedders.
 
@@ -390,7 +457,7 @@ The embedder is auto-selected based on your model provider. Anthropic has no emb
 </details>
 
 <details>
-<summary><strong>10. Agent Teams (Supervisor Mode)</strong></summary>
+<summary><strong>11. Agent Teams (Supervisor Mode)</strong></summary>
 
 Enable team mode to split work across specialist agents. The supervisor routes tasks to the right specialist based on intent.
 
@@ -417,7 +484,7 @@ When disabled (default), the main agent handles everything with all tools. Team 
 </details>
 
 <details>
-<summary><strong>11. Daemon Service</strong></summary>
+<summary><strong>12. Daemon Service</strong></summary>
 
 Run Vandelay as a persistent system service that starts on boot and auto-restarts on failure.
 
@@ -441,7 +508,7 @@ On Linux, this creates a user-level systemd unit at `~/.config/systemd/user/vand
 </details>
 
 <details>
-<summary><strong>12. Self-Restart (File Watcher)</strong></summary>
+<summary><strong>13. Self-Restart (File Watcher)</strong></summary>
 
 Use the `--watch` flag to auto-restart when source files, config, or workspace templates change:
 
@@ -455,7 +522,7 @@ The watcher monitors `.py`, `.json`, `.md`, `.toml`, and `.env` files in `src/`,
 </details>
 
 <details>
-<summary><strong>13. AgentOS (Web Control Panel)</strong></summary>
+<summary><strong>14. AgentOS (Web Control Panel)</strong></summary>
 
 [AgentOS](https://docs.agno.com/agent-os/connect-your-os) is Agno's hosted control panel at [os.agno.com](https://os.agno.com). It connects directly to your running Vandelay server from the browser — no data is routed through Agno's servers.
 
@@ -507,14 +574,14 @@ vandelay start --server
 </details>
 
 <details>
-<summary><strong>14. Deployment</strong></summary>
+<summary><strong>15. Deployment</strong></summary>
 
 See the full **[Deployment Guide](DEPLOYMENT.md)** for Railway setup, VPS provisioning, Tailscale security, webhook routing, and production hardening.
 
 </details>
 
 <details>
-<summary><strong>15. Database (SQLite vs PostgreSQL)</strong></summary>
+<summary><strong>16. Database (SQLite vs PostgreSQL)</strong></summary>
 
 **Default: SQLite** — zero config, stored at `~/.vandelay/data/vandelay.db`.
 
@@ -536,7 +603,7 @@ Both backends store agent memory, session history, and configuration. The invest
 </details>
 
 <details>
-<summary><strong>16. Customizing Your Agent (Workspace Templates)</strong></summary>
+<summary><strong>17. Customizing Your Agent (Workspace Templates)</strong></summary>
 
 The workspace at `~/.vandelay/workspace/` contains markdown templates that shape your agent's personality and behavior:
 
@@ -555,13 +622,16 @@ Edit these files directly — this is how you master the art of shaping your age
 </details>
 
 <details>
-<summary><strong>17. Environment Variables Reference</strong></summary>
+<summary><strong>18. Environment Variables Reference</strong></summary>
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ANTHROPIC_API_KEY` | Anthropic API key | — |
 | `OPENAI_API_KEY` | OpenAI API key | — |
 | `GOOGLE_API_KEY` | Google AI API key | — |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID | — |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | — |
+| `GOOGLE_PROJECT_ID` | Google Cloud project ID | — |
 | `TELEGRAM_TOKEN` | Telegram bot token | — |
 | `TELEGRAM_CHAT_ID` | Lock Telegram to one chat | — |
 | `WHATSAPP_ACCESS_TOKEN` | WhatsApp Cloud API token | — |
