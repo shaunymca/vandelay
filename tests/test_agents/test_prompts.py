@@ -237,13 +237,15 @@ class TestTeamLeaderPrompt:
         assert "research" in prompt
 
     def test_leader_prompt_slim_agents(self, tmp_workspace, team_settings):
-        """Leader prompt should include safety/style from AGENTS.md but not Delegation."""
+        """Leader prompt should include safety/style from AGENTS.md but not its Delegation section."""
         prompt = build_team_leader_prompt(
             workspace_dir=tmp_workspace, settings=team_settings,
         )
         assert "Safety Rules" in prompt
         assert "Response Style" in prompt
-        assert "Delegation" not in prompt
+        # The AGENTS.md "## Delegation" section should be stripped (replaced by
+        # the dynamic member roster which has its own "## Delegation Rules").
+        assert "## Delegation\n" not in prompt
 
     def test_leader_prompt_includes_agent_name(self, tmp_workspace, team_settings):
         """Leader prompt should include the agent name."""

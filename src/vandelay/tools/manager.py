@@ -88,6 +88,76 @@ def _guard_file_writes(tool_instance: Any) -> None:
         setattr(tool_instance, method_name, guarded)
 
 
+def _fix_gmail_html_body(tool_instance: Any) -> None:
+    """Wrap Gmail _get_message_body to fall back to HTML when plain text is empty.
+
+    Forwarded emails (especially from Outlook/Exchange) store the thread
+    only in text/html — the text/plain part is empty. Agno's implementation
+    only reads text/plain, so forwarded threads appear blank.
+    """
+    import base64
+    import re
+
+    original = tool_instance._get_message_body
+
+    @wraps(original)
+    def patched_get_message_body(msg_data: dict) -> str:
+        result = original(msg_data)
+
+        # Strip the "Attachments:" suffix to check if the actual body is empty
+        body_text = re.sub(r"\n\nAttachments:.*$", "", result).strip()
+        if body_text:
+            return result
+
+        # Plain text was empty — try extracting from text/html parts
+        try:
+            html_body = ""
+            payload = msg_data.get("payload", {})
+            parts = payload.get("parts", [])
+
+            # Check top-level parts
+            for part in parts:
+                if part.get("mimeType") == "text/html" and "data" in part.get("body", {}):
+                    html_body = base64.urlsafe_b64decode(part["body"]["data"]).decode()
+                    break
+                # Check nested multipart/alternative
+                for sub in part.get("parts", []):
+                    if sub.get("mimeType") == "text/html" and "data" in sub.get("body", {}):
+                        html_body = base64.urlsafe_b64decode(sub["body"]["data"]).decode()
+                        break
+                if html_body:
+                    break
+
+            if not html_body:
+                return result
+
+            # Strip HTML tags to get readable text
+            text = re.sub(r"<style[^>]*>.*?</style>", "", html_body, flags=re.DOTALL)
+            text = re.sub(r"<script[^>]*>.*?</script>", "", text, flags=re.DOTALL)
+            text = re.sub(r"<br\s*/?>", "\n", text, flags=re.IGNORECASE)
+            text = re.sub(r"</p>", "\n\n", text, flags=re.IGNORECASE)
+            text = re.sub(r"</div>", "\n", text, flags=re.IGNORECASE)
+            text = re.sub(r"<[^>]+>", "", text)
+            # Clean up whitespace
+            text = re.sub(r"&nbsp;", " ", text)
+            text = re.sub(r"&amp;", "&", text)
+            text = re.sub(r"&lt;", "<", text)
+            text = re.sub(r"&gt;", ">", text)
+            text = re.sub(r"&#\d+;", "", text)
+            text = re.sub(r"\n{3,}", "\n\n", text).strip()
+
+            # Re-append attachments if the original had them
+            attachments_match = re.search(r"\n\nAttachments:.*$", result)
+            if attachments_match:
+                text += attachments_match.group()
+
+            return text if text else result
+        except Exception:
+            return result
+
+    tool_instance._get_message_body = patched_get_message_body
+
+
 def _cap_sheet_output(tool_instance: Any, max_chars: int = 50_000) -> None:
     """Wrap read_sheet to truncate large results and prevent token overflow."""
     original = tool_instance.read_sheet
@@ -375,6 +445,8 @@ class ToolManager:
                     _inject_google_creds(instance, token)
                     if tool_name == "googlesheets":
                         _cap_sheet_output(instance)
+                    if tool_name == "gmail":
+                        _fix_gmail_html_body(instance)
                     instances.append(instance)
                     continue
 
