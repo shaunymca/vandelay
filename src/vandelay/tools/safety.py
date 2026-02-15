@@ -44,8 +44,29 @@ class SafeShellTools(Toolkit):
         """Check if a command would be allowed by the safety system."""
         return self.check_safety(command)
 
+    # Directories to exclude from find results — these are rarely useful
+    # and generate hundreds of noisy matches.
+    _FIND_EXCLUDE_DIRS: list[str] = [
+        ".venv", ".cache", "node_modules", "__pycache__", ".git",
+    ]
+
+    def _preprocess_command(self, command: str) -> str:
+        """Inject noise-directory exclusions into bare find commands."""
+        stripped = command.strip()
+        if not stripped.startswith("find "):
+            return command
+        # Don't modify if user already has explicit pruning
+        if "-prune" in stripped:
+            return command
+        # Build exclusion clauses
+        excludes = " ".join(
+            f'-not -path "*/{d}/*"' for d in self._FIND_EXCLUDE_DIRS
+        )
+        return f"{stripped} {excludes}"
+
     def run_command(self, command: str) -> str:
         """Execute a shell command with safety checks applied."""
+        command = self._preprocess_command(command)
         block_reason = self._check_blocked(command)
         if block_reason:
             return f"BLOCKED: {block_reason}"

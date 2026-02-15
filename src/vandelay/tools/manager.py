@@ -241,14 +241,13 @@ class ToolManager:
                     instances.append(instance)
                     continue
 
-                # Special handling for file — sandbox to ~/work/
+                # Special handling for file — sandbox to user home
                 if tool_name == "file":
                     from pathlib import Path
-                    work_dir = Path.home() / "work"
-                    work_dir.mkdir(exist_ok=True)
+                    home_dir = Path.home()
                     mod = importlib.import_module(entry.module_path)
                     cls = getattr(mod, entry.class_name)
-                    instances.append(cls(base_dir=work_dir))
+                    instances.append(cls(base_dir=home_dir))
                     continue
 
                 # Special handling for camofox — pass base_url
