@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any
 from agno.agent import Agent
 
 from vandelay.agents.prompts.system_prompt import (
-    build_personality_brief,
     build_system_prompt,
     build_team_leader_prompt,
 )
@@ -177,7 +176,6 @@ def _build_member_agent(
     db,
     knowledge,
     settings: Settings,
-    personality_brief: str,
     scheduler_engine: object | None = None,
 ) -> Agent:
     """Create an Agent from a MemberConfig."""
@@ -202,14 +200,13 @@ def _build_member_agent(
 
         tools.append(SchedulerTools(engine=scheduler_engine))
 
-    # Build instructions: tag → personality brief → file contents → inline
+    # Build instructions: tag → file contents → inline (no personality brief —
+    # members have their own instructions files and don't need the leader's persona)
     tag = mc.name.upper()
     instructions: list[str] = [
         f"You are the [{tag}] specialist. Always prefix your responses with [{tag}] "
         f"so the user knows which team member is speaking.",
     ]
-    if personality_brief:
-        instructions.append(personality_brief)
 
     file_content = _load_instructions_file(mc.instructions_file)
     if file_content:
@@ -228,9 +225,9 @@ def _build_member_agent(
         search_knowledge=knowledge is not None,
         instructions=instructions or None,
         tools=tools or None,
-        markdown=True,
+        markdown=False,
         add_history_to_context=True,
-        num_history_runs=3,
+        num_history_runs=1,
         update_memory_on_run=True,
     )
 
@@ -330,7 +327,6 @@ def create_team(
         settings=settings,
     )
     knowledge = create_knowledge(settings, db=db)
-    personality_brief = build_personality_brief(workspace_dir)
 
     # Build members from config (string or MemberConfig)
     members = []
@@ -342,7 +338,6 @@ def create_team(
             db=db,
             knowledge=knowledge,
             settings=settings,
-            personality_brief=personality_brief,
             scheduler_engine=scheduler_engine,
         )
         members.append(agent)
@@ -380,7 +375,7 @@ def create_team(
         respond_directly=respond_directly,
         update_memory_on_run=True,
         add_history_to_context=True,
-        num_history_runs=5,
+        num_history_runs=3,
         markdown=True,
     )
 

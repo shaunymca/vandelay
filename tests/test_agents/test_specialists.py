@@ -44,7 +44,6 @@ class TestLegacyMemberNames:
                 db=MagicMock(),
                 knowledge=None,
                 settings=settings,
-                personality_brief="",
             )
 
         kwargs = mock_agent.call_args[1]
@@ -67,7 +66,6 @@ class TestLegacyMemberNames:
                 db=MagicMock(),
                 knowledge=None,
                 settings=settings,
-                personality_brief="",
             )
 
         kwargs = mock_agent.call_args[1]
@@ -88,7 +86,6 @@ class TestLegacyMemberNames:
             db=MagicMock(),
             knowledge=mock_knowledge,
             settings=settings,
-            personality_brief="",
         )
 
         kwargs = mock_agent.call_args[1]

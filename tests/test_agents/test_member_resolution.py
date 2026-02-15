@@ -85,7 +85,6 @@ class TestBuildMemberAgent:
             db=MagicMock(),
             knowledge=None,
             settings=settings,
-            personality_brief="",
         )
 
         kwargs = mock_agent.call_args[1]
@@ -116,7 +115,6 @@ class TestBuildMemberAgent:
             db=MagicMock(),
             knowledge=None,
             settings=settings,
-            personality_brief="",
         )
 
         mock_model_factory.assert_called_once_with("openai", "gpt-4o")
@@ -139,31 +137,10 @@ class TestBuildMemberAgent:
             db=MagicMock(),
             knowledge=None,
             settings=settings,
-            personality_brief="",
         )
 
         kwargs = mock_agent.call_args[1]
         assert kwargs["model"] is main_model
-
-    @patch("vandelay.agents.factory.Agent")
-    def test_personality_brief_in_instructions(self, mock_agent):
-        from vandelay.agents.factory import _build_member_agent
-
-        mock_agent.return_value = MagicMock()
-        mc = MemberConfig(name="test")
-        settings = _make_settings()
-
-        _build_member_agent(
-            mc,
-            main_model=MagicMock(),
-            db=MagicMock(),
-            knowledge=None,
-            settings=settings,
-            personality_brief="Be direct and helpful.",
-        )
-
-        kwargs = mock_agent.call_args[1]
-        assert "Be direct and helpful." in kwargs["instructions"]
 
     @patch("vandelay.agents.factory.Agent")
     def test_inline_instructions_appended(self, mock_agent):
@@ -179,11 +156,9 @@ class TestBuildMemberAgent:
             db=MagicMock(),
             knowledge=None,
             settings=settings,
-            personality_brief="Brief.",
         )
 
         kwargs = mock_agent.call_args[1]
-        assert "Brief." in kwargs["instructions"]
         assert "Focus on code quality" in kwargs["instructions"]
 
     @patch("vandelay.agents.factory.Agent")
@@ -203,7 +178,6 @@ class TestBuildMemberAgent:
                 db=MagicMock(),
                 knowledge=None,
                 settings=settings,
-                personality_brief="",
             )
             tool_names = mock_mgr.return_value.instantiate_tools.call_args[0][0]
             assert tool_names == ["shell"]
@@ -266,13 +240,11 @@ class TestLoadInstructionsFile:
             db=MagicMock(),
             knowledge=None,
             settings=settings,
-            personality_brief="Brief.",
         )
 
         kwargs = mock_agent.call_args[1]
         instructions = kwargs["instructions"]
-        # Order: tag, personality brief, file, inline
+        # Order: tag, file, inline
         assert "[CTO]" in instructions[0]
-        assert instructions[1] == "Brief."
-        assert instructions[2] == "File instructions here."
-        assert instructions[3] == "Inline instruction."
+        assert instructions[1] == "File instructions here."
+        assert instructions[2] == "Inline instruction."
