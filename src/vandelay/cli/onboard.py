@@ -26,6 +26,9 @@ from vandelay.workspace.manager import init_workspace
 
 console = Console()
 
+# Tool names that require Google OAuth
+_GOOGLE_TOOL_NAMES = {"gmail", "google_drive", "googlecalendar", "googlesheets"}
+
 
 def _select_provider() -> tuple[str, str]:
     """Prompt user to pick a model provider and model ID."""
@@ -499,6 +502,36 @@ def _configure_google_settings(settings: Settings) -> Settings:
     return settings
 
 
+def _offer_google_auth_after_tools(newly_enabled: set[str]) -> None:
+    """Prompt user to run Google OAuth after enabling Google tools in the browser."""
+    from vandelay.config.constants import VANDELAY_HOME
+
+    token_exists = (VANDELAY_HOME / "google_token.json").exists()
+    names = ", ".join(sorted(newly_enabled))
+
+    if token_exists:
+        console.print(f"  [dim]Google tools enabled: {names} (already authenticated)[/dim]")
+        return
+
+    console.print()
+    console.print(f"  You enabled Google tools: [bold]{names}[/bold]")
+    console.print("  These require OAuth authentication to work.")
+
+    run_auth = questionary.confirm(
+        "Run Google authentication now?",
+        default=True,
+    ).ask()
+
+    if run_auth is None or not run_auth:
+        console.print(
+            "  [dim]No problem — run vandelay tools auth-google when ready.[/dim]"
+        )
+        return
+
+    from vandelay.cli.tools_commands import run_google_oauth_flow
+    run_google_oauth_flow()
+
+
 def _configure_google(
     enabled_tools: list[str] | None = None,
 ) -> tuple[bool, list[str]]:
@@ -740,7 +773,12 @@ def run_config_menu(settings: Settings, exit_label: str | None = None) -> Settin
 
         elif section == "tools":
             from vandelay.cli.tools_commands import interactive_tools_browser
+            google_before = set(settings.enabled_tools) & _GOOGLE_TOOL_NAMES
             interactive_tools_browser(settings)
+            google_after = set(settings.enabled_tools) & _GOOGLE_TOOL_NAMES
+            newly_enabled = google_after - google_before
+            if newly_enabled:
+                _offer_google_auth_after_tools(newly_enabled)
             continue  # skip save — browser handles its own saves
 
         elif section == "browser":
