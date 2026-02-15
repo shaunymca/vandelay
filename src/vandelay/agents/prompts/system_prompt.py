@@ -78,6 +78,71 @@ def _build_tool_catalog(settings: Settings) -> str:
     return "\n".join(lines)
 
 
+def _build_credentials_summary() -> str:
+    """Scan configured credentials and return a status summary for the prompt.
+
+    This prevents agents from asking users to set up credentials that
+    already exist.
+    """
+    from vandelay.config.constants import VANDELAY_HOME
+
+    lines: list[str] = [
+        "# Your Configured Credentials",
+        "",
+        "These credentials are already set up. **Do NOT ask the user to configure them.**",
+        "Just call the tool directly.",
+        "",
+    ]
+
+    # Check Google OAuth token
+    google_token = VANDELAY_HOME / "google_token.json"
+    if google_token.exists():
+        lines.append(
+            "- **Google OAuth**: \u2705 authenticated (Gmail, Calendar, Drive, Sheets)"
+        )
+    else:
+        lines.append(
+            "- **Google OAuth**: \u274c not set up "
+            "(user can run `vandelay tools auth-google`)"
+        )
+
+    # Scan .env for known API key patterns
+    env_file = VANDELAY_HOME / ".env"
+    configured_keys: set[str] = set()
+    if env_file.exists():
+        try:
+            for line in env_file.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key = line.partition("=")[0].strip()
+                if key:
+                    configured_keys.add(key.upper())
+        except OSError:
+            pass
+
+    # Common API keys to report on
+    _KEY_LABELS = {
+        "ANTHROPIC_API_KEY": "Anthropic",
+        "OPENAI_API_KEY": "OpenAI",
+        "GOOGLE_API_KEY": "Google AI",
+        "TAVILY_API_KEY": "Tavily (web search)",
+        "GITHUB_TOKEN": "GitHub",
+        "OPENROUTER_API_KEY": "OpenRouter",
+    }
+    for key, label in _KEY_LABELS.items():
+        if key in configured_keys:
+            lines.append(f"- **{label}**: \u2705 configured")
+
+    lines.append("")
+    lines.append(
+        "If a tool fails with an auth error, check `~/.vandelay/.env` — "
+        "do not ask the user to set up credentials that are already listed above."
+    )
+    lines.append("")
+    return "\n".join(lines)
+
+
 def build_system_prompt(
     agent_name: str = "Art",
     workspace_dir: Path | None = None,
@@ -124,6 +189,12 @@ def build_system_prompt(
         catalog = _build_tool_catalog(settings)
         if catalog:
             sections.append(catalog)
+
+    # Dynamic credentials summary — prevents agents from asking users
+    # to set up credentials that are already configured.
+    creds = _build_credentials_summary()
+    if creds:
+        sections.append(creds)
 
     memory = get_template_content("MEMORY.md", workspace_dir)
     if memory:
@@ -327,6 +398,11 @@ def build_team_leader_prompt(
         deep_work_prompt = _build_deep_work_prompt(settings)
         if deep_work_prompt:
             sections.append(deep_work_prompt)
+
+    # Dynamic credentials summary
+    creds = _build_credentials_summary()
+    if creds:
+        sections.append(creds)
 
     memory = get_template_content("MEMORY.md", workspace_dir)
     if memory:
