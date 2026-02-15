@@ -308,7 +308,7 @@ def create_agent(
         search_knowledge=knowledge is not None,
         markdown=True,
         add_history_to_context=True,
-        num_history_runs=2,
+        num_history_runs=1,
         update_memory_on_run=True,
     )
 
@@ -399,7 +399,7 @@ def create_team(
         respond_directly=respond_directly,
         update_memory_on_run=True,
         add_history_to_context=True,
-        num_history_runs=2,
+        num_history_runs=1,
         markdown=True,
     )
 

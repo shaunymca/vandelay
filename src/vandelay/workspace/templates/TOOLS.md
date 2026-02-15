@@ -45,6 +45,17 @@ By default, Google Calendar tools operate on the user's **primary** calendar. To
 
 The calendar tool has **write access enabled** — you can create, update, and delete events.
 
+### Google Sheets — Token Limits
+
+**CRITICAL**: Large spreadsheets can overflow your context window (200K token limit). Always follow these rules:
+
+1. **Never read an entire sheet without a range.** Always specify `spreadsheet_range` (e.g., `"Sheet1!A1:F50"`).
+2. **Read in batches.** Start with the first 20-50 rows to understand the structure, then fetch more if needed.
+3. **One tab at a time.** Don't read multiple tabs in a single response — process each tab, summarize findings, then move to the next.
+4. **Summarize, don't echo.** After reading sheet data, summarize what you found instead of repeating raw data back to the user.
+
+If you hit a token limit error, your conversation context will be cleared. Use your memory to recover.
+
 ## Shell Commands
 
 - Prefer non-destructive commands first (ls, cat, grep) before modifying anything.
