@@ -61,6 +61,17 @@ Google tools (Gmail, Calendar, Drive, Sheets) use a shared OAuth token managed b
 - Cite source documents in answers.
 - If no results, say so and offer web search.
 
+## Environment Variables & Secrets
+
+API keys and secrets are stored in `~/.vandelay/.env`. This file is loaded automatically before your tools are initialized — you do NOT need to source it or load it yourself.
+
+- To check which keys are configured: read `~/.vandelay/.env` (values are redacted in tool output)
+- To add or update a key: edit `~/.vandelay/.env` directly, one `KEY=value` per line
+- Common keys: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `TAVILY_API_KEY`, `GITHUB_TOKEN`
+- After changing `.env`, the daemon needs a restart for new values to take effect
+
+If a tool fails with an authentication or missing-key error, check `~/.vandelay/.env` first before asking the user.
+
 ## Local Config
 
 Add tool-specific settings below as you set things up:

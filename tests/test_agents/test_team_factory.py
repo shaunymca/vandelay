@@ -23,10 +23,8 @@ class TestCreateTeam:
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
     @patch("vandelay.agents.factory.build_team_leader_prompt")
-    @patch("vandelay.agents.factory.build_personality_brief")
     def test_create_team_builds_team(
         self,
-        mock_brief,
         mock_prompt,
         mock_db,
         mock_model,
@@ -36,7 +34,6 @@ class TestCreateTeam:
     ):
         from vandelay.agents.factory import create_team
 
-        mock_brief.return_value = ""
         mock_prompt.return_value = ["test"]
         mock_db.return_value = MagicMock()
         mock_model.return_value = MagicMock()
@@ -61,10 +58,8 @@ class TestCreateTeam:
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
     @patch("vandelay.agents.factory.build_team_leader_prompt")
-    @patch("vandelay.agents.factory.build_personality_brief")
     def test_user_id_passed_to_team(
         self,
-        mock_brief,
         mock_prompt,
         mock_db,
         mock_model,
@@ -75,7 +70,6 @@ class TestCreateTeam:
         """Bug fix: user_id must be passed to Team constructor."""
         from vandelay.agents.factory import create_team
 
-        mock_brief.return_value = ""
         mock_prompt.return_value = ["test"]
         mock_db.return_value = MagicMock()
         mock_model.return_value = MagicMock()
@@ -99,10 +93,8 @@ class TestCreateTeam:
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
     @patch("vandelay.agents.factory.build_team_leader_prompt")
-    @patch("vandelay.agents.factory.build_personality_brief")
     def test_user_id_defaults_when_empty(
         self,
-        mock_brief,
         mock_prompt,
         mock_db,
         mock_model,
@@ -112,7 +104,6 @@ class TestCreateTeam:
     ):
         from vandelay.agents.factory import create_team
 
-        mock_brief.return_value = ""
         mock_prompt.return_value = ["test"]
         mock_db.return_value = MagicMock()
         mock_model.return_value = MagicMock()
@@ -135,10 +126,8 @@ class TestCreateTeam:
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
     @patch("vandelay.agents.factory.build_team_leader_prompt")
-    @patch("vandelay.agents.factory.build_personality_brief")
     def test_mode_comes_from_config(
         self,
-        mock_brief,
         mock_prompt,
         mock_db,
         mock_model,
@@ -148,7 +137,6 @@ class TestCreateTeam:
     ):
         from vandelay.agents.factory import create_team
 
-        mock_brief.return_value = ""
         mock_prompt.return_value = ["test"]
         mock_db.return_value = MagicMock()
         mock_model.return_value = MagicMock()
@@ -172,10 +160,8 @@ class TestCreateTeam:
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
     @patch("vandelay.agents.factory.build_team_leader_prompt")
-    @patch("vandelay.agents.factory.build_personality_brief")
     def test_route_mode_respond_directly(
         self,
-        mock_brief,
         mock_prompt,
         mock_db,
         mock_model,
@@ -185,7 +171,6 @@ class TestCreateTeam:
     ):
         from vandelay.agents.factory import create_team
 
-        mock_brief.return_value = ""
         mock_prompt.return_value = ["test"]
         mock_db.return_value = MagicMock()
         mock_model.return_value = MagicMock()
@@ -209,10 +194,8 @@ class TestCreateTeam:
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
     @patch("vandelay.agents.factory.build_team_leader_prompt")
-    @patch("vandelay.agents.factory.build_personality_brief")
     def test_mixed_string_and_memberconfig_members(
         self,
-        mock_brief,
         mock_prompt,
         mock_db,
         mock_model,
@@ -222,7 +205,6 @@ class TestCreateTeam:
     ):
         from vandelay.agents.factory import create_team
 
-        mock_brief.return_value = ""
         mock_prompt.return_value = ["test"]
         mock_db.return_value = MagicMock()
         mock_model.return_value = MagicMock()
@@ -248,48 +230,8 @@ class TestCreateTeam:
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
     @patch("vandelay.agents.factory.build_team_leader_prompt")
-    @patch("vandelay.agents.factory.build_personality_brief")
-    def test_personality_brief_injected(
-        self,
-        mock_brief,
-        mock_prompt,
-        mock_db,
-        mock_model,
-        mock_team_cls,
-        mock_create_knowledge,
-        tmp_path,
-    ):
-        from vandelay.agents.factory import create_team
-
-        mock_brief.return_value = "Be helpful and direct."
-        mock_prompt.return_value = ["test"]
-        mock_db.return_value = MagicMock()
-        mock_model.return_value = MagicMock()
-        mock_team_cls.return_value = MagicMock()
-        mock_create_knowledge.return_value = None
-
-        settings = self._make_settings(
-            team=TeamConfig(enabled=True, members=["browser"]),
-            workspace_dir=str(tmp_path),
-        )
-
-        with patch("vandelay.agents.factory.Agent") as mock_agent:
-            mock_agent.return_value = MagicMock()
-            create_team(settings)
-
-        # The Agent was called once for the browser member
-        agent_kwargs = mock_agent.call_args[1]
-        assert "Be helpful and direct." in agent_kwargs["instructions"]
-
-    @patch("vandelay.knowledge.setup.create_knowledge")
-    @patch("agno.team.Team")
-    @patch("vandelay.agents.factory._get_model")
-    @patch("vandelay.agents.factory.create_db")
-    @patch("vandelay.agents.factory.build_team_leader_prompt")
-    @patch("vandelay.agents.factory.build_personality_brief")
     def test_includes_tool_management(
         self,
-        mock_brief,
         mock_prompt,
         mock_db,
         mock_model,
@@ -299,7 +241,6 @@ class TestCreateTeam:
     ):
         from vandelay.agents.factory import create_team
 
-        mock_brief.return_value = ""
         mock_prompt.return_value = ["test"]
         mock_db.return_value = MagicMock()
         mock_model.return_value = MagicMock()
@@ -335,10 +276,8 @@ class TestMemberMemoryScoping:
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
     @patch("vandelay.agents.factory.build_team_leader_prompt")
-    @patch("vandelay.agents.factory.build_personality_brief")
     def test_member_gets_scoped_user_id(
         self,
-        mock_brief,
         mock_prompt,
         mock_db,
         mock_model,
@@ -348,7 +287,6 @@ class TestMemberMemoryScoping:
     ):
         from vandelay.agents.factory import create_team
 
-        mock_brief.return_value = ""
         mock_prompt.return_value = ["test"]
         mock_db.return_value = MagicMock()
         mock_model.return_value = MagicMock()
@@ -374,10 +312,8 @@ class TestMemberMemoryScoping:
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
     @patch("vandelay.agents.factory.build_team_leader_prompt")
-    @patch("vandelay.agents.factory.build_personality_brief")
     def test_member_has_memory_enabled(
         self,
-        mock_brief,
         mock_prompt,
         mock_db,
         mock_model,
@@ -387,7 +323,6 @@ class TestMemberMemoryScoping:
     ):
         from vandelay.agents.factory import create_team
 
-        mock_brief.return_value = ""
         mock_prompt.return_value = ["test"]
         mock_db.return_value = MagicMock()
         mock_model.return_value = MagicMock()
@@ -412,10 +347,8 @@ class TestMemberMemoryScoping:
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
     @patch("vandelay.agents.factory.build_team_leader_prompt")
-    @patch("vandelay.agents.factory.build_personality_brief")
     def test_leader_keeps_global_user_id(
         self,
-        mock_brief,
         mock_prompt,
         mock_db,
         mock_model,
@@ -425,7 +358,6 @@ class TestMemberMemoryScoping:
     ):
         from vandelay.agents.factory import create_team
 
-        mock_brief.return_value = ""
         mock_prompt.return_value = ["test"]
         mock_db.return_value = MagicMock()
         mock_model.return_value = MagicMock()
@@ -451,10 +383,8 @@ class TestMemberMemoryScoping:
     @patch("vandelay.agents.factory._get_model")
     @patch("vandelay.agents.factory.create_db")
     @patch("vandelay.agents.factory.build_team_leader_prompt")
-    @patch("vandelay.agents.factory.build_personality_brief")
     def test_each_member_gets_unique_scope(
         self,
-        mock_brief,
         mock_prompt,
         mock_db,
         mock_model,
@@ -464,7 +394,6 @@ class TestMemberMemoryScoping:
     ):
         from vandelay.agents.factory import create_team
 
-        mock_brief.return_value = ""
         mock_prompt.return_value = ["test"]
         mock_db.return_value = MagicMock()
         mock_model.return_value = MagicMock()

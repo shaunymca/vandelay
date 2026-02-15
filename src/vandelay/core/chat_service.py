@@ -192,6 +192,10 @@ class ChatService:
                 input=message.text,
                 user_id=message.user_id or None,
                 session_id=message.session_id,
+                images=message.images or None,
+                audio=message.audio or None,
+                video=message.video or None,
+                files=message.files or None,
                 stream=True,
                 stream_events=True,
             )
@@ -288,6 +292,10 @@ class ChatService:
                 input=message.text,
                 user_id=message.user_id or None,
                 session_id=message.session_id,
+                images=message.images or None,
+                audio=message.audio or None,
+                video=message.video or None,
+                files=message.files or None,
                 stream=True,
                 stream_events=True,
             )
