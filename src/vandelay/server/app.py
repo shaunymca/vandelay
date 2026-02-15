@@ -59,11 +59,13 @@ def create_app(settings: Settings) -> FastAPI:
     # (scheduler_engine and deep_work_manager set after ChatService is created)
     scheduler_engine = None  # forward ref, set after ChatService
     deep_work_manager = None  # forward ref, set after channel_router
+    channel_router = None  # forward ref, set after ChatService
     team_mode = settings.team.enabled
 
     def _build_agent_or_team(**extra_kwargs):
         """Create either an Agent or Team based on settings."""
         extra_kwargs.setdefault("task_store", task_store)
+        extra_kwargs.setdefault("channel_router", channel_router)
         if team_mode:
             if deep_work_manager is not None:
                 extra_kwargs.setdefault("deep_work_manager", deep_work_manager)
