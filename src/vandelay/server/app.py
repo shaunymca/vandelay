@@ -47,7 +47,10 @@ def create_app(settings: Settings) -> FastAPI:
 
     # ChatService resolves agent lazily, so we create a temporary provider first
     # and wire the real engine after ChatService exists.
+    from vandelay.tasks.store import TaskStore
+
     cron_store = CronJobStore()
+    task_store = TaskStore()
     db = create_db(settings)
     cleanup_stale_sessions(db, settings.user_id or "default")
     knowledge = create_knowledge(settings)
@@ -60,6 +63,7 @@ def create_app(settings: Settings) -> FastAPI:
 
     def _build_agent_or_team(**extra_kwargs):
         """Create either an Agent or Team based on settings."""
+        extra_kwargs.setdefault("task_store", task_store)
         if team_mode:
             if deep_work_manager is not None:
                 extra_kwargs.setdefault("deep_work_manager", deep_work_manager)
@@ -161,6 +165,7 @@ def create_app(settings: Settings) -> FastAPI:
     base_app.state.channel_router = channel_router
     base_app.state.chat_service = chat_service
     base_app.state.scheduler_engine = scheduler_engine
+    base_app.state.task_store = task_store
     base_app.state.deep_work_manager = deep_work_manager
 
     # Register our custom routes before AgentOS
