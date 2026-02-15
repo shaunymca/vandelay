@@ -221,6 +221,7 @@ def _build_member_agent(
         id=f"vandelay-{mc.name}",
         name=f"{mc.name.title()} Specialist",
         role=mc.role or f"{mc.name.title()} specialist",
+        user_id=f"member_{mc.name}",
         model=model,
         db=db,
         knowledge=knowledge,
@@ -230,6 +231,7 @@ def _build_member_agent(
         markdown=True,
         add_history_to_context=True,
         num_history_runs=3,
+        update_memory_on_run=True,
     )
 
 
