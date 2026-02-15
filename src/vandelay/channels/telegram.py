@@ -11,6 +11,7 @@ import httpx
 from agno.media import Audio, File, Image, Video
 
 from vandelay.channels.base import ChannelAdapter, IncomingMessage, OutgoingMessage
+from vandelay.config.settings import get_settings
 
 if TYPE_CHECKING:
     from vandelay.core.chat_service import ChatService
@@ -196,6 +197,17 @@ class TelegramAdapter(ChannelAdapter):
         user = message.get("from", {})
         tg_user_id = str(user.get("id", ""))
         session_id = f"tg:{chat_id}"
+
+        # Auto-capture chat_id on first incoming message
+        if not self.chat_id:
+            self.chat_id = chat_id
+            try:
+                settings = get_settings()
+                settings.channels.telegram_chat_id = chat_id
+                settings.save()
+                logger.info("Auto-captured Telegram chat_id: %s", chat_id)
+            except Exception as exc:
+                logger.warning("Failed to persist chat_id: %s", exc)
 
         # Use configured user_id for unified memory across channels
         user_id = self.default_user_id or tg_user_id

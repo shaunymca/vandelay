@@ -72,6 +72,70 @@ class TestHandleUpdate:
         assert incoming.channel == "telegram"
 
     @pytest.mark.asyncio
+    async def test_auto_capture_chat_id(self, mock_chat_service):
+        """When chat_id is empty, it should be captured from the first message."""
+        adapter = TelegramAdapter(
+            bot_token="test-token-123",
+            chat_service=mock_chat_service,
+            chat_id="",  # empty — triggers auto-capture
+        )
+        update = {
+            "message": {
+                "text": "Hello",
+                "chat": {"id": 55555},
+                "from": {"id": 67890},
+            }
+        }
+
+        with (
+            patch("vandelay.channels.telegram.httpx.AsyncClient") as mock_client_cls,
+            patch("vandelay.channels.telegram.get_settings") as mock_get_settings,
+        ):
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock()
+
+            mock_settings = MagicMock()
+            mock_get_settings.return_value = mock_settings
+
+            await adapter.handle_update(update)
+
+        # chat_id should now be set on the adapter
+        assert adapter.chat_id == "55555"
+        # Settings should have been updated and saved
+        assert mock_settings.channels.telegram_chat_id == "55555"
+        mock_settings.save.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_no_re_capture_when_chat_id_set(self, adapter, mock_chat_service):
+        """When chat_id is already set, it should NOT be re-captured."""
+        update = {
+            "message": {
+                "text": "Hello",
+                "chat": {"id": 99999},
+                "from": {"id": 67890},
+            }
+        }
+
+        with (
+            patch("vandelay.channels.telegram.httpx.AsyncClient") as mock_client_cls,
+            patch(
+                "vandelay.channels.telegram.get_settings"
+            ) as mock_get_settings,
+        ):
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock()
+
+            await adapter.handle_update(update)
+
+        # Should NOT have called get_settings since chat_id was already "12345"
+        mock_get_settings.assert_not_called()
+        assert adapter.chat_id == "12345"
+
+    @pytest.mark.asyncio
     async def test_non_message_update_ignored(self, adapter, mock_chat_service):
         """Updates without a 'message' key (e.g. edited_message) are skipped."""
         update = {"edited_message": {"text": "edited"}}
