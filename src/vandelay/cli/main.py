@@ -249,10 +249,12 @@ def _is_server_running(host: str, port: int) -> bool:
         return True
 
 
-def _start_background_server(settings) -> None:
-    """Start the FastAPI server in a background thread."""
-    import threading
+async def _start_background_server(settings) -> None:
+    """Start the FastAPI server as an asyncio task on the current event loop.
 
+    Runs on the SAME loop as the terminal chat so both share one
+    httpx.AsyncClient without cross-loop asyncio primitive conflicts.
+    """
     import uvicorn
 
     from vandelay.server.app import create_app
@@ -272,23 +274,26 @@ def _start_background_server(settings) -> None:
     _server_handle["server"] = server
     _server_handle["running"] = True
 
-    def _run():
-        server.run()
+    async def _serve():
+        await server.serve()
         _server_handle["running"] = False
 
-    thread = threading.Thread(target=_run, daemon=True, name="vandelay-server")
-    thread.start()
-    _server_handle["thread"] = thread
+    task = asyncio.create_task(_serve(), name="vandelay-server")
+    _server_handle["task"] = task
 
 
-def _stop_background_server() -> None:
+async def _stop_background_server() -> None:
     """Signal the background server to shut down."""
     server = _server_handle.get("server")
     if server:
         server.should_exit = True
-    thread = _server_handle.get("thread")
-    if thread:
-        thread.join(timeout=5)
+    task = _server_handle.get("task")
+    if task:
+        # Give it a moment to finish gracefully
+        try:
+            await asyncio.wait_for(task, timeout=5)
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            task.cancel()
     _server_handle.clear()
 
 
@@ -327,8 +332,10 @@ async def _run_with_server(settings, *, first_run: bool = False) -> None:
         # Server already running (e.g. daemon) — just launch terminal chat
         console.print(f"  [dim]Server already running on port {port} — entering chat only.[/dim]")
     else:
-        # Start our own server in background thread
-        _start_background_server(settings)
+        # Start server as an asyncio task on the SAME event loop.
+        # This avoids the cross-thread event loop conflict where agno's
+        # global httpx.AsyncClient gets bound to the wrong loop.
+        await _start_background_server(settings)
         await asyncio.sleep(0.5)
 
         # Verify server actually started (might have failed to bind)
@@ -347,35 +354,6 @@ async def _run_with_server(settings, *, first_run: bool = False) -> None:
     if settings.team.enabled:
         console.print(f"  [dim]Team mode: {len(settings.team.members)} specialists[/dim]")
     console.print()
-
-    # The background server thread creates agno's global httpx.AsyncClient
-    # singleton with HTTP/2 enabled. HTTP/2 uses asyncio.Event objects that are
-    # loop-bound, so the terminal (running on a DIFFERENT event loop) can't
-    # reuse that client. Simply setting it to None causes a race — the server
-    # thread recreates it on its own loop before the terminal gets to use it.
-    #
-    # Fix: replace the global client with one using http2=False. HTTP/1.1
-    # doesn't use asyncio primitives, so both threads can safely share it.
-    import httpx
-
-    import agno.utils.http as _agno_http
-    from agno.utils.http import _async_client_lock
-
-    def _reset_agno_http_client() -> None:
-        """Replace agno's global async client with an HTTP/1.1 client."""
-        with _async_client_lock:
-            old = _agno_http._global_async_client
-            _agno_http._global_async_client = httpx.AsyncClient(
-                limits=httpx.Limits(
-                    max_connections=1000, max_keepalive_connections=200,
-                ),
-                http2=False,
-                follow_redirects=True,
-            )
-            # Don't await aclose on old — server thread may still reference it,
-            # and it'll be GC'd. The important thing is the global is now safe.
-
-    _reset_agno_http_client()
 
     # Create agent/team for terminal chat
     # Use a list so the reload callback can swap the reference
@@ -441,7 +419,10 @@ async def _run_with_server(settings, *, first_run: bool = False) -> None:
 
     while True:
         try:
-            user_input = console.input("[bold green]You:[/bold green] ")
+            # Run blocking input in a thread so the server keeps serving
+            user_input = await asyncio.to_thread(
+                console.input, "[bold green]You:[/bold green] "
+            )
         except (KeyboardInterrupt, EOFError):
             break
 
@@ -513,7 +494,7 @@ async def _run_with_server(settings, *, first_run: bool = False) -> None:
 
     if not external_server:
         console.print("\n[dim]Shutting down server...[/dim]")
-        _stop_background_server()
+        await _stop_background_server()
     console.print(f"[dim]{settings.agent_name} signing off.[/dim]")
 
     sys.stderr = sys.__stderr__
