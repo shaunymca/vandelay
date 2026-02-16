@@ -43,5 +43,5 @@ Before running queries, writing analysis, or exploring data:
 - **DuckDB** — Fast SQL queries on local data files
 - **Google Sheets** — Collaborative spreadsheets, dashboards, shared data
 - **CSV Toolkit** — Import and process CSV/TSV data files
-- **Camofox** — Browse data documentation, API references, dataset catalogs
+- **Camoufox** — Browse data documentation, API references, dataset catalogs
 - If a task would benefit from a tool that doesn't exist (e.g., database connector, BI platform integration), suggest building a custom tool

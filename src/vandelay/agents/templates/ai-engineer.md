@@ -39,5 +39,5 @@ Before writing prompts, evaluating models, or making recommendations:
 - **Crawl4AI** — Deep scrape documentation, research papers, model cards
 - **Python** — Write and test prompts, build evaluation scripts, prototype
 - **File** — Save prompt templates, evaluation results, configuration files
-- **Camofox** — Browse model playgrounds, API docs, leaderboards
+- **Camoufox** — Browse model playgrounds, API docs, leaderboards
 - If a task would benefit from a tool that doesn't exist (e.g., eval harness integration, model API wrapper), suggest building a custom tool

@@ -38,5 +38,5 @@ Before programming workouts, giving nutrition advice, or checking in:
 ## Tools You Prefer
 - **Tavily** — Exercise research, form guides, latest training science
 - **Google Sheets** — Program tracking, progress logs, macro calculations
-- **Camofox** — Browse exercise demonstration sites, training resources
+- **Camoufox** — Browse exercise demonstration sites, training resources
 - If a task would benefit from a tool that doesn't exist (e.g., fitness tracker integration, body composition API), suggest building a custom tool

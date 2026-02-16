@@ -1413,8 +1413,8 @@ def _browser_tools_summary(enabled_tools: list[str]) -> str:
     active = []
     if "crawl4ai" in enabled_tools:
         active.append("Crawl4ai")
-    if "camofox" in enabled_tools:
-        active.append("Camofox")
+    if "camoufox" in enabled_tools:
+        active.append("Camoufox")
     return ", ".join(active) if active else "none"
 
 
@@ -1429,8 +1429,8 @@ def _configure_browser_tools(enabled_tools: list[str]) -> list[str]:
                 checked=True,
             ),
             questionary.Choice(
-                title="Camofox (Experimental) — Anti-detection browser with a11y snapshots",
-                value="camofox",
+                title="Camoufox — Anti-detect browser (Playwright + Firefox)",
+                value="camoufox",
             ),
             questionary.Choice(
                 title="None (skip)",
@@ -1454,17 +1454,13 @@ def _configure_browser_tools(enabled_tools: list[str]) -> list[str]:
         console.print("  [green]✓[/green] Crawl4ai enabled")
         console.print("  [dim]Install its deps with: uv add crawl4ai[/dim]")
 
-    if "camofox" in choices:
-        console.print("  Setting up Camofox browser environment...")
-        try:
-            from vandelay.tools.camofox_server import CamofoxServer
-            server = CamofoxServer()
-            server.install()
-            enabled_tools.append("camofox")
-            console.print("  [green]✓[/green] Camofox installed and enabled")
-        except Exception as e:
-            console.print(f"  [red]✗[/red] Camofox setup failed: {e}")
-            console.print("  [dim]You can retry later with: vandelay tools add camofox[/dim]")
+    if "camoufox" in choices:
+        enabled_tools.append("camoufox")
+        console.print("  [green]✓[/green] Camoufox enabled")
+        console.print(
+            "  [dim]First use will download the browser binary."
+            " Or run: camoufox fetch[/dim]"
+        )
 
     return enabled_tools
 
@@ -1655,7 +1651,7 @@ def run_onboarding() -> Settings:
         server=ServerConfig(),
         knowledge=KnowledgeConfig(enabled=True),
         workspace_dir=str(ws),
-        enabled_tools=["shell", "file", "python"],
+        enabled_tools=["shell", "file", "python", "duckduckgo", "camoufox"],
     )
 
     # Persist

@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Legacy string → tool mapping for backward-compatible member names
 _LEGACY_TOOL_MAP: dict[str, list[str]] = {
-    "browser": ["crawl4ai", "camofox"],
+    "browser": ["crawl4ai", "camoufox"],
     "system": ["shell", "file", "python"],
     "scheduler": [],    # uses SchedulerTools injection
     "knowledge": [],    # uses search_knowledge

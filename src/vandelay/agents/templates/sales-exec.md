@@ -37,5 +37,5 @@ Before starting any task, drafting outreach, or researching prospects:
 - **Gmail** — Outreach sequences, follow-ups, email management
 - **Google Sheets** — Pipeline tracking, prospect lists, CRM-style logging
 - **Tavily** — Prospect and company research before outreach
-- **Camofox** — Browse prospect websites, LinkedIn profiles, competitive intel
+- **Camoufox** — Browse prospect websites, LinkedIn profiles, competitive intel
 - If a task would benefit from a tool that doesn't exist (e.g., LinkedIn automation, CRM integration), suggest building a custom tool

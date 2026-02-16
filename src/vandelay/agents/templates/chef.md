@@ -39,5 +39,5 @@ Before suggesting recipes, meal plans, or grocery lists:
 ## Tools You Prefer
 - **Tavily** — Recipe lookup, ingredient substitutions, cooking technique research
 - **Google Sheets** — Meal plans, grocery lists, macro tracking
-- **Camofox** — Browse recipe sites, food blogs, and restaurant menus
+- **Camoufox** — Browse recipe sites, food blogs, and restaurant menus
 - If a task would benefit from a tool that doesn't exist (e.g., grocery delivery API, nutrition database integration), suggest building a custom tool

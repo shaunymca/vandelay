@@ -31,9 +31,9 @@ class TestTemplateRegistry:
             assert t.role, f"{slug} missing role"
             assert len(t.suggested_tools) > 0, f"{slug} has no suggested tools"
 
-    def test_all_have_camofox(self):
+    def test_all_have_camoufox(self):
         for slug, t in STARTER_TEMPLATES.items():
-            assert "camofox" in t.suggested_tools, f"{slug} missing camofox"
+            assert "camoufox" in t.suggested_tools, f"{slug} missing camoufox"
 
     def test_filename_property(self):
         t = STARTER_TEMPLATES["cto"]
