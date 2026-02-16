@@ -139,6 +139,55 @@ def test_description_includes_tool_methods(tmp_registry: ToolRegistry):
     assert "save_file" in file_tool.description
 
 
+def test_pricing_on_builtin_tool(tmp_registry: ToolRegistry):
+    """Built-in tools like shell should be open_source."""
+    tmp_registry.refresh()
+    shell = tmp_registry.get("shell")
+    assert shell is not None
+    assert shell.pricing == "open_source"
+
+
+def test_pricing_on_free_tool(tmp_registry: ToolRegistry):
+    """Tools with free API keys should be marked free."""
+    tmp_registry.refresh()
+    ddg = tmp_registry.get("duckduckgo")
+    assert ddg is not None
+    assert ddg.pricing == "free"
+
+
+def test_pricing_on_paid_tool(tmp_registry: ToolRegistry):
+    """Tools requiring paid API keys should be marked paid."""
+    tmp_registry.refresh()
+    tavily = tmp_registry.get("tavily")
+    assert tavily is not None
+    assert tavily.pricing == "paid"
+
+
+def test_pricing_serialization():
+    """Pricing should survive ToolEntry round-trip."""
+    entry = ToolEntry(
+        name="test_tool",
+        module_path="agno.tools.test",
+        class_name="TestTools",
+        pricing="free",
+    )
+    d = entry.to_dict()
+    restored = ToolEntry.from_dict(d)
+    assert restored.pricing == "free"
+
+
+def test_pricing_persists_in_cache(tmp_path: Path):
+    """Pricing should survive cache round-trip."""
+    cache_file = tmp_path / "tool_registry.json"
+    reg1 = ToolRegistry(cache_path=cache_file)
+    reg1.refresh()
+
+    shell_pricing = reg1.get("shell").pricing
+
+    reg2 = ToolRegistry(cache_path=cache_file)
+    assert reg2.get("shell").pricing == shell_pricing
+
+
 def test_description_persists_in_cache(tmp_path: Path):
     """Descriptions should survive cache round-trip."""
     cache_file = tmp_path / "tool_registry.json"

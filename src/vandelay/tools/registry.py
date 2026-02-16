@@ -204,6 +204,119 @@ _PIP_DEPS: dict[str, list[str]] = {
     "api": ["requests"],
 }
 
+# Pricing classification for tools.
+# "open_source" — no API key, runs locally or fully open
+# "free"        — free API key or generous free tier
+# "paid"        — requires paid API key or subscription
+# Tools not listed default to "open_source" if built-in, "paid" otherwise.
+_PRICING_MAP: dict[str, str] = {
+    # Open source / local — no API key needed
+    "calculator": "open_source",
+    "csv_toolkit": "open_source",
+    "file": "open_source",
+    "file_generation": "open_source",
+    "local_file_system": "open_source",
+    "pandas": "open_source",
+    "python": "open_source",
+    "shell": "open_source",
+    "sleep": "open_source",
+    "visualization": "open_source",
+    "duckdb": "open_source",
+    "neo4j": "open_source",
+    "postgres": "open_source",
+    "sql": "open_source",
+    "docker": "open_source",
+    "opencv": "open_source",
+    "moviepy_video": "open_source",
+    "newspaper": "open_source",
+    "newspaper4k": "open_source",
+    "trafilatura": "open_source",
+    "webbrowser": "open_source",
+    "camofox": "open_source",
+    # Free — free API key or free tier available
+    "arxiv": "free",
+    "duckduckgo": "free",
+    "hackernews": "free",
+    "pubmed": "free",
+    "reddit": "free",
+    "unsplash": "free",
+    "websearch": "free",
+    "wikipedia": "free",
+    "youtube": "free",
+    "giphy": "free",
+    "github": "free",
+    "searxng": "free",
+    "email": "free",
+    "discord": "free",
+    "slack": "free",
+    "telegram": "free",
+    "todoist": "free",
+    "trello": "free",
+    "linear": "free",
+    "notion": "free",
+    "openweather": "free",
+    "yfinance": "free",
+    "bitbucket": "free",
+    "calcom": "free",
+    # Paid — requires paid API key or subscription
+    "anthropic": "paid",
+    "openai": "paid",
+    "dalle": "paid",
+    "gmail": "paid",
+    "google_drive": "paid",
+    "googlecalendar": "paid",
+    "googlesheets": "paid",
+    "google_maps": "paid",
+    "google_bigquery": "paid",
+    "tavily": "paid",
+    "exa": "paid",
+    "firecrawl": "paid",
+    "serpapi": "paid",
+    "serper": "paid",
+    "spider": "paid",
+    "crawl4ai": "paid",
+    "oxylabs": "paid",
+    "brightdata": "paid",
+    "scrapegraph": "paid",
+    "linkup": "paid",
+    "valyu": "paid",
+    "eleven_labs": "paid",
+    "cartesia": "paid",
+    "fal": "paid",
+    "lumalab": "paid",
+    "models_labs": "paid",
+    "replicate": "paid",
+    "resend": "paid",
+    "twilio": "paid",
+    "webex": "paid",
+    "whatsapp": "paid",
+    "aws_lambda": "paid",
+    "aws_ses": "paid",
+    "clickup": "paid",
+    "confluence": "paid",
+    "jira": "paid",
+    "zendesk": "paid",
+    "shopify": "paid",
+    "openbb": "paid",
+    "financial_datasets": "paid",
+    "redshift": "paid",
+    "zoom": "paid",
+    "apify": "paid",
+    "agentql": "paid",
+    "browserbase": "paid",
+    "daytona": "paid",
+    "e2b": "paid",
+    "mem0": "paid",
+    "zep": "paid",
+    "mcp": "paid",
+    "mcp_toolbox": "paid",
+    "evm": "paid",
+    "spotify": "paid",
+    "brandfetch": "paid",
+    "x": "paid",
+    "seltz": "paid",
+}
+
 # Custom (non-agno) tools shipped with vandelay
 _CUSTOM_TOOLS: dict[str, dict[str, Any]] = {
     "camofox": {
@@ -231,6 +344,7 @@ class ToolEntry:
     category: str = "other"
     pip_dependencies: list[str] = field(default_factory=list)
     is_builtin: bool = True  # True = no extra pip install needed
+    pricing: str = "open_source"  # "open_source" | "free" | "paid"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -326,14 +440,19 @@ class ToolRegistry:
         # Merge custom (non-agno) tools shipped with vandelay
         for name, info in _CUSTOM_TOOLS.items():
             if name not in tools:
+                pip_deps = info.get("pip_dependencies", [])
+                is_builtin = len(pip_deps) == 0
                 tools[name] = ToolEntry(
                     name=name,
                     module_path=info["module_path"],
                     class_name=info["class_name"],
                     description=info.get("description", ""),
                     category=info.get("category", _CATEGORY_MAP.get(name, "other")),
-                    pip_dependencies=info.get("pip_dependencies", []),
-                    is_builtin=len(info.get("pip_dependencies", [])) == 0,
+                    pip_dependencies=pip_deps,
+                    is_builtin=is_builtin,
+                    pricing=_PRICING_MAP.get(
+                        name, "open_source" if is_builtin else "paid",
+                    ),
                 )
 
         self._cache = RegistryCache(
@@ -355,7 +474,11 @@ class ToolRegistry:
 
         pip_deps = _PIP_DEPS.get(module_name, [])
         category = _CATEGORY_MAP.get(module_name, "other")
+        is_builtin = len(pip_deps) == 0
         description = self._extract_description(cls) if cls else ""
+        pricing = _PRICING_MAP.get(
+            module_name, "open_source" if is_builtin else "paid",
+        )
 
         return ToolEntry(
             name=module_name,
@@ -364,7 +487,8 @@ class ToolRegistry:
             description=description,
             category=category,
             pip_dependencies=pip_deps,
-            is_builtin=len(pip_deps) == 0,
+            is_builtin=is_builtin,
+            pricing=pricing,
         )
 
     def _find_class(self, full_path: str, module_name: str) -> tuple[str | None, type | None]:

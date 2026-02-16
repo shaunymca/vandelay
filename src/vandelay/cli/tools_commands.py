@@ -89,8 +89,15 @@ def list_tools(
     table = Table(title="Agno Tools", show_lines=False)
     table.add_column("Name", style="bold")
     table.add_column("Category", style="dim")
+    table.add_column("Pricing", style="dim")
     table.add_column("Status")
     table.add_column("Deps", style="dim")
+
+    _PRICING_LABELS = {
+        "open_source": "Open Source",
+        "free": "Free",
+        "paid": "Paid",
+    }
 
     for t in tools:
         # Status column
@@ -108,8 +115,9 @@ def list_tools(
                 status = "[dim]available[/dim]"
 
         deps = ", ".join(t["pip_dependencies"]) if t["pip_dependencies"] else "built-in"
+        pricing = _PRICING_LABELS.get(t.get("pricing", ""), t.get("pricing", ""))
 
-        table.add_row(t["name"], t["category"], status, deps)
+        table.add_row(t["name"], t["category"], pricing, status, deps)
 
     console.print(table)
     console.print(f"\n  [dim]{len(tools)} tools shown. "
@@ -397,10 +405,18 @@ def interactive_tools_browser(settings) -> None:
             is_enabled = selected in settings.enabled_tools
             installed = manager._check_installed(entry)
 
+            _PRICING_LABELS = {
+                "open_source": "Open Source",
+                "free": "Free",
+                "paid": "Paid",
+            }
+
             console.print()
             console.print(f"  [bold]Name:[/bold]       {entry.name}")
             console.print(f"  [bold]Class:[/bold]      {entry.class_name}")
             console.print(f"  [bold]Category:[/bold]   {entry.category}")
+            pricing_label = _PRICING_LABELS.get(entry.pricing, entry.pricing)
+            console.print(f"  [bold]Pricing:[/bold]    {pricing_label}")
             deps_str = ", ".join(entry.pip_dependencies) or "none"
             console.print(f"  [bold]Deps:[/bold]       {deps_str}")
             inst = "[green]yes[/green]" if installed else "[red]no[/red]"

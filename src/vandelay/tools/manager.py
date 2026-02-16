@@ -275,6 +275,7 @@ class ToolManager:
                 "category": entry.category,
                 "is_builtin": entry.is_builtin,
                 "pip_dependencies": entry.pip_dependencies,
+                "pricing": entry.pricing,
                 "enabled": name in enabled,
                 "installed": installed,
             })
