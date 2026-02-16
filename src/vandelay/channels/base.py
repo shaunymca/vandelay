@@ -23,12 +23,22 @@ class IncomingMessage:
 
 
 @dataclass
+class Attachment:
+    """A file attachment for outgoing messages."""
+
+    path: str  # Absolute path on disk
+    caption: str = ""  # Optional caption
+    filename: str = ""  # Override display name (empty = basename)
+
+
+@dataclass
 class OutgoingMessage:
     """Normalized outbound message to any channel."""
 
     text: str
     session_id: str
     channel: str = ""
+    attachments: list[Attachment] = field(default_factory=list)
 
 
 class ChannelAdapter(ABC):

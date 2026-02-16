@@ -49,6 +49,10 @@ class TestNotifyToolsRegistration:
         func_names = [f.name for f in toolkit.functions.values()]
         assert "notify_user" in func_names
 
+    def test_has_send_file(self, toolkit):
+        func_names = [f.name for f in toolkit.functions.values()]
+        assert "send_file" in func_names
+
 
 class TestNotifyUser:
     def test_no_channels_returns_error(self, toolkit):
@@ -93,3 +97,40 @@ class TestNotifyUser:
 
         result = toolkit.notify_user("fallback test", channel="nonexistent")
         assert "sent via test" in result
+
+
+class TestSendFile:
+    @pytest.mark.asyncio
+    async def test_send_file_success(self, router, adapter, tmp_path):
+        router.register(adapter)
+        toolkit = NotifyTools(channel_router=router)
+
+        # Create a temp file to send
+        test_file = tmp_path / "report.txt"
+        test_file.write_text("hello world")
+
+        result = toolkit.send_file(str(test_file), caption="Here's the report")
+
+        assert "File sent via test" in result
+        assert "report.txt" in result
+        import asyncio
+        await asyncio.sleep(0.01)
+        assert len(adapter.sent) == 1
+        msg = adapter.sent[0]
+        assert msg.text == ""
+        assert len(msg.attachments) == 1
+        assert msg.attachments[0].path == str(test_file)
+        assert msg.attachments[0].caption == "Here's the report"
+
+    def test_send_file_not_found(self, router, adapter):
+        router.register(adapter)
+        toolkit = NotifyTools(channel_router=router)
+
+        result = toolkit.send_file("/nonexistent/file.txt")
+        assert "File not found" in result
+
+    def test_send_file_no_channel(self, toolkit, tmp_path):
+        test_file = tmp_path / "exists.txt"
+        test_file.write_text("data")
+        result = toolkit.send_file(str(test_file))
+        assert "No active channels" in result

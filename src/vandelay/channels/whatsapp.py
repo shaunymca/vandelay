@@ -37,6 +37,13 @@ class WhatsAppAdapter(ChannelAdapter):
 
     async def send(self, message: OutgoingMessage) -> None:
         """Send a text message via WhatsApp Business API."""
+        if message.attachments:
+            logger.warning(
+                "WhatsApp file attachments not yet supported — %d file(s) skipped",
+                len(message.attachments),
+            )
+        if not message.text:
+            return
         try:
             from agno.tools.whatsapp import WhatsAppTools
 
