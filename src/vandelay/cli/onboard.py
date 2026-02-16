@@ -22,6 +22,12 @@ from vandelay.config.models import (
     ServerConfig,
 )
 from vandelay.config.settings import Settings
+from vandelay.models.catalog import (
+    fetch_ollama_models,
+    fetch_provider_models,
+    get_model_choices,
+    get_providers,
+)
 from vandelay.workspace.manager import init_workspace
 
 console = Console()
@@ -1463,104 +1469,205 @@ def _configure_browser_tools(enabled_tools: list[str]) -> list[str]:
     return enabled_tools
 
 
+def _select_model(provider: str, *, api_key: str | None = None) -> str:
+    """Prompt user to pick a model, preferring live-fetched models from the API.
+
+    If *api_key* is provided, attempts a live fetch first. Falls back to the
+    curated catalog on failure. Ollama fetches from localhost instead.
+    """
+    # For Ollama, try live-fetching from the local server
+    if provider == "ollama":
+        live_models = fetch_ollama_models()
+        if live_models:
+            choices = [
+                questionary.Choice(title=m.label, value=m.id) for m in live_models
+            ]
+            choices.append(
+                questionary.Choice(title="Other (type model ID)", value="_other")
+            )
+            model_id = questionary.select(
+                "Choose a model (from your Ollama server):", choices=choices,
+            ).ask()
+            if model_id is None:
+                raise KeyboardInterrupt
+            if model_id != "_other":
+                return model_id
+            model_id = questionary.text(
+                "Model ID:", default="llama3.1",
+            ).ask()
+            if model_id is None:
+                raise KeyboardInterrupt
+            return model_id
+
+    # Try live-fetching from the provider API
+    live_models = []
+    if api_key:
+        console.print("  [dim]Fetching available models...[/dim]", end="")
+        live_models = fetch_provider_models(provider, api_key, timeout=3.0)
+        # Clear the "Fetching" line
+        console.print("\r" + " " * 40 + "\r", end="")
+
+    # Use live models if we got any, otherwise fall back to curated catalog
+    catalog = live_models if live_models else get_model_choices(provider)
+
+    if not catalog:
+        default = MODEL_PROVIDERS.get(provider, {}).get("default_model", "")
+        model_id = questionary.text(
+            f"Model ID (default: {default}):", default=default,
+        ).ask()
+        if model_id is None:
+            raise KeyboardInterrupt
+        return model_id
+
+    # Build choices — mark curated tiers, show live models plain
+    choices = []
+    for m in catalog:
+        suffix = ""
+        if m.tier == "recommended":
+            suffix = " (recommended)"
+        elif m.tier == "flagship":
+            suffix = " (flagship)"
+        elif m.tier == "fast":
+            suffix = " (fast)"
+        choices.append(questionary.Choice(title=f"{m.label}{suffix}", value=m.id))
+    choices.append(questionary.Choice(title="Other (type model ID)", value="_other"))
+
+    source = "from your account" if live_models else ""
+    prompt = f"Choose a model{' ' + source if source else ''}:"
+    model_id = questionary.select(prompt, choices=choices).ask()
+    if model_id is None:
+        raise KeyboardInterrupt
+
+    if model_id == "_other":
+        default = catalog[0].id if catalog else ""
+        model_id = questionary.text("Model ID:", default=default).ask()
+        if model_id is None:
+            raise KeyboardInterrupt
+
+    return model_id
+
+
+def _configure_auth_quick(provider: str) -> str | None:
+    """Simplified auth: just ask for the API key and save it.
+
+    Returns the API key value (from env or user input) so it can be used for
+    live model fetching, or None if no key is available.
+    """
+    providers = get_providers()
+    info = providers.get(provider)
+    if not info or not info.env_key:
+        return None  # Ollama — no auth needed
+
+    env_key = info.env_key
+
+    # Check if already set
+    existing = os.environ.get(env_key)
+    if existing:
+        console.print(f"  [green]\u2713[/green] {env_key} already set")
+        return existing
+
+    console.print(f"  [dim]{info.api_key_help}[/dim]")
+    value = questionary.password(f"  {env_key}:").ask()
+    if not value:
+        console.print(
+            f"  [yellow]\u26a0[/yellow] No key provided — set {env_key}"
+            " in ~/.vandelay/.env later"
+        )
+        return None
+
+    os.environ[env_key] = value
+    _write_env_key(env_key, value)
+    console.print(f"  [green]\u2713[/green] {env_key} saved to ~/.vandelay/.env")
+    return value
+
+
 def run_onboarding() -> Settings:
-    """Run the full interactive onboarding wizard. Returns configured Settings."""
+    """Run the streamlined 3-step onboarding wizard. Returns configured Settings.
+
+    Steps:
+      1. Choose your AI provider
+      2. Choose a model
+      3. Paste your API key (skipped for Ollama)
+
+    Everything else uses smart defaults — power users can customize via
+    ``/config`` or by editing ``~/.vandelay/config.json`` directly.
+    """
     from vandelay.cli.banner import print_banner
+    from vandelay.config.constants import CONFIG_FILE
+
+    # Re-run detection
+    if CONFIG_FILE.exists():
+        reconfigure = questionary.confirm(
+            "Vandelay is already configured. Reconfigure from scratch?",
+            default=False,
+        ).ask()
+        if reconfigure is None or not reconfigure:
+            raise KeyboardInterrupt
 
     print_banner(console)
-    console.print("  [dim]Let's set up your always-on AI assistant.[/dim]")
+    console.print("  [bold]Welcome to Vandelay![/bold]")
     console.print()
 
-    # Step 1: Identity
-    console.print("[bold]1/9[/bold] — Identity")
-    agent_name = _configure_agent_name()
-    user_id = _configure_user_id()
+    # --- Step 1: Choose provider ---
+    console.print("[bold]Step 1:[/bold] Choose your AI provider")
+    providers = get_providers()
+    provider_choices = [
+        questionary.Choice(
+            title=f"{info.name}{' (recommended)' if key == 'anthropic' else ''}",
+            value=key,
+        )
+        for key, info in providers.items()
+    ]
+    provider = questionary.select(
+        "Provider:", choices=provider_choices,
+    ).ask()
+    if provider is None:
+        raise KeyboardInterrupt
     console.print()
 
-    # Step 2: Model provider
-    console.print("[bold]2/9[/bold] — AI Model")
-    provider, model_id = _select_provider()
-    auth_method = _configure_auth(provider)
+    # --- Step 2: API key (so we can fetch models from the provider) ---
+    api_key: str | None = None
+    if providers[provider].env_key:
+        console.print("[bold]Step 2:[/bold] Paste your API key")
+        api_key = _configure_auth_quick(provider)
+    else:
+        console.print("[bold]Step 2:[/bold] No API key needed")
+        console.print(f"  [dim]{providers[provider].api_key_help}[/dim]")
     console.print()
 
-    # Step 3: Safety mode
-    console.print("[bold]3/9[/bold] — Safety")
-    safety_mode = _select_safety_mode()
+    # --- Step 3: Choose model (live-fetched if API key available) ---
+    console.print("[bold]Step 3:[/bold] Choose a model")
+    model_id = _select_model(provider, api_key=api_key)
     console.print()
 
-    # Step 4: Timezone
-    console.print("[bold]4/9[/bold] — Timezone")
-    timezone = _select_timezone()
-    console.print(f"  [green]✓[/green] Timezone set to {timezone}")
-    console.print()
-
-    # Step 5: Browser Tools
-    console.print("[bold]5/9[/bold] — Browser Tools")
-    enabled_tools: list[str] = []
-    enabled_tools = _configure_browser_tools(enabled_tools)
-    console.print()
-
-    # Step 6: Workspace
-    console.print("[bold]6/9[/bold] — Workspace")
+    # --- Smart defaults ---
+    timezone = _detect_system_timezone() or "UTC"
     ws = init_workspace()
-    console.print(f"  [green]✓[/green] Workspace initialized at {ws}")
-    console.print()
-
-    # Pre-populate USER.md timezone
     _populate_user_md(ws, timezone=timezone)
 
-    # Step 7: Messaging channels
-    console.print("[bold]7/9[/bold] — Messaging Channels")
-    channel_cfg = _configure_channels(ChannelConfig())
-    console.print()
-
-    # Step 8: Google tools
-    console.print("[bold]8/9[/bold] — Google Tools")
-    _google_setup_done, enabled_tools = _configure_google(enabled_tools)
-    console.print()
-
-    # Step 9: Knowledge base
-    console.print("[bold]9/9[/bold] — Knowledge Base")
-    knowledge_enabled = _configure_knowledge(provider)
-    console.print()
-
-    # Build settings
     settings = Settings(
-        agent_name=agent_name,
-        user_id=user_id,
+        agent_name="Art",
         timezone=timezone,
-        model=ModelConfig(provider=provider, model_id=model_id, auth_method=auth_method),
-        safety=SafetyConfig(mode=safety_mode),
-        channels=channel_cfg,
+        model=ModelConfig(provider=provider, model_id=model_id, auth_method="api_key"),
+        safety=SafetyConfig(mode="confirm"),
+        channels=ChannelConfig(),
         heartbeat=HeartbeatConfig(timezone=timezone),
         server=ServerConfig(),
-        knowledge=KnowledgeConfig(enabled=knowledge_enabled),
+        knowledge=KnowledgeConfig(enabled=True),
         workspace_dir=str(ws),
-        enabled_tools=enabled_tools,
+        enabled_tools=["shell", "file", "python"],
     )
 
     # Persist
     settings.save()
-    config_path = settings.model_config.get("env_prefix", "~/.vandelay/config.json")
-    console.print(f"  [green]✓[/green] Config saved to {config_path}")
-    console.print()
-    channels_str = _channel_summary(settings) or "Terminal only"
-    browser_str = _browser_tools_summary(enabled_tools) or "none"
-    knowledge_str = "enabled" if knowledge_enabled else "disabled"
-    # Optional: daemon service (Linux/macOS only)
-    _offer_daemon_install()
 
     console.print(
         Panel.fit(
-            f"[bold green]Setup complete![/bold green]\n\n"
-            f"Agent: [bold]{agent_name}[/bold]\n"
+            f"[bold green]\u2713 Setup complete![/bold green]\n\n"
             f"Model: {provider} / {model_id}\n"
-            f"Safety: {safety_mode}\n"
-            f"Timezone: {timezone}\n"
-            f"Browser: {browser_str}\n"
-            f"Channels: {channels_str}\n"
-            f"Knowledge: {knowledge_str}\n\n"
-            f"Launching chat...",
+            f"Tip: Use [bold]/config[/bold] or edit"
+            f" ~/.vandelay/config.json to customize.\n\n"
+            f"Starting Vandelay...",
             border_style="green",
         )
     )

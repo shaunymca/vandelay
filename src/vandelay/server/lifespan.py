@@ -10,6 +10,8 @@ from datetime import UTC, datetime
 
 from fastapi import FastAPI
 
+from vandelay.config.constants import CORPUS_VERSIONS_FILE
+
 logger = logging.getLogger("vandelay.server")
 
 
@@ -48,11 +50,15 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass  # Non-critical — don't block startup
 
-    # Background corpus indexing (non-blocking)
+    # Background corpus indexing (non-blocking).
+    # Skip on first run (no corpus_versions.json yet) to avoid a ~130MB
+    # download that makes the first launch look hung.  Users can trigger
+    # it explicitly with: vandelay knowledge index
     if settings.knowledge.enabled:
         from vandelay.knowledge.corpus import corpus_needs_refresh
 
-        if corpus_needs_refresh():
+        has_been_indexed_before = CORPUS_VERSIONS_FILE.exists()
+        if has_been_indexed_before and corpus_needs_refresh():
             knowledge = getattr(app.state, "knowledge", None)
             if knowledge is not None:
 

@@ -46,14 +46,35 @@ def create_knowledge(settings: Settings, db: Any = None) -> Any | None:
     knowledge_dir = Path(settings.workspace_dir) / "knowledge"
     knowledge_dir.mkdir(parents=True, exist_ok=True)
 
-    vector_db = LanceDb(
-        uri=str(VANDELAY_HOME / "data" / "knowledge_vectors"),
-        table_name="vandelay_knowledge",
-        embedder=embedder,
-    )
+    # Suppress noisy INFO/WARN from agno and lance during first-run table creation
+    # (e.g. "Creating table: vandelay_knowledge", "No existing dataset ...")
+    import os
+    import sys
 
-    return Knowledge(
-        name="vandelay-knowledge",
-        vector_db=vector_db,
-        contents_db=db,
-    )
+    _agno_logger = logging.getLogger("agno")
+    _prev_agno = _agno_logger.level
+    _agno_logger.setLevel(logging.ERROR)
+
+    # Lance Rust WARN writes directly to the OS stderr fd, bypassing Python's
+    # sys.stderr. We must redirect at the file-descriptor level to catch it.
+    _devnull = os.open(os.devnull, os.O_WRONLY)
+    _prev_stderr_fd = os.dup(2)
+    os.dup2(_devnull, 2)
+    os.close(_devnull)
+
+    try:
+        vector_db = LanceDb(
+            uri=str(VANDELAY_HOME / "data" / "knowledge_vectors"),
+            table_name="vandelay_knowledge",
+            embedder=embedder,
+        )
+
+        return Knowledge(
+            name="vandelay-knowledge",
+            vector_db=vector_db,
+            contents_db=db,
+        )
+    finally:
+        os.dup2(_prev_stderr_fd, 2)
+        os.close(_prev_stderr_fd)
+        _agno_logger.setLevel(_prev_agno)

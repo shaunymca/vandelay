@@ -32,7 +32,7 @@ class TestEmbedderConfig:
 class TestKnowledgeConfig:
     def test_defaults(self):
         cfg = KnowledgeConfig()
-        assert cfg.enabled is False
+        assert cfg.enabled is True
         assert isinstance(cfg.embedder, EmbedderConfig)
         assert cfg.embedder.provider == ""
 

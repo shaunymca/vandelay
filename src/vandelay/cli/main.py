@@ -70,7 +70,7 @@ def onboard(
             raise typer.Exit(1) from None
 
     # Drop straight into chat after onboarding
-    asyncio.run(_run_with_server(settings))
+    asyncio.run(_run_with_server(settings, first_run=True))
 
 
 @app.command()
@@ -193,6 +193,15 @@ def _show_status(settings, server_running: bool = False) -> None:
     console.print()
 
 
+def _render_markdown(console: Console, text: str) -> None:
+    """Render a string as Rich Markdown in the terminal."""
+    from rich.markdown import Markdown
+    from rich.padding import Padding
+
+    md = Markdown(text.strip())
+    console.print(Padding(md, (0, 0, 0, 2)))
+
+
 def _show_help() -> None:
     """Print available slash commands."""
     console.print()
@@ -303,7 +312,7 @@ def _start_server_foreground(settings) -> None:
     )
 
 
-async def _run_with_server(settings) -> None:
+async def _run_with_server(settings, *, first_run: bool = False) -> None:
     """Start the server in the background, then run terminal chat."""
     from vandelay.agents.factory import create_agent, create_team
     from vandelay.channels.base import IncomingMessage
@@ -339,7 +348,36 @@ async def _run_with_server(settings) -> None:
         console.print(f"  [dim]Team mode: {len(settings.team.members)} specialists[/dim]")
     console.print()
 
-    # Create agent/team for terminal chat (shares DB with server's agent)
+    # The background server thread creates agno's global httpx.AsyncClient
+    # singleton with HTTP/2 enabled. HTTP/2 uses asyncio.Event objects that are
+    # loop-bound, so the terminal (running on a DIFFERENT event loop) can't
+    # reuse that client. Simply setting it to None causes a race — the server
+    # thread recreates it on its own loop before the terminal gets to use it.
+    #
+    # Fix: replace the global client with one using http2=False. HTTP/1.1
+    # doesn't use asyncio primitives, so both threads can safely share it.
+    import httpx
+
+    import agno.utils.http as _agno_http
+    from agno.utils.http import _async_client_lock
+
+    def _reset_agno_http_client() -> None:
+        """Replace agno's global async client with an HTTP/1.1 client."""
+        with _async_client_lock:
+            old = _agno_http._global_async_client
+            _agno_http._global_async_client = httpx.AsyncClient(
+                limits=httpx.Limits(
+                    max_connections=1000, max_keepalive_connections=200,
+                ),
+                http2=False,
+                follow_redirects=True,
+            )
+            # Don't await aclose on old — server thread may still reference it,
+            # and it'll be GC'd. The important thing is the global is now safe.
+
+    _reset_agno_http_client()
+
+    # Create agent/team for terminal chat
     # Use a list so the reload callback can swap the reference
     agent_ref: list = [None]
     team_mode = settings.team.enabled
@@ -366,6 +404,41 @@ async def _run_with_server(settings) -> None:
     chat_service = ChatService(RefAgentProvider(agent_ref))
 
     session_id = "terminal"
+
+    # First-run welcome — LLM-generated greeting with timeout fallback
+    if first_run:
+        name = settings.agent_name
+        welcome_prompt = (
+            "You've just been set up for the first time. "
+            "Say hi in exactly 2 short sentences: who you are and "
+            "one thing the user should try first. No more than 40 words total."
+        )
+        welcome_msg = IncomingMessage(
+            text=welcome_prompt,
+            session_id=session_id,
+            user_id=settings.user_id or "default",
+            channel="terminal",
+        )
+        _fallback = (
+            f"Hey! I'm {name}, your AI assistant. "
+            "Ask me anything, or type /help to see what I can do."
+        )
+        response_parts: list[str] = []
+        try:
+            async with asyncio.timeout(30):
+                async for chunk in chat_service.run_chunked(welcome_msg):
+                    if chunk.error:
+                        break
+                    if chunk.content:
+                        response_parts.append(chunk.content)
+        except (TimeoutError, Exception):
+            pass
+
+        welcome_text = "".join(response_parts).strip() or _fallback
+        console.print(f"\n[bold blue]{name}:[/bold blue]")
+        _render_markdown(console, welcome_text)
+        console.print()
+
     while True:
         try:
             user_input = console.input("[bold green]You:[/bold green] ")
@@ -415,23 +488,32 @@ async def _run_with_server(settings) -> None:
             channel="terminal",
         )
 
-        console.print(f"\n[bold blue]{settings.agent_name}:[/bold blue] ", end="")
-        first_chunk = True
+        console.print(f"\n[bold blue]{settings.agent_name}:[/bold blue]")
+        response_parts: list[str] = []
+        had_error = False
         async for chunk in chat_service.run_chunked(incoming):
             if chunk.error:
-                console.print(f"[red]Error: {chunk.error}[/red]")
+                console.print(f"  [red]Error: {chunk.error}[/red]")
+                had_error = True
                 break
             if chunk.content:
-                if not first_chunk:
-                    console.print()  # blank line between chunks
-                console.print(chunk.content, end="")
-                first_chunk = False
+                response_parts.append(chunk.content)
 
-        console.print()  # final newline
+        if response_parts and not had_error:
+            _render_markdown(console, "".join(response_parts))
         console.print()
 
-    # Graceful shutdown — only stop the server if we started it
+    # Graceful shutdown — only stop the server if we started it.
+    # Suppress OpenTelemetry "Failed to detach context" tracebacks that fire
+    # when Ctrl+C interrupts a streaming response mid-flight.
+    import io
+    import sys
+
+    sys.stderr = io.StringIO()
+
     if not external_server:
         console.print("\n[dim]Shutting down server...[/dim]")
         _stop_background_server()
     console.print(f"[dim]{settings.agent_name} signing off.[/dim]")
+
+    sys.stderr = sys.__stderr__

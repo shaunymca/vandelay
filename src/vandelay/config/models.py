@@ -80,7 +80,7 @@ class EmbedderConfig(BaseModel):
 class KnowledgeConfig(BaseModel):
     """Knowledge/RAG settings."""
 
-    enabled: bool = False
+    enabled: bool = True
     embedder: EmbedderConfig = Field(default_factory=EmbedderConfig)
 
 

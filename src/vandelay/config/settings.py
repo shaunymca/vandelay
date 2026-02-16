@@ -64,7 +64,9 @@ class Settings(BaseSettings):
     timezone: str = "UTC"
     db_url: str = ""  # empty = use SQLite at default path
     workspace_dir: str = str(WORKSPACE_DIR)
-    enabled_tools: list[str] = Field(default_factory=list)  # e.g. ["shell", "file", "python"]
+    enabled_tools: list[str] = Field(
+        default_factory=lambda: ["shell", "file", "python"],
+    )
 
     @model_validator(mode="before")
     @classmethod
