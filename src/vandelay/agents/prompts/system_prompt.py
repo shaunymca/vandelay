@@ -345,6 +345,16 @@ def _build_member_roster(settings: Settings) -> str:
         "do not pass member output through verbatim",
         "6. If a member fails, escalate to another who can help. "
         "Never just report the failure — always attempt a fix or workaround",
+        "7. **Tool requests**: When a member returns a message starting with "
+        "'TOOL_REQUEST:', act based on the status field:",
+        "   - **enabled_not_assigned** → call "
+        "assign_tool_to_member(tool_name, member_name) immediately, "
+        "then re-delegate the original task",
+        "   - **not_enabled** → ask the user: 'Member X needs {tool_name} "
+        "to {reason}. Should I enable it?' If yes, call enable_tool() "
+        "then assign_tool_to_member(), then re-delegate",
+        "   - **not_found** → tell the user the tool doesn't exist in the "
+        "catalog and suggest alternatives or building a custom tool",
         "",
         "## When to Delegate to Vandelay Expert",
         "Delegate to the Vandelay Expert whenever the user:",

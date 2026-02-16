@@ -207,6 +207,11 @@ def _build_member_agent(
 
         tools.append(TaskQueueTools(store=task_store))
 
+    # All members can request tools from the leader
+    from vandelay.tools.tool_request import ToolRequestTools
+
+    tools.append(ToolRequestTools(settings=settings, member_name=mc.name))
+
     # Build instructions: tag → tool awareness → file contents → inline
     tag = mc.name.upper()
     instructions: list[str] = [
@@ -223,8 +228,8 @@ def _build_member_agent(
             "definitions. Call them directly — NEVER read source code, "
             "run shell commands to inspect packages, or write Python "
             "scripts to replicate what a tool already does. "
-            "If a task requires a tool you don't have, say so clearly and "
-            "suggest which team member might have the right tools."
+            "If a task requires a tool you don't have, call "
+            "request_tool(tool_name, reason) to ask the leader for it."
         )
 
     file_content = _load_instructions_file(mc.instructions_file)
