@@ -248,50 +248,102 @@ def _build_agents_slim(workspace_dir: Path | None = None) -> str:
 def _build_member_roster(settings: Settings) -> str:
     """Generate a markdown roster of team members from config."""
     from vandelay.agents.factory import _resolve_member
+    from vandelay.tools.registry import ToolRegistry
 
     members = settings.team.members
     if not members:
         return ""
 
+    # Load tool descriptions for the routing table
+    registry = ToolRegistry()
+    tool_descs: dict[str, str] = {}
+    for entries in registry.by_category().values():
+        for entry in entries:
+            if entry.name in settings.enabled_tools:
+                # Short label: first method description or category
+                desc = entry.description or ""
+                # Extract first method summary if description starts with "Methods:"
+                if desc.startswith("Methods:"):
+                    first = desc.split(";")[0].replace("Methods: ", "")
+                    tool_descs[entry.name] = first.strip()
+                else:
+                    tool_descs[entry.name] = desc[:80] if desc else entry.category
+
     lines: list[str] = [
         "# Your Team",
         "",
-        "Delegate tasks to the best member based on their specialization.",
-        "For multi-part requests, delegate to several members and synthesize their results.",
-        "For simple questions you can answer directly, just respond — no need to delegate.",
+        "Delegate tasks to the best member based on their role and expertise first,",
+        "then verify they have the tools needed for the task.",
         "",
-        "| Member | Role | Tools | Model |",
-        "|--------|------|-------|-------|",
     ]
 
+    # Member table with tool descriptions
     for entry in members:
         mc = _resolve_member(entry)
         name = mc.name
         role = mc.role or "(no role)"
-        tools = ", ".join(mc.tools) if mc.tools else "none"
-        if mc.model_provider and mc.model_id:
-            model_str = f"{mc.model_provider} / {mc.model_id}"
-        else:
-            model_str = "inherited"
-        lines.append(f"| {name} | {role} | {tools} | {model_str} |")
+        model_str = (
+            f"{mc.model_provider} / {mc.model_id}"
+            if mc.model_provider and mc.model_id
+            else "inherited"
+        )
+        tool_list = []
+        for t in mc.tools:
+            desc = tool_descs.get(t, "")
+            tool_list.append(f"{t} ({desc})" if desc else t)
+        tools_str = ", ".join(tool_list) if tool_list else "none"
+        lines.append(f"### {name}")
+        lines.append(f"**Role**: {role}  ")
+        lines.append(f"**Model**: {model_str}  ")
+        lines.append(f"**Tools**: {tools_str}")
+        lines.append("")
+
+    # Build tool routing table: capability → member(s)
+    tool_to_members: dict[str, list[str]] = {}
+    for entry in members:
+        mc = _resolve_member(entry)
+        for t in mc.tools:
+            tool_to_members.setdefault(t, []).append(mc.name)
+
+    # Group by category for cleaner routing
+    cat_routing: dict[str, dict[str, list[str]]] = {}
+    for entries in registry.by_category().values():
+        for entry in entries:
+            if entry.name in tool_to_members:
+                cat = entry.category or "other"
+                cat_routing.setdefault(cat, {})[entry.name] = tool_to_members[
+                    entry.name
+                ]
+
+    if cat_routing:
+        lines.extend([
+            "## Tool Routing",
+            "",
+            "When a task requires specific tools, delegate to a member who has them.",
+            "If multiple members have the tool, prefer the one whose role fits best.",
+            "",
+            "| Tool | Category | Available On |",
+            "|------|----------|-------------|",
+        ])
+        for cat in sorted(cat_routing):
+            for tool_name in sorted(cat_routing[cat]):
+                member_names = ", ".join(cat_routing[cat][tool_name])
+                lines.append(f"| {tool_name} | {cat} | {member_names} |")
+        lines.append("")
 
     lines.extend([
-        "",
         "## Delegation Rules",
-        "- Match tasks to the member whose role fits best",
-        "- If no member fits, handle it yourself using your workspace tools. "
-        "If the task would clearly benefit from a specialist you don't have, "
-        "suggest the user add one from the starter templates via `vandelay config` "
-        "(available templates: CTO, Sales Exec, Marketer, Personal Assistant, Chef, "
-        "Personal Trainer, AI Engineer, Research Analyst, Vandelay Expert, Writer, "
-        "Data Analyst, DevOps, Content Creator, Project Manager)",
-        "- You can assign new tools to members with assign_tool_to_member()",
-        "- If a member fails or hits a technical error, escalate to another member "
-        "who can diagnose and fix the issue (e.g. CTO for tool/config problems, "
-        "Vandelay Expert for agent setup issues). Never just report the failure — "
-        "always attempt a fix or workaround before responding to the user",
-        "- Synthesize member results into a single clear response. "
-        "Do not pass member output through verbatim",
+        "1. **Role first**: choose the member whose expertise matches the task",
+        "2. **Verify tools**: confirm the chosen member has the tools the task needs "
+        "(check the Tool Routing table above)",
+        "3. **Never guess**: if a task needs a Google tool (gmail, sheets, calendar, "
+        "drive), only delegate to a member that has it — do NOT send it to a member "
+        "who would need to use shell commands or python as a workaround",
+        "4. If no member fits, handle it yourself or suggest the user add a specialist",
+        "5. Synthesize member results into a single clear response — "
+        "do not pass member output through verbatim",
+        "6. If a member fails, escalate to another who can help. "
+        "Never just report the failure — always attempt a fix or workaround",
         "",
         "## When to Delegate to Vandelay Expert",
         "Delegate to the Vandelay Expert whenever the user:",

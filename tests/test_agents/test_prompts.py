@@ -287,12 +287,13 @@ class TestBuildAgentsSlim:
 class TestBuildMemberRoster:
     def test_roster_includes_members(self, team_settings):
         result = _build_member_roster(team_settings)
-        assert "| cto |" in result
-        assert "| research |" in result
+        assert "### cto" in result
+        assert "### research" in result
 
     def test_roster_shows_tools(self, team_settings):
         result = _build_member_roster(team_settings)
-        assert "shell, file" in result
+        assert "shell" in result
+        assert "file" in result
         assert "tavily" in result
 
     def test_roster_shows_model_override(self, team_settings):
@@ -302,6 +303,15 @@ class TestBuildMemberRoster:
     def test_roster_shows_inherited(self, team_settings):
         result = _build_member_roster(team_settings)
         assert "inherited" in result
+
+    def test_roster_has_tool_routing(self, team_settings):
+        result = _build_member_roster(team_settings)
+        assert "Tool Routing" in result
+
+    def test_roster_has_delegation_rules(self, team_settings):
+        result = _build_member_roster(team_settings)
+        assert "Verify tools" in result
+        assert "Never guess" in result
 
     def test_empty_roster_when_no_members(self, tmp_path):
         settings = Settings(
