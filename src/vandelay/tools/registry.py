@@ -593,20 +593,23 @@ class ToolRegistry:
         import sys
         import warnings
 
-        # Suppress warnings and stderr noise during discovery imports —
+        # Suppress warnings, stderr, and stdout noise during discovery imports —
         # many Agno tool modules print warnings about missing optional deps
         # (googlemaps, webex, reportlab, etc.) even when not enabled.
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 old_stderr = sys.stderr
+                old_stdout = sys.stdout
                 old_log_level = logging.root.level
                 sys.stderr = io.StringIO()
+                sys.stdout = io.StringIO()
                 logging.disable(logging.CRITICAL)
                 try:
                     mod = importlib.import_module(full_path)
                 finally:
                     sys.stderr = old_stderr
+                    sys.stdout = old_stdout
                     logging.disable(old_log_level)
 
             # Look for classes ending in "Tools" (the Agno convention)

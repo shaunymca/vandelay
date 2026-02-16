@@ -47,6 +47,9 @@ def _load_env() -> None:
 
     from vandelay.config.constants import VANDELAY_HOME
 
+    # Suppress noisy HuggingFace symlink warning on Windows
+    os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+
     env_path = VANDELAY_HOME / ".env"
     if not env_path.exists():
         return
@@ -98,6 +101,36 @@ def _get_model_from_config(provider: str, model_id: str, auth_method: str = "api
         from agno.models.ollama import Ollama
 
         return Ollama(id=model_id)
+
+    if provider == "groq":
+        from agno.models.groq import Groq
+
+        api_key = os.environ.get("GROQ_API_KEY")
+        return Groq(id=model_id, api_key=api_key) if api_key else Groq(id=model_id)
+
+    if provider == "deepseek":
+        from agno.models.deepseek import DeepSeek
+
+        api_key = os.environ.get("DEEPSEEK_API_KEY")
+        return DeepSeek(id=model_id, api_key=api_key) if api_key else DeepSeek(id=model_id)
+
+    if provider == "mistral":
+        from agno.models.mistral import MistralChat
+
+        api_key = os.environ.get("MISTRAL_API_KEY")
+        return MistralChat(id=model_id, api_key=api_key) if api_key else MistralChat(id=model_id)
+
+    if provider == "together":
+        from agno.models.together import Together
+
+        api_key = os.environ.get("TOGETHER_API_KEY")
+        return Together(id=model_id, api_key=api_key) if api_key else Together(id=model_id)
+
+    if provider == "xai":
+        from agno.models.xai import xAI
+
+        api_key = os.environ.get("XAI_API_KEY")
+        return xAI(id=model_id, api_key=api_key) if api_key else xAI(id=model_id)
 
     if provider == "openrouter":
         from agno.models.openai import OpenAIChat
@@ -287,7 +320,6 @@ def _build_member_agent(
         markdown=False,
         add_history_to_context=True,
         num_history_runs=2,
-        num_history_messages=20,
         max_tool_calls_from_history=3,
         enable_session_summaries=True,
         update_memory_on_run=True,
@@ -373,7 +405,6 @@ def create_agent(
         markdown=True,
         add_history_to_context=True,
         num_history_runs=2,
-        num_history_messages=20,
         max_tool_calls_from_history=5,
         enable_session_summaries=True,
         update_memory_on_run=True,
@@ -482,7 +513,6 @@ def create_team(
         update_memory_on_run=True,
         add_history_to_context=True,
         num_history_runs=2,
-        num_history_messages=20,
         max_tool_calls_from_history=5,
         enable_session_summaries=True,
         markdown=True,
