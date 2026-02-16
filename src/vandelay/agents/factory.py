@@ -286,8 +286,10 @@ def _build_member_agent(
         tools=tools or None,
         markdown=False,
         add_history_to_context=True,
-        num_history_runs=3,
+        num_history_runs=2,
+        num_history_messages=20,
         max_tool_calls_from_history=5,
+        enable_session_summaries=True,
         update_memory_on_run=True,
     )
 
@@ -370,8 +372,10 @@ def create_agent(
         search_knowledge=knowledge is not None,
         markdown=True,
         add_history_to_context=True,
-        num_history_runs=3,
+        num_history_runs=2,
+        num_history_messages=20,
         max_tool_calls_from_history=5,
+        enable_session_summaries=True,
         update_memory_on_run=True,
     )
 
@@ -477,8 +481,10 @@ def create_team(
         respond_directly=respond_directly,
         update_memory_on_run=True,
         add_history_to_context=True,
-        num_history_runs=3,
+        num_history_runs=2,
+        num_history_messages=20,
         max_tool_calls_from_history=5,
+        enable_session_summaries=True,
         markdown=True,
     )
 
