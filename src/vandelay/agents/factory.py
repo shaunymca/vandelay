@@ -219,8 +219,10 @@ def _build_member_agent(
         tools_str = ", ".join(tool_names)
         instructions.append(
             f"Your available tools: {tools_str}. "
-            "Use these tools directly — do not try to replicate their "
-            "functionality via shell commands or python code. "
+            "Their full method signatures are already in your function "
+            "definitions. Call them directly — NEVER read source code, "
+            "run shell commands to inspect packages, or write Python "
+            "scripts to replicate what a tool already does. "
             "If a task requires a tool you don't have, say so clearly and "
             "suggest which team member might have the right tools."
         )

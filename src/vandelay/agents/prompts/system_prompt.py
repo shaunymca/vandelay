@@ -62,18 +62,19 @@ def _build_tool_catalog(settings: Settings) -> str:
     lines: list[str] = [
         "# Your Enabled Tools",
         "",
-        "These tools are registered and ready to use as direct function calls.",
-        "To discover and enable more tools, use `list_available_tools`.",
+        "These tools are registered as direct function calls — their full method",
+        "signatures, parameters, and descriptions are already in your function",
+        "definitions. **Do not investigate or look up tool methods.** Just call them.",
         "",
     ]
 
     for entry in sorted(enabled_entries, key=lambda e: (e.category, e.name)):
-        desc = entry.description or ""
-        if len(desc) > 120:
-            desc = desc[:117] + "..."
-        suffix = f" — {desc}" if desc else ""
-        lines.append(f"- **{entry.name}** [{entry.category}]{suffix}")
+        lines.append(f"- **{entry.name}** [{entry.category}]")
 
+    lines.append("")
+    lines.append(
+        "To discover and enable more tools, use `list_available_tools`."
+    )
     lines.append("")
     return "\n".join(lines)
 
