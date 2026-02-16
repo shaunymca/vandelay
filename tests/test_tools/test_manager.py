@@ -102,7 +102,7 @@ class _FakeSheetTool:
 
 
 def test_sheet_output_truncated_when_large():
-    """read_sheet output exceeding 50K chars should be truncated with guidance."""
+    """read_sheet output exceeding 15K chars should be truncated with guidance."""
     from vandelay.tools.manager import _cap_sheet_output
 
     fake = _FakeSheetTool()
@@ -111,7 +111,7 @@ def test_sheet_output_truncated_when_large():
 
     result = fake.read_sheet()
     assert len(result) < 100_000
-    assert result.startswith("x" * 50_000)
+    assert result.startswith("x" * 15_000)
     assert "[TRUNCATED" in result
     assert "100,000 chars" in result
     assert "spreadsheet_range" in result

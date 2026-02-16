@@ -288,7 +288,7 @@ def _build_member_agent(
         add_history_to_context=True,
         num_history_runs=2,
         num_history_messages=20,
-        max_tool_calls_from_history=5,
+        max_tool_calls_from_history=3,
         enable_session_summaries=True,
         update_memory_on_run=True,
     )
