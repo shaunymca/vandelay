@@ -19,6 +19,7 @@ def test_settings(tmp_path: Path) -> Settings:
         agent_name="TestClaw",
         model=ModelConfig(provider="ollama", model_id="llama3.1"),
         safety=SafetyConfig(mode="tiered"),
+        team=TeamConfig(enabled=False, members=[]),
         workspace_dir=str(tmp_path / "workspace"),
         enabled_tools=["file"],
         db_url="",

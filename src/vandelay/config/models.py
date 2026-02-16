@@ -116,11 +116,13 @@ class DeepWorkConfig(BaseModel):
 
 
 class TeamConfig(BaseModel):
-    """Agent Team settings (opt-in supervisor mode)."""
+    """Agent Team settings (enabled by default with Vandelay Expert)."""
 
-    enabled: bool = False
+    enabled: bool = True
     mode: str = "coordinate"  # coordinate | route | broadcast | tasks
-    members: list[str | MemberConfig] = Field(default_factory=list)
+    members: list[str | MemberConfig] = Field(
+        default_factory=lambda: ["vandelay-expert"],
+    )
 
 
 # Maps (nested_key_tuple) -> env_var_name for secret fields.
