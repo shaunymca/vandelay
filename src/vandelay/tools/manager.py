@@ -160,8 +160,13 @@ def _fix_gmail_html_body(tool_instance: Any) -> None:
     tool_instance._get_message_body = patched_get_message_body
 
 
-def _cap_sheet_output(tool_instance: Any, max_chars: int = 50_000) -> None:
-    """Wrap read_sheet to truncate large results and prevent token overflow."""
+def _cap_sheet_output(tool_instance: Any, max_chars: int = 15_000) -> None:
+    """Wrap read_sheet to truncate large results and prevent token overflow.
+
+    50K was too generous — a single sheet read could use ~12.5K tokens,
+    and with 3-5 cached tool calls in history the context window fills up fast.
+    15K chars (~3.75K tokens) is plenty for most sheet reads.
+    """
     original = tool_instance.read_sheet
 
     @wraps(original)
