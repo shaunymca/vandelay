@@ -290,6 +290,29 @@ def test_team_tools_registered_when_enabled(team_toolkit: ToolManagementTools):
     assert "remove_tool_from_member" in func_names
 
 
+def test_enable_tool_team_hint(
+    team_toolkit: ToolManagementTools,
+    team_settings: Settings,
+):
+    """enable_tool should hint about member assignment when team mode is active."""
+    with patch.object(Settings, "save", return_value=None):
+        result = team_toolkit.enable_tool("calculator")
+
+    assert "assign_tool_to_member" in result
+    assert "calculator" in result
+
+
+def test_enable_tool_no_team_hint(
+    toolkit: ToolManagementTools,
+    test_settings: Settings,
+):
+    """enable_tool should NOT hint about member assignment when team is off."""
+    with patch.object(Settings, "save", return_value=None):
+        result = toolkit.enable_tool("calculator")
+
+    assert "assign_tool_to_member" not in result
+
+
 def test_team_tools_not_registered_when_disabled(reload_tracker: dict):
     """assign/remove functions should NOT be registered when team is disabled."""
     settings = Settings(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import questionary
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -27,6 +28,38 @@ def _get_manager():
     from vandelay.tools.manager import ToolManager
 
     return ToolManager()
+
+
+def _prompt_member_assignment(tool_name: str, settings) -> None:
+    """If team mode is on, ask which members should get the newly enabled tool."""
+    if not settings.team.enabled or not settings.team.members:
+        return
+
+    from vandelay.agents.factory import _resolve_member
+
+    members = settings.team.members
+    names = [_resolve_member(m).name for m in members]
+
+    choices = [questionary.Choice(title=n, value=n) for n in names]
+    selected = questionary.checkbox(
+        f"  Assign '{tool_name}' to which team members?",
+        choices=choices,
+    ).ask()
+
+    if not selected:
+        console.print("  [dim]No members selected — assign later with "
+                       f"assign_tool_to_member('{tool_name}', '<member>')[/dim]")
+        return
+
+    for i, entry in enumerate(members):
+        mc = _resolve_member(entry)
+        if mc.name in selected and tool_name not in mc.tools:
+            if isinstance(entry, str):
+                members[i] = mc
+            members[i].tools.append(tool_name)
+            console.print(f"  [green]✓[/green] Assigned to {mc.name}")
+
+    settings.save()
 
 
 @app.command("list")
@@ -120,6 +153,7 @@ def add_tool(
         settings.enabled_tools.append(name)
         settings.save()
         console.print(f"  [green]✓[/green] [bold]{name}[/bold] ({entry.class_name}) enabled.")
+        _prompt_member_assignment(name, settings)
     else:
         console.print(f"  [dim]{name} is already enabled.[/dim]")
 
@@ -415,6 +449,7 @@ def interactive_tools_browser(settings) -> None:
                 console.print(
                     f"  [green]✓[/green] [bold]{selected}[/bold] enabled."
                 )
+                _prompt_member_assignment(selected, settings)
                 # Update the filtered list to reflect the change
                 for t in filtered:
                     if t["name"] == selected:
