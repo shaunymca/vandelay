@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from vandelay.config.constants import TOOL_REGISTRY_FILE
+from vandelay.config.constants import CUSTOM_TOOLS_DIR, TOOL_REGISTRY_FILE
 
 # Modules that are internal/base classes, not user-facing tools
 _INTERNAL_MODULES = frozenset({
@@ -333,6 +333,78 @@ _CUSTOM_TOOLS: dict[str, dict[str, Any]] = {
 }
 
 
+def _discover_custom_tools(custom_dir: Path | None = None) -> dict[str, dict[str, Any]]:
+    """Scan ~/.vandelay/custom_tools/ for user-created Toolkit subclasses.
+
+    Each .py file (excluding _-prefixed) is imported and inspected for classes
+    that inherit from agno.tools.Toolkit. Returns a dict in the same shape as
+    _CUSTOM_TOOLS so they can be merged into the registry.
+    """
+    import importlib.util
+    import inspect
+    import logging
+
+    from agno.tools import Toolkit
+
+    logger = logging.getLogger(__name__)
+    custom_dir = custom_dir or CUSTOM_TOOLS_DIR
+    result: dict[str, dict[str, Any]] = {}
+
+    if not custom_dir.is_dir():
+        return result
+
+    for py_file in sorted(custom_dir.glob("*.py")):
+        if py_file.name.startswith("_"):
+            continue
+
+        tool_name = py_file.stem
+        module_name = f"vandelay_custom_{tool_name}"
+
+        try:
+            spec = importlib.util.spec_from_file_location(module_name, py_file)
+            if spec is None or spec.loader is None:
+                continue
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+
+            # Find Toolkit subclasses (direct, not Toolkit itself)
+            toolkit_classes = [
+                (name, cls) for name, cls in inspect.getmembers(mod, inspect.isclass)
+                if issubclass(cls, Toolkit) and cls is not Toolkit
+            ]
+            if not toolkit_classes:
+                logger.debug("No Toolkit subclass in %s, skipping", py_file.name)
+                continue
+
+            cls_name, cls_obj = toolkit_classes[0]
+            desc = (cls_obj.__doc__ or "").strip()
+
+            result[tool_name] = {
+                "module_path": module_name,
+                "class_name": cls_name,
+                "file_path": str(py_file),
+                "description": desc,
+                "category": "custom",
+                "pip_dependencies": [],
+            }
+            logger.info("Discovered custom tool: %s (%s)", tool_name, cls_name)
+
+        except Exception as exc:
+            logger.warning("Failed to load custom tool %s: %s", py_file.name, exc)
+
+    return result
+
+
+def _custom_tools_changed(custom_dir: Path, cache_mtime: float) -> bool:
+    """Check if any .py file in custom_tools dir is newer than the cache."""
+    if not custom_dir.is_dir():
+        return False
+    for py_file in custom_dir.glob("*.py"):
+        if not py_file.name.startswith("_") and py_file.stat().st_mtime > cache_mtime:
+            return True
+    return False
+
+
 @dataclass
 class ToolEntry:
     """Metadata about a single Agno tool."""
@@ -407,6 +479,12 @@ class ToolRegistry:
             try:
                 data = json.loads(self._cache_path.read_text(encoding="utf-8"))
                 self._cache = RegistryCache.from_dict(data)
+
+                # Invalidate cache if custom tools dir has newer files
+                cache_mtime = self._cache_path.stat().st_mtime
+                if _custom_tools_changed(CUSTOM_TOOLS_DIR, cache_mtime):
+                    self.refresh()
+
                 return
             except (json.JSONDecodeError, OSError, KeyError):
                 pass
@@ -454,6 +532,19 @@ class ToolRegistry:
                         name, "open_source" if is_builtin else "paid",
                     ),
                 )
+
+        # Merge user-created custom tools from ~/.vandelay/custom_tools/
+        for name, info in _discover_custom_tools().items():
+            tools[name] = ToolEntry(
+                name=name,
+                module_path=info["module_path"],
+                class_name=info["class_name"],
+                description=info.get("description", ""),
+                category="custom",
+                pip_dependencies=[],
+                is_builtin=True,
+                pricing="open_source",
+            )
 
         self._cache = RegistryCache(
             tools=tools,

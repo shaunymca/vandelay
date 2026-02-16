@@ -18,6 +18,7 @@ TASK_QUEUE_FILE = VANDELAY_HOME / "task_queue.json"
 TOOL_REGISTRY_FILE = VANDELAY_HOME / "tool_registry.json"
 MEMBERS_DIR = VANDELAY_HOME / "members"
 THREADS_FILE = VANDELAY_HOME / "threads.json"
+CUSTOM_TOOLS_DIR = VANDELAY_HOME / "custom_tools"
 
 # Database defaults
 DEFAULT_DB_FILE = DB_DIR / "vandelay.db"
