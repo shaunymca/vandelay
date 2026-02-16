@@ -27,6 +27,7 @@ _LEGACY_TOOL_MAP: dict[str, list[str]] = {
     "system": ["shell", "file", "python"],
     "scheduler": [],    # uses SchedulerTools injection
     "knowledge": [],    # uses search_knowledge
+    "vandelay-expert": ["file", "python", "shell"],
 }
 
 _LEGACY_ROLE_MAP: dict[str, str] = {
@@ -34,6 +35,9 @@ _LEGACY_ROLE_MAP: dict[str, str] = {
     "system": "Shell commands, file operations, and package management specialist",
     "scheduler": "Cron jobs, reminders, and recurring task specialist",
     "knowledge": "Document search and RAG query specialist",
+    "vandelay-expert": (
+        "Agent builder — designs, creates, tests, and improves team member agents"
+    ),
 }
 
 
@@ -128,6 +132,33 @@ def _get_tools(settings: Settings) -> list:
     return manager.instantiate_tools(settings.enabled_tools, settings=settings)
 
 
+def _ensure_template_instructions(mc: MemberConfig) -> MemberConfig:
+    """Copy starter template to members dir if not already present."""
+    from vandelay.agents.templates import STARTER_TEMPLATES, get_template_content
+    from vandelay.config.constants import MEMBERS_DIR
+
+    if mc.instructions_file:
+        return mc  # Already has custom instructions
+
+    template = STARTER_TEMPLATES.get(mc.name)
+    if template is None:
+        return mc  # Not a known template
+
+    instructions_path = MEMBERS_DIR / f"{mc.name}.md"
+    if not instructions_path.exists():
+        try:
+            MEMBERS_DIR.mkdir(parents=True, exist_ok=True)
+            content = get_template_content(template.slug)
+            instructions_path.write_text(content, encoding="utf-8")
+            logger.info("Bootstrapped template: %s", instructions_path)
+        except Exception:
+            logger.warning("Failed to bootstrap template for %s", mc.name)
+            return mc
+
+    mc.instructions_file = f"{mc.name}.md"
+    return mc
+
+
 def _resolve_member(member: str | MemberConfig) -> MemberConfig:
     """Normalize a member entry to MemberConfig.
 
@@ -138,11 +169,15 @@ def _resolve_member(member: str | MemberConfig) -> MemberConfig:
         return member
 
     name = member
-    return MemberConfig(
+    mc = MemberConfig(
         name=name,
         role=_LEGACY_ROLE_MAP.get(name, ""),
         tools=list(_LEGACY_TOOL_MAP.get(name, [])),
     )
+
+    # Auto-bootstrap template instructions if available
+    mc = _ensure_template_instructions(mc)
+    return mc
 
 
 def _load_instructions_file(instructions_file: str) -> str:

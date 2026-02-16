@@ -40,7 +40,7 @@ Add Telegram, WhatsApp, shell access with safety guardrails, scheduled tasks, an
 | &#x26a1; | **AgentOS Ready** | Connect to [os.agno.com](https://os.agno.com) for chat, sessions, memory, and knowledge UI |
 | &#x1f4da; | **Knowledge / RAG** | Add docs, PDFs, code — vector-searched and injected into agent context |
 | &#x1f552; | **Scheduler + Cron** | Natural-language cron jobs, heartbeat monitoring, APScheduler engine |
-| &#x1f3d7;&#xfe0f; | **Agent Teams** | Opt-in supervisor with browser, system, scheduler, and knowledge specialists |
+| &#x1f3d7;&#xfe0f; | **Agent Teams** | Team mode on by default — Vandelay Expert included, add specialists as you grow |
 | &#x1f504; | **Self-Restart** | `--watch` flag auto-restarts on file changes (src, config, workspace) |
 | &#x1f4e6; | **Daemon Service** | `vandelay daemon install` — systemd (Linux) or launchd (macOS) service |
 
@@ -459,27 +459,30 @@ The embedder is auto-selected based on your model provider. Anthropic has no emb
 <details>
 <summary><strong>11. Agent Teams (Supervisor Mode)</strong></summary>
 
-Enable team mode to split work across specialist agents. The supervisor routes tasks to the right specialist based on intent.
+Team mode is **enabled by default** with the **Vandelay Expert** — an agent builder that designs, creates, tests, and improves team member agents. The supervisor routes tasks to the right specialist based on intent.
 
 | Specialist | Handles |
 |-----------|---------|
+| **vandelay-expert** | Agent building — designs, creates, tests, and improves team members |
 | **browser** | Web browsing, scraping, screenshots |
 | **system** | Shell commands, file operations |
 | **scheduler** | Cron jobs, reminders, recurring tasks |
 | **knowledge** | Document search, RAG queries |
 
-Toggle team mode with `/config` in chat, or set it in `~/.vandelay/config.json`:
+Add more specialists with `/config` in chat, or in `~/.vandelay/config.json`:
 
 ```json
 {
   "team": {
     "enabled": true,
-    "members": ["browser", "system", "scheduler", "knowledge"]
+    "members": ["vandelay-expert", "browser", "system"]
   }
 }
 ```
 
-When disabled (default), the main agent handles everything with all tools. Team mode is better for complex multi-step workflows.
+To run in solo mode (main agent handles everything), set `team.enabled` to `false`.
+
+See the **[Configuration Reference](docs/CONFIG.md)** for the full team and member config spec.
 
 </details>
 
@@ -621,33 +624,7 @@ Edit these files directly — this is how you master the art of shaping your age
 
 </details>
 
-<details>
-<summary><strong>18. Environment Variables Reference</strong></summary>
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `ANTHROPIC_API_KEY` | Anthropic API key | — |
-| `OPENAI_API_KEY` | OpenAI API key | — |
-| `GOOGLE_API_KEY` | Google AI API key | — |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID | — |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | — |
-| `GOOGLE_PROJECT_ID` | Google Cloud project ID | — |
-| `TELEGRAM_TOKEN` | Telegram bot token | — |
-| `TELEGRAM_CHAT_ID` | Lock Telegram to one chat | — |
-| `WHATSAPP_ACCESS_TOKEN` | WhatsApp Cloud API token | — |
-| `WHATSAPP_PHONE_NUMBER_ID` | WhatsApp phone number ID | — |
-| `WHATSAPP_VERIFY_TOKEN` | Webhook verification token | `vandelay-verify` |
-| `WHATSAPP_APP_SECRET` | Meta app secret (signature verification) | — |
-| `VANDELAY_HOST` | Server bind address | `0.0.0.0` |
-| `VANDELAY_PORT` | Server port | `8000` |
-| `VANDELAY_SECRET_KEY` | JWT signing key | — |
-| `VANDELAY_AUTO_RESTART` | Enable file-watcher auto-restart | `0` |
-| `VANDELAY_AUTO_ONBOARD` | Auto-onboard on first `start` | `0` |
-| `DATABASE_URL` | PostgreSQL connection string | SQLite |
-
-All `VANDELAY_*` variables override settings from `~/.vandelay/config.json`.
-
-</details>
+See the **[Configuration Reference](docs/CONFIG.md)** for the full config spec, every setting, environment variables, and member configuration.
 
 ---
 

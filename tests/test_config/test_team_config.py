@@ -49,9 +49,9 @@ class TestMemberConfig:
 class TestTeamConfig:
     def test_defaults(self):
         cfg = TeamConfig()
-        assert cfg.enabled is False
+        assert cfg.enabled is True
         assert cfg.mode == "coordinate"
-        assert cfg.members == []
+        assert cfg.members == ["vandelay-expert"]
 
     def test_enabled(self):
         cfg = TeamConfig(enabled=True)

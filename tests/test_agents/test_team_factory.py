@@ -462,17 +462,18 @@ class TestBackwardCompatibility:
         call_kwargs = mock_agent_cls.call_args[1]
         assert call_kwargs["id"] == "vandelay-main"
 
-    def test_settings_defaults_team_disabled(self):
+    def test_settings_defaults_team_enabled(self):
         settings = Settings(
             agent_name="Test",
             model=ModelConfig(provider="ollama"),
-        )
-        assert settings.team.enabled is False
-
-    def test_settings_team_enabled(self):
-        settings = Settings(
-            agent_name="Test",
-            model=ModelConfig(provider="ollama"),
-            team=TeamConfig(enabled=True),
         )
         assert settings.team.enabled is True
+        assert settings.team.members == ["vandelay-expert"]
+
+    def test_settings_team_disabled_override(self):
+        settings = Settings(
+            agent_name="Test",
+            model=ModelConfig(provider="ollama"),
+            team=TeamConfig(enabled=False, members=[]),
+        )
+        assert settings.team.enabled is False
