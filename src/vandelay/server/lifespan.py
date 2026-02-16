@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -46,6 +47,25 @@ async def lifespan(app: FastAPI):
             )
     except Exception:
         pass  # Non-critical — don't block startup
+
+    # Background corpus indexing (non-blocking)
+    if settings.knowledge.enabled:
+        from vandelay.knowledge.corpus import corpus_needs_refresh
+
+        if corpus_needs_refresh():
+            knowledge = getattr(app.state, "knowledge", None)
+            if knowledge is not None:
+
+                async def _bg_index():
+                    from vandelay.knowledge.corpus import index_corpus
+
+                    try:
+                        count = await index_corpus(knowledge)
+                        logger.info("Corpus indexed: %d URLs", count)
+                    except Exception:
+                        logger.exception("Corpus indexing failed")
+
+                asyncio.create_task(_bg_index())
 
     # Start scheduler engine
     scheduler_engine = getattr(app.state, "scheduler_engine", None)

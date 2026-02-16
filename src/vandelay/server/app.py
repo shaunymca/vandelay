@@ -174,6 +174,7 @@ def create_app(settings: Settings) -> FastAPI:
     base_app.state.channel_router = channel_router
     base_app.state.chat_service = chat_service
     base_app.state.scheduler_engine = scheduler_engine
+    base_app.state.knowledge = knowledge
     base_app.state.task_store = task_store
     base_app.state.deep_work_manager = deep_work_manager
 
