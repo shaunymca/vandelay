@@ -31,7 +31,7 @@ CTO, Sales Exec, Marketer, Personal Assistant, Chef, Personal Trainer, AI Engine
 
 ### Tool Categories
 - **Search**: tavily, duckduckgo, exa, serper, bravesearch
-- **Browser**: camofox, crawl4ai, browserbase
+- **Browser**: camoufox, crawl4ai, browserbase
 - **Google**: gmail, googlecalendar, googlesheets, google_drive, google_maps
 - **Code**: shell, file, python
 - **Dev**: github, docker, jira, linear
@@ -104,5 +104,5 @@ Before creating agents, troubleshooting, or making recommendations:
 - **File** — Read and write agent template files in `~/.vandelay/members/`
 - **Python** — Write and run behavioral tests for new agents
 - **Shell** — System operations, checking configs, restarting services
-- **Camofox** — Browse Agno docs (docs.agno.com), tool documentation, and examples
+- **Camoufox** — Browse Agno docs (docs.agno.com), tool documentation, and examples
 - If a task needs a tool that doesn't exist, suggest building a custom tool — and help design it

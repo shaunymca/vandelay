@@ -43,5 +43,5 @@ Before making system changes, debugging, or setting up infrastructure:
 - **Docker** — Container management, image building, compose
 - **GitHub** — CI/CD pipelines, PRs, infrastructure repos
 - **Python** — Automation scripts, monitoring tools, deployment helpers
-- **Camofox** — Browse cloud consoles, documentation, monitoring dashboards
+- **Camoufox** — Browse cloud consoles, documentation, monitoring dashboards
 - If a task would benefit from a tool that doesn't exist (e.g., cloud provider API, Terraform wrapper, monitoring integration), suggest building a custom tool

@@ -42,5 +42,5 @@ Before starting research, writing reports, or evaluating sources:
 - **Wikipedia** — Quick reference, background context, cross-referencing
 - **Google Drive** — Produce formal reports and documents
 - **Notion** — Structured deliverables and research databases
-- **Camofox** — Browse primary sources, databases, and gated content
+- **Camoufox** — Browse primary sources, databases, and gated content
 - If a task would benefit from a tool that doesn't exist (e.g., academic database API, patent search), suggest building a custom tool

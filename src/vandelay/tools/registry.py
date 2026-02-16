@@ -66,7 +66,7 @@ _CATEGORY_MAP: dict[str, str] = {
     "webbrowser": "search", "websearch": "search", "website": "search",
     "webtools": "search",
     # Browser
-    "agentql": "browser", "browserbase": "browser", "camofox": "browser",
+    "agentql": "browser", "browserbase": "browser", "camoufox": "browser",
     # File & code
     "file": "filesystem", "file_generation": "filesystem",
     "local_file_system": "filesystem", "csv_toolkit": "filesystem",
@@ -232,7 +232,7 @@ _PRICING_MAP: dict[str, str] = {
     "newspaper4k": "open_source",
     "trafilatura": "open_source",
     "webbrowser": "open_source",
-    "camofox": "open_source",
+    "camoufox": "open_source",
     # Free — free API key or free tier available
     "arxiv": "free",
     "duckduckgo": "free",
@@ -319,16 +319,16 @@ _PRICING_MAP: dict[str, str] = {
 
 # Custom (non-agno) tools shipped with vandelay
 _CUSTOM_TOOLS: dict[str, dict[str, Any]] = {
-    "camofox": {
-        "module_path": "vandelay.tools.camofox",
-        "class_name": "CamofoxTools",
+    "camoufox": {
+        "module_path": "vandelay.tools.camoufox",
+        "class_name": "CamoufoxTools",
         "description": (
-            "Anti-detection browser with accessibility snapshots and stable element refs."
-            " Methods: create_tab, snapshot, click, type_text, navigate, scroll,"
-            " screenshot, get_links, close_tab, list_tabs"
+            "Anti-detect browser automation via Camoufox (Firefox) + Playwright."
+            " Methods: open_tab, navigate, get_page_content, click, type_text,"
+            " screenshot, scroll, get_links, close_tab, list_tabs"
         ),
         "category": "browser",
-        "pip_dependencies": [],  # npm-managed, not pip
+        "pip_dependencies": ["camoufox[geoip]"],
     },
 }
 

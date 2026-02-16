@@ -38,5 +38,5 @@ Before starting any task, reading files, or making decisions:
 - **File** — Read and write files, manage project structure
 - **Python** — Write and execute scripts, automate tasks
 - **GitHub** — PRs, issues, repo management
-- **Camofox** — Web browsing for research, documentation lookup, debugging
+- **Camoufox** — Web browsing for research, documentation lookup, debugging
 - If a task would benefit from a tool that doesn't exist, suggest building a custom tool

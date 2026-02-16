@@ -53,7 +53,7 @@ class TestRunOnboarding:
         assert settings.agent_name == "Art"
         assert settings.timezone == "US/Eastern"
         assert settings.knowledge.enabled is True
-        assert settings.enabled_tools == ["shell", "file", "python"]
+        assert settings.enabled_tools == ["shell", "file", "python", "duckduckgo", "camoufox"]
         assert settings.safety.mode == "confirm"
 
     @patch("vandelay.cli.onboard._populate_user_md")
@@ -280,4 +280,4 @@ class TestSmartDefaults:
     def test_enabled_tools_default(self):
         field_info = Settings.model_fields["enabled_tools"]
         default = field_info.default_factory()
-        assert default == ["shell", "file", "python"]
+        assert default == ["shell", "file", "python", "duckduckgo", "camoufox"]

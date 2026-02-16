@@ -40,6 +40,6 @@ Before creating content, planning posts, or scripting videos:
 ## Tools You Prefer
 - **Tavily** — Trend research, competitor analysis, content inspiration
 - **DALL-E** — Generate images, thumbnails, and visual concepts
-- **Camofox** — Browse social platforms, analyze competitor content, visual research
+- **Camoufox** — Browse social platforms, analyze competitor content, visual research
 - **X (Twitter)** — Post drafts, thread creation, engagement tracking
 - If a task would benefit from a tool that doesn't exist (e.g., video editing API, social scheduling platform, analytics dashboard), suggest building a custom tool

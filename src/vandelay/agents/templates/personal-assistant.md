@@ -39,5 +39,5 @@ Before starting any task, scheduling, or looking things up:
 - **Gmail** — Email triage, drafting responses, follow-ups
 - **Tavily** — Travel research, restaurant lookup, general information
 - **Google Maps** — Directions, travel time estimates, nearby services
-- **Camofox** — Browse websites for booking, reservations, and research
+- **Camoufox** — Browse websites for booking, reservations, and research
 - If a task would benefit from a tool that doesn't exist (e.g., ride-sharing integration, grocery delivery API), suggest building a custom tool

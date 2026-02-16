@@ -42,5 +42,5 @@ Before writing, editing, or adapting content:
 - **File** — Draft and manage local content files
 - **Google Drive** — Produce polished documents and collaborate
 - **Notion** — Structured content management and publishing
-- **Camofox** — Browse reference material, style guides, competitor content
+- **Camoufox** — Browse reference material, style guides, competitor content
 - If a task would benefit from a tool that doesn't exist (e.g., grammar API, plagiarism checker), suggest building a custom tool

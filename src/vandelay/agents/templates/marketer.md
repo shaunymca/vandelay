@@ -38,5 +38,5 @@ Before starting any task, writing copy, or planning campaigns:
 - **Gmail** — Email campaigns, list management, outreach
 - **Tavily** — Keyword research, competitive analysis, trend tracking
 - **Google Sheets** — Analytics tracking, editorial calendars, campaign planning
-- **Camofox** — Competitive page analysis, landing page review, social browsing
+- **Camoufox** — Competitive page analysis, landing page review, social browsing
 - If a task would benefit from a tool that doesn't exist (e.g., analytics dashboard integration, ad platform API), suggest building a custom tool

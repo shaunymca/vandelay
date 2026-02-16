@@ -84,25 +84,7 @@ async def lifespan(app: FastAPI):
         logger.info("Starting channels: %s", ", ".join(channel_router.active_channels))
         await channel_router.start_all()
 
-    # Start Camofox browser server if enabled
-    camofox_server = None
-    if "camofox" in (settings.enabled_tools or []):
-        try:
-            from vandelay.tools.camofox_server import CamofoxServer
-            camofox_server = CamofoxServer()
-            if camofox_server.is_installed():
-                await camofox_server.start()
-                app.state.camofox_server = camofox_server
-                logger.info("Camofox browser server started.")
-            else:
-                logger.warning(
-                    "Camofox is enabled but not installed. "
-                    "Run: vandelay tools add camofox"
-                )
-                camofox_server = None
-        except Exception:
-            logger.exception("Failed to start Camofox server")
-            camofox_server = None
+    # Camoufox browser is lazy-started on first tool use — no startup needed.
 
     # Start file watcher for auto-restart (opt-in via env var)
     file_watcher = None
@@ -134,14 +116,6 @@ async def lifespan(app: FastAPI):
     # Stop scheduler engine
     if getattr(app.state, "scheduler_engine", None) is not None:
         await app.state.scheduler_engine.stop()
-
-    # Stop Camofox server
-    if getattr(app.state, "camofox_server", None) is not None:
-        try:
-            await app.state.camofox_server.stop()
-            logger.info("Camofox server stopped.")
-        except Exception:
-            logger.exception("Error stopping Camofox server")
 
     if channel_router and channel_router.active_channels:
         logger.info("Stopping channels...")

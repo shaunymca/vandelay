@@ -28,7 +28,7 @@ class TestResolveember:
         mc = _resolve_member("browser")
         assert isinstance(mc, MemberConfig)
         assert mc.name == "browser"
-        assert mc.tools == ["crawl4ai", "camofox"]
+        assert mc.tools == ["crawl4ai", "camoufox"]
         assert mc.role == "Web browsing, scraping, and screenshot specialist"
 
     def test_string_system(self):

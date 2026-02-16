@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     db_url: str = ""  # empty = use SQLite at default path
     workspace_dir: str = str(WORKSPACE_DIR)
     enabled_tools: list[str] = Field(
-        default_factory=lambda: ["shell", "file", "python"],
+        default_factory=lambda: ["shell", "file", "python", "duckduckgo", "camoufox"],
     )
 
     @model_validator(mode="before")

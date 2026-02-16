@@ -68,5 +68,5 @@ Before starting any task, reading files, or making plans:
 - **Linear** — Issue tracking and sprint management
 - **Jira** — Issue tracking for larger or enterprise workflows
 - **Gmail** — Stakeholder updates, status emails, coordination
-- **Camofox** — Browse project dashboards, documentation, external resources
+- **Camoufox** — Browse project dashboards, documentation, external resources
 - If a task would benefit from a tool that doesn't exist (e.g., Gantt chart generator, automated standup bot, time tracking integration), suggest building a custom tool

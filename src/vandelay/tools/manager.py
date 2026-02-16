@@ -406,10 +406,10 @@ class ToolManager:
                     instances.append(instance)
                     continue
 
-                # Special handling for camofox — pass base_url
-                if tool_name == "camofox":
-                    from vandelay.tools.camofox import CamofoxTools
-                    instances.append(CamofoxTools())
+                # Special handling for camoufox — lazy browser startup
+                if tool_name == "camoufox":
+                    from vandelay.tools.camoufox import CamoufoxTools
+                    instances.append(CamoufoxTools())
                     continue
 
                 # Special handling for Google OAuth tools — shared token
