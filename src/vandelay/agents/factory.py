@@ -207,13 +207,23 @@ def _build_member_agent(
 
         tools.append(TaskQueueTools(store=task_store))
 
-    # Build instructions: tag → file contents → inline (no personality brief —
-    # members have their own instructions files and don't need the leader's persona)
+    # Build instructions: tag → tool awareness → file contents → inline
     tag = mc.name.upper()
     instructions: list[str] = [
         f"You are the [{tag}] specialist. Always prefix your responses with [{tag}] "
         f"so the user knows which team member is speaking.",
     ]
+
+    # Tool awareness: tell the member exactly what tools it has
+    if tool_names:
+        tools_str = ", ".join(tool_names)
+        instructions.append(
+            f"Your available tools: {tools_str}. "
+            "Use these tools directly — do not try to replicate their "
+            "functionality via shell commands or python code. "
+            "If a task requires a tool you don't have, say so clearly and "
+            "suggest which team member might have the right tools."
+        )
 
     file_content = _load_instructions_file(mc.instructions_file)
     if file_content:
