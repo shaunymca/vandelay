@@ -81,11 +81,18 @@ class ToolManagementTools(Toolkit):
         enabled = name in self._settings.enabled_tools
         installed = self._manager._check_installed(entry)
 
+        _pricing_labels = {
+            "open_source": "Open Source (no API key needed)",
+            "free": "Free (free API key or free tier)",
+            "paid": "Paid (requires paid API key)",
+        }
+
         lines = [
             f"# Tool: {entry.name}",
             f"- **Class**: {entry.class_name}",
             f"- **Module**: {entry.module_path}",
             f"- **Category**: {entry.category}",
+            f"- **Pricing**: {_pricing_labels.get(entry.pricing, entry.pricing)}",
             f"- **Built-in**: {'yes' if entry.is_builtin else 'no'}",
             f"- **Enabled**: {'yes' if enabled else 'no'}",
             f"- **Installed**: {'yes' if installed else 'no'}",
