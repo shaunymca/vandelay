@@ -523,3 +523,67 @@ def tool_info(
     console.print(f"  [bold]Installed:[/bold]  {inst}")
     console.print(f"  [bold]Enabled:[/bold]    {enab}")
     console.print()
+
+
+_CUSTOM_TOOL_TEMPLATE = '''\
+"""Custom tool: {name}."""
+
+from agno.tools import Toolkit
+
+
+class {class_name}(Toolkit):
+    """{name} toolkit — describe what this tool does."""
+
+    def __init__(self) -> None:
+        super().__init__(name="{name}")
+        self.register(self.hello)
+
+    def hello(self, message: str) -> str:
+        """Say hello — replace this with your real tool method.
+
+        Args:
+            message: A greeting to echo back.
+
+        Returns:
+            str: A friendly response.
+        """
+        return f"Hello from {name}: {{message}}"
+'''
+
+
+@app.command("create")
+def create_tool(
+    name: str = typer.Argument(help="Tool name (alphanumeric + underscores)"),
+):
+    """Create a custom tool template in ~/.vandelay/custom_tools/."""
+    import re
+
+    if not re.match(r"^[a-z][a-z0-9_]*$", name):
+        console.print(
+            "[red]Invalid name.[/red] Use lowercase letters, numbers, and underscores. "
+            "Must start with a letter."
+        )
+        raise typer.Exit(1)
+
+    from vandelay.config import constants as _const
+
+    _const.CUSTOM_TOOLS_DIR.mkdir(parents=True, exist_ok=True)
+
+    file_path = _const.CUSTOM_TOOLS_DIR / f"{name}.py"
+    if file_path.exists():
+        console.print(f"[red]Custom tool already exists:[/red] {file_path}")
+        raise typer.Exit(1)
+
+    # Generate class name: my_tool → MyToolTools
+    parts = name.split("_")
+    class_name = "".join(p.capitalize() for p in parts) + "Tools"
+
+    content = _CUSTOM_TOOL_TEMPLATE.format(name=name, class_name=class_name)
+    file_path.write_text(content, encoding="utf-8")
+
+    console.print(f"\n  [green]✓[/green] Created custom tool: [bold]{file_path}[/bold]")
+    console.print("\n  Next steps:")
+    console.print(f"    1. Edit {file_path} — add your methods")
+    console.print("    2. [bold]vandelay tools refresh[/bold] — register the tool")
+    console.print(f"    3. [bold]vandelay tools add {name}[/bold] — enable it")
+    console.print()

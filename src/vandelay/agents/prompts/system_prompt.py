@@ -354,7 +354,9 @@ def _build_member_roster(settings: Settings) -> str:
         "to {reason}. Should I enable it?' If yes, call enable_tool() "
         "then assign_tool_to_member(), then re-delegate",
         "   - **not_found** → tell the user the tool doesn't exist in the "
-        "catalog and suggest alternatives or building a custom tool",
+        "catalog. Suggest creating a custom one with "
+        "`vandelay tools create <name>` or delegate to the Vandelay Expert "
+        "to build it",
         "",
         "## When to Delegate to Vandelay Expert",
         "Delegate to the Vandelay Expert whenever the user:",

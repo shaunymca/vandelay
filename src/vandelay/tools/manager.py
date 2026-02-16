@@ -52,6 +52,7 @@ def _guard_file_writes(tool_instance: Any) -> None:
     _WRITE_ALLOWED = [
         home / "work",
         VANDELAY_HOME / "workspace",
+        VANDELAY_HOME / "custom_tools",
         VANDELAY_HOME / ".env",
         VANDELAY_HOME / "cron_jobs.json",
         VANDELAY_HOME / "task_queue.json",
@@ -449,6 +450,27 @@ class ToolManager:
                     if tool_name == "gmail":
                         _fix_gmail_html_body(instance)
                     instances.append(instance)
+                    continue
+
+                # Custom tools: load from file path via importlib.util
+                if entry.module_path.startswith("vandelay_custom_"):
+                    loaded_mod = sys.modules.get(entry.module_path)
+                    if loaded_mod is None:
+                        import importlib.util as ilu
+
+                        from vandelay.config.constants import CUSTOM_TOOLS_DIR
+
+                        file_path = CUSTOM_TOOLS_DIR / f"{entry.name}.py"
+                        spec = ilu.spec_from_file_location(
+                            entry.module_path, file_path,
+                        )
+                        if spec and spec.loader:
+                            loaded_mod = ilu.module_from_spec(spec)
+                            sys.modules[entry.module_path] = loaded_mod
+                            spec.loader.exec_module(loaded_mod)
+                    if loaded_mod:
+                        custom_cls = getattr(loaded_mod, entry.class_name)
+                        instances.append(custom_cls())
                     continue
 
                 mod = importlib.import_module(entry.module_path)
