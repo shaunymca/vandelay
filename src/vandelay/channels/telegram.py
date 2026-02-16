@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 from agno.media import Audio, File, Image, Video
 
-from vandelay.channels.base import ChannelAdapter, IncomingMessage, OutgoingMessage
+from vandelay.channels.base import Attachment, ChannelAdapter, IncomingMessage, OutgoingMessage
 from vandelay.config.settings import get_settings
 
 if TYPE_CHECKING:
@@ -151,7 +151,7 @@ class TelegramAdapter(ChannelAdapter):
     # ------------------------------------------------------------------
 
     async def send(self, message: OutgoingMessage) -> None:
-        """Send a text message to a Telegram chat."""
+        """Send a message (text and/or attachments) to a Telegram chat."""
         # Extract numeric chat_id — handles both "tg:123" and "tg:123:thread:foo"
         raw_id = message.session_id.removeprefix("tg:")
         chat_id = raw_id.split(":")[0] if ":" in raw_id else raw_id
@@ -161,7 +161,13 @@ class TelegramAdapter(ChannelAdapter):
             logger.warning("No chat_id for outbound Telegram message")
             return
 
-        await self._send_text(chat_id, message.text)
+        if message.text:
+            await self._send_text(chat_id, message.text)
+
+        for att in message.attachments:
+            await self._send_document(
+                chat_id, att.path, att.caption, att.filename
+            )
 
     @staticmethod
     def _strip_markdown(text: str) -> str:
@@ -198,6 +204,34 @@ class TelegramAdapter(ChannelAdapter):
                     )
                 except Exception as exc:
                     logger.error("Telegram send failed: %s", exc)
+
+    async def _send_document(
+        self, chat_id: str, path: str, caption: str = "", filename: str = ""
+    ) -> None:
+        """Send a file via Telegram Bot API's sendDocument endpoint."""
+        import os
+
+        if not os.path.isfile(path):
+            logger.error("Cannot send document — file not found: %s", path)
+            return
+
+        display_name = filename or os.path.basename(path)
+        caption = self._strip_markdown(caption) if caption else ""
+
+        async with httpx.AsyncClient() as client:
+            try:
+                with open(path, "rb") as f:
+                    files = {"document": (display_name, f)}
+                    data: dict[str, str] = {"chat_id": chat_id}
+                    if caption:
+                        data["caption"] = caption
+                    await client.post(
+                        f"{TELEGRAM_API}/bot{self.bot_token}/sendDocument",
+                        data=data,
+                        files=files,
+                    )
+            except Exception as exc:
+                logger.error("Telegram sendDocument failed: %s", exc)
 
     async def _send_typing(self, chat_id: str) -> None:
         """Send 'typing...' chat action so the user knows we're working."""

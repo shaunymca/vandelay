@@ -228,6 +228,69 @@ class TestSend:
         assert call_args[1]["json"]["text"] == "Hi!"
 
 
+class TestSendDocument:
+    @pytest.mark.asyncio
+    async def test_send_document(self, adapter, tmp_path):
+        """_send_document posts multipart to sendDocument endpoint."""
+        test_file = tmp_path / "data.csv"
+        test_file.write_text("a,b,c\n1,2,3")
+
+        with patch("vandelay.channels.telegram.httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock()
+
+            await adapter._send_document("12345", str(test_file), caption="Report")
+
+        mock_client.post.assert_called_once()
+        call_args = mock_client.post.call_args
+        assert "sendDocument" in call_args[0][0]
+        assert call_args[1]["data"]["chat_id"] == "12345"
+        assert call_args[1]["data"]["caption"] == "Report"
+
+    @pytest.mark.asyncio
+    async def test_send_document_file_not_found(self, adapter):
+        """_send_document logs error and returns if file doesn't exist."""
+        with patch("vandelay.channels.telegram.httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            await adapter._send_document("12345", "/nonexistent/file.txt")
+
+        mock_client.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_send_with_attachments_and_text(self, adapter, tmp_path):
+        """send() dispatches both text and attachments."""
+        from vandelay.channels.base import Attachment, OutgoingMessage
+
+        test_file = tmp_path / "output.log"
+        test_file.write_text("log data")
+
+        msg = OutgoingMessage(
+            text="Check this out",
+            session_id="tg:12345",
+            channel="telegram",
+            attachments=[Attachment(path=str(test_file), caption="Logs")],
+        )
+
+        with patch("vandelay.channels.telegram.httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock()
+
+            await adapter.send(msg)
+
+        # Should have at least 2 calls: sendMessage + sendDocument
+        calls = mock_client.post.call_args_list
+        urls = [c[0][0] for c in calls]
+        assert any("sendMessage" in u for u in urls)
+        assert any("sendDocument" in u for u in urls)
+
+
 class TestStripMarkdown:
     def test_headers(self):
         assert TelegramAdapter._strip_markdown("## Heading") == "Heading"
