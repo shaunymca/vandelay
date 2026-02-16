@@ -240,6 +240,18 @@ def knowledge_status():
     except Exception:
         console.print("  [bold]Vectors:[/bold]    [dim]unknown (DB not initialized)[/dim]")
 
+    # Corpus version info
+    from vandelay.knowledge.corpus import _get_stored_versions
+
+    stored = _get_stored_versions()
+    if stored:
+        console.print(
+            f"  [bold]Corpus:[/bold]     "
+            f"agno={stored.get('agno', '?')}, vandelay={stored.get('vandelay', '?')}"
+        )
+    else:
+        console.print("  [bold]Corpus:[/bold]     [dim]not indexed yet[/dim]")
+
     knowledge_dir = Path(settings.workspace_dir) / "knowledge"
     if knowledge_dir.exists():
         file_count = sum(1 for f in knowledge_dir.rglob("*") if f.is_file())
@@ -248,3 +260,25 @@ def knowledge_status():
         console.print(f"  [bold]Files:[/bold]      [dim]{knowledge_dir} (not created yet)[/dim]")
 
     console.print()
+
+
+@app.command("refresh")
+def refresh_corpus(
+    force: bool = typer.Option(
+        False, "--force", "-f", help="Re-index even if versions match"
+    ),
+):
+    """Re-index the built-in Agno documentation corpus."""
+    import asyncio
+
+    knowledge, _vector_db = _ensure_knowledge()
+
+    from vandelay.knowledge.corpus import corpus_needs_refresh, index_corpus
+
+    if not force and not corpus_needs_refresh():
+        console.print("[dim]Corpus is already up to date.[/dim]")
+        raise typer.Exit()
+
+    console.print("[bold]Indexing Agno documentation corpus...[/bold]")
+    count = asyncio.run(index_corpus(knowledge, force=force))
+    console.print(f"\n  [green]✓[/green] Indexed {count} URL(s).")
