@@ -395,6 +395,14 @@ def create_team(
     workspace_tools = WorkspaceTools(settings=settings, db=db)
     leader_tools: list = [tool_mgmt, workspace_tools]
 
+    # Member management tools for the leader
+    from vandelay.tools.member_management import MemberManagementTools
+
+    leader_tools.append(MemberManagementTools(
+        settings=settings,
+        reload_callback=reload_callback,
+    ))
+
     # Task queue tools for the leader
     if task_store is not None:
         from vandelay.tools.tasks import TaskQueueTools

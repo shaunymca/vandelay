@@ -53,6 +53,7 @@ def _guard_file_writes(tool_instance: Any) -> None:
         home / "work",
         VANDELAY_HOME / "workspace",
         VANDELAY_HOME / "custom_tools",
+        VANDELAY_HOME / "members",
         VANDELAY_HOME / ".env",
         VANDELAY_HOME / "cron_jobs.json",
         VANDELAY_HOME / "task_queue.json",
