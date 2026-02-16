@@ -136,7 +136,15 @@ class ToolManagementTools(Toolkit):
         # Trigger hot reload
         self._reload_callback()
 
-        return f"Tool '{name}' is now enabled and active. I've reloaded with the new tool."
+        # Hint about member assignment if team mode is active
+        team_hint = ""
+        if self._settings.team.enabled and self._settings.team.members:
+            team_hint = (
+                f" To assign it to team members, use assign_tool_to_member('{name}', '<member>')."
+            )
+
+        msg = f"Tool '{name}' is now enabled and active. I've reloaded with the new tool."
+        return msg + team_hint
 
     def disable_tool(self, name: str) -> str:
         """Disable a tool so it is no longer active for the agent.
@@ -174,7 +182,6 @@ class ToolManagementTools(Toolkit):
             str: Success or failure message.
         """
         from vandelay.agents.factory import _resolve_member
-        from vandelay.config.models import MemberConfig
 
         # Validate tool exists and is enabled
         entry = self._manager.registry.get(tool_name)
