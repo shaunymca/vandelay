@@ -172,7 +172,7 @@ For full control, use objects instead of strings:
 
 ### Template bootstrap
 
-Members whose names match a [starter template](../src/vandelay/agents/templates/) (e.g. `vandelay-expert`, `cto`, `devops`) automatically have their template `.md` copied to `~/.vandelay/members/` on first use. This gives the member rich persona instructions out of the box. The file is yours to edit afterward.
+Members whose names match a starter template (e.g. `vandelay-expert`, `cto`, `devops`) automatically have their template `.md` copied to `~/.vandelay/members/` on first use. This gives the member rich persona instructions out of the box. The file is yours to edit afterward.
 
 ---
 
