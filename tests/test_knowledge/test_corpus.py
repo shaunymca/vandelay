@@ -97,31 +97,32 @@ def test_corpus_needs_refresh_vandelay_changed(tmp_path):
 # parse_and_filter_sections
 # ---------------------------------------------------------------------------
 
-SAMPLE_LLM_TEXT = """# Some Intro
+SAMPLE_LLM_TEXT = """\
+# Some Intro
 Source: https://docs.agno.com/introduction
 
 Welcome to Agno.
----
+
 # Shell Tool
 Source: https://docs.agno.com/tools/shell
 
 Use the shell tool to run commands.
----
+
 # Agent Basics
 Source: https://docs.agno.com/agents/overview
 
 Build agents with Agno.
----
+
 # Evals
 Source: https://docs.agno.com/evals/getting-started
 
 Run evals on your agents.
----
+
 # Memory
 Source: https://docs.agno.com/memory/overview
 
 Memory lets agents remember.
----
+
 # Deployment
 Source: https://docs.agno.com/deployment/aws
 
@@ -193,8 +194,7 @@ async def test_index_corpus_calls_ainsert(tmp_path):
     fake_text = (
         "# Tools Overview\n"
         "Source: https://docs.agno.com/tools/overview\n\n"
-        "Tool docs here.\n"
-        "---\n"
+        "Tool docs here.\n\n"
         "# Evals\n"
         "Source: https://docs.agno.com/evals/intro\n\n"
         "Eval docs here."
@@ -226,7 +226,7 @@ async def test_index_corpus_calls_ainsert(tmp_path):
     ):
         count = await index_corpus(knowledge, force=True)
 
-    # 1 filtered section from remote + 2 local sources = 3
+    # 1 filtered page from remote + 2 local sources = 3
     assert count == 3
     assert knowledge.ainsert.call_count == 3
 
@@ -253,7 +253,10 @@ async def test_index_corpus_force_overrides(tmp_path):
     fake_text = (
         "# Tools Overview\n"
         "Source: https://docs.agno.com/tools/overview\n\n"
-        "Tool docs."
+        "Tool docs.\n\n"
+        "# Evals\n"
+        "Source: https://docs.agno.com/evals/intro\n\n"
+        "Eval docs."
     )
 
     mock_response = MagicMock()
@@ -334,8 +337,8 @@ async def test_index_local_source(tmp_path):
     mock_files.assert_called_once_with("vandelay.docs")
     knowledge.ainsert.assert_called_once()
     call_kwargs = knowledge.ainsert.call_args[1]
-    assert len(call_kwargs["documents"]) == 1
-    assert call_kwargs["documents"][0].name == "Test Doc"
+    assert call_kwargs["text_content"] == "# Test\nContent here."
+    assert call_kwargs["name"] == "Test Doc"
 
 
 # ---------------------------------------------------------------------------

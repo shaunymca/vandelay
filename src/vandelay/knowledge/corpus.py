@@ -66,24 +66,31 @@ CORPUS_URLS: list[tuple[str, str]] = [
 def parse_and_filter_sections(
     text: str, prefixes: list[str]
 ) -> list[tuple[str, str]]:
-    """Parse ``llms-full.txt`` into sections and keep only matching ones.
+    """Parse ``llms-full.txt`` into pages and keep only matching ones.
 
-    Each section is separated by ``---`` on its own line. The first few lines
-    contain ``Source: <url>`` which we match against *prefixes*.
+    Pages start with ``# Title`` followed by ``Source: <url>`` on the next
+    line.  We split on that pattern using regex, extract the URL, and keep
+    pages whose URL path starts with any of the given *prefixes*.
 
-    Returns a list of ``(source_url, section_text)`` tuples.
+    Returns a list of ``(source_url, page_text)`` tuples.
     """
-    raw_sections = text.split("\n---\n")
+    import re
+
+    # Each page begins with "# Title\nSource: <url>".  We split just before
+    # the "# " heading so each chunk contains exactly one page.
+    parts = re.split(r"\n(?=# [^\n]+\nSource: )", text)
+    total = 0
     kept: list[tuple[str, str]] = []
 
-    for section in raw_sections:
-        section = section.strip()
-        if not section:
+    for part in parts:
+        part = part.strip()
+        if not part:
             continue
 
-        # Extract Source: URL from the section header
+        # Extract Source: URL from the second line
+        lines = part.splitlines()
         source_url = ""
-        for line in section.splitlines()[:10]:
+        for line in lines[:5]:
             if line.startswith("Source:"):
                 source_url = line[len("Source:"):].strip()
                 break
@@ -91,15 +98,16 @@ def parse_and_filter_sections(
         if not source_url:
             continue
 
+        total += 1
         path = urlparse(source_url).path
         if any(path.startswith(prefix) for prefix in prefixes):
-            kept.append((source_url, section))
+            kept.append((source_url, part))
 
-    if not kept:
+    if not kept and total > 0:
         logger.warning(
-            "Section filter matched 0 of %d sections — "
+            "Section filter matched 0 of %d pages — "
             "the llms-full.txt format may have changed",
-            len(raw_sections),
+            total,
         )
 
     return kept
@@ -153,7 +161,6 @@ async def _index_remote(
 ) -> int:
     """Download, parse, filter, and index a remote corpus source."""
     import httpx
-    from agno.knowledge.document import Document
 
     logger.info("Downloading corpus: %s (%s)", source.name, source.url)
     async with httpx.AsyncClient(timeout=60) as client:
@@ -163,39 +170,31 @@ async def _index_remote(
 
     if not source.section_prefixes:
         # No filtering — index the whole document
-        doc = Document(name=source.name, content=text)
-        await knowledge.ainsert(documents=[doc])
+        await knowledge.ainsert(text_content=text, name=source.name)
         return 1
 
-    sections = parse_and_filter_sections(text, source.section_prefixes)
-    if not sections:
+    pages = parse_and_filter_sections(text, source.section_prefixes)
+    if not pages:
         return 0
 
-    docs = [
-        Document(name=f"{source.name}: {url}", content=body)
-        for url, body in sections
-    ]
-    logger.info(
-        "Filtered %d sections from %s (kept %d)",
-        len(text.split("\n---\n")),
-        source.name,
-        len(docs),
-    )
-    await knowledge.ainsert(documents=docs)
-    return len(docs)
+    count = 0
+    for url, body in pages:
+        page_name = f"{source.name}: {url}"
+        await knowledge.ainsert(text_content=body, name=page_name)
+        count += 1
+
+    logger.info("Filtered %s — kept %d pages", source.name, count)
+    return count
 
 
 async def _index_local(
     knowledge: Any, source: LocalCorpusSource
 ) -> int:
     """Read a local doc from the ``vandelay.docs`` package and index it."""
-    from agno.knowledge.document import Document
-
     pkg = importlib.resources.files("vandelay.docs")
     text = (pkg / source.filename).read_text(encoding="utf-8")
-    doc = Document(name=source.name, content=text)
     logger.info("Indexing local corpus: %s", source.name)
-    await knowledge.ainsert(documents=[doc])
+    await knowledge.ainsert(text_content=text, name=source.name)
     return 1
 
 
