@@ -1,0 +1,18 @@
+{
+  "_comment": "Copy this file to google_token.json and fill in real values.",
+  "_comment2": "Generate via: vandelay tools auth-google, then copy ~/.vandelay/google_token.json here.",
+  "token": "ya29.your_access_token",
+  "refresh_token": "1//your_refresh_token",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "client_id": "your_client_id.apps.googleusercontent.com",
+  "client_secret": "your_client_secret",
+  "scopes": [
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/spreadsheets"
+  ],
+  "universe_domain": "googleapis.com",
+  "account": "",
+  "expiry": "2027-01-01T00:00:00.000000Z"
+}

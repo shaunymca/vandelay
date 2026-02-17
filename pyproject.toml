@@ -36,6 +36,7 @@ dependencies = [
     "opentelemetry-api>=1.39.1",
     "opentelemetry-sdk>=1.39.1",
     "openinference-instrumentation-agno>=0.1.28",
+    "notion-client>=3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -83,3 +84,5 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = ["integration: requires real API credentials (deselected by default)"]
+addopts = "-m 'not integration'"

@@ -51,6 +51,7 @@ nul
 .coverage
 htmlcov/
 .pytest_cache/
+tests/integration/google_token.json
 
 # Logs
 *.log
