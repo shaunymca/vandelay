@@ -20,8 +20,19 @@ class NotifyTools(Toolkit):
     def __init__(self, channel_router: ChannelRouter) -> None:
         super().__init__(name="notify")
         self._router = channel_router
+        try:
+            self._loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self._loop = None
         self.register(self.notify_user)
         self.register(self.send_file)
+
+    def _send_async(self, coro) -> None:
+        """Schedule an async coroutine from any thread."""
+        if self._loop is not None and self._loop.is_running():
+            asyncio.run_coroutine_threadsafe(coro, self._loop)
+        else:
+            asyncio.run(coro)
 
     def _resolve_adapter(self, channel: str = ""):
         """Resolve the target channel adapter."""
@@ -55,13 +66,11 @@ class NotifyTools(Toolkit):
             return "No active channels — notification could not be delivered."
 
         try:
-            asyncio.get_event_loop().create_task(
-                adapter.send(OutgoingMessage(
-                    text=message,
-                    session_id="notification",
-                    channel=adapter.channel_name,
-                ))
-            )
+            self._send_async(adapter.send(OutgoingMessage(
+                text=message,
+                session_id="notification",
+                channel=adapter.channel_name,
+            )))
             return f"Notification sent via {adapter.channel_name}."
         except Exception as exc:
             logger.warning("Failed to send notification: %s", exc)
@@ -95,14 +104,12 @@ class NotifyTools(Toolkit):
             return "No active channels — file could not be delivered."
 
         try:
-            asyncio.get_event_loop().create_task(
-                adapter.send(OutgoingMessage(
-                    text="",
-                    session_id="notification",
-                    channel=adapter.channel_name,
-                    attachments=[Attachment(path=file_path, caption=caption)],
-                ))
-            )
+            self._send_async(adapter.send(OutgoingMessage(
+                text="",
+                session_id="notification",
+                channel=adapter.channel_name,
+                attachments=[Attachment(path=file_path, caption=caption)],
+            )))
             return f"File sent via {adapter.channel_name}: {os.path.basename(file_path)}"
         except Exception as exc:
             logger.warning("Failed to send file: %s", exc)

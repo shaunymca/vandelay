@@ -91,12 +91,36 @@ class TestNotifyUser:
         assert len(tg.sent) == 1
         assert len(ws.sent) == 0
 
-    def test_unknown_channel_falls_back(self, router, adapter):
+    @pytest.mark.asyncio
+    async def test_unknown_channel_falls_back(self, router, adapter):
         router.register(adapter)
         toolkit = NotifyTools(channel_router=router)
 
         result = toolkit.notify_user("fallback test", channel="nonexistent")
         assert "sent via test" in result
+        import asyncio
+        await asyncio.sleep(0.01)
+        assert len(adapter.sent) == 1
+
+    @pytest.mark.asyncio
+    async def test_notify_from_thread(self, router, adapter):
+        """Verify notify_user works from a ThreadPoolExecutor (the Agno tool path)."""
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
+
+        router.register(adapter)
+        toolkit = NotifyTools(channel_router=router)
+
+        loop = asyncio.get_running_loop()
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            result = await loop.run_in_executor(
+                pool, toolkit.notify_user, "from thread"
+            )
+
+        assert "sent via test" in result
+        await asyncio.sleep(0.05)
+        assert len(adapter.sent) == 1
+        assert adapter.sent[0].text == "from thread"
 
 
 class TestSendFile:
