@@ -36,8 +36,8 @@ console = Console()
 _GOOGLE_TOOL_NAMES = {"gmail", "google_drive", "googlecalendar", "googlesheets"}
 
 
-def _select_provider() -> tuple[str, str]:
-    """Prompt user to pick a model provider and model ID."""
+def _select_provider_only() -> str:
+    """Prompt user to pick a model provider. Returns the provider key."""
     choices = [
         questionary.Choice(title=info["name"], value=key)
         for key, info in MODEL_PROVIDERS.items()
@@ -49,6 +49,13 @@ def _select_provider() -> tuple[str, str]:
 
     if provider is None:
         raise KeyboardInterrupt
+
+    return provider
+
+
+def _select_provider() -> tuple[str, str]:
+    """Prompt user to pick a model provider and model ID."""
+    provider = _select_provider_only()
 
     info = MODEL_PROVIDERS[provider]
     default_model = info["default_model"]
@@ -750,7 +757,9 @@ def run_config_menu(settings: Settings, exit_label: str | None = None) -> Settin
             console.print(f"  [green]✓[/green] Agent name set to [bold]{name}[/bold]")
 
         elif section == "model":
-            provider, model_id = _select_provider()
+            provider = _select_provider_only()
+            api_key = _configure_auth_quick(provider)
+            model_id = _select_model(provider, api_key=api_key)
             auth_method = _configure_auth(provider)
             settings.model = ModelConfig(
                 provider=provider, model_id=model_id, auth_method=auth_method,
@@ -880,7 +889,7 @@ def _configure_team(settings: Settings) -> Settings:
             "Manage members?",
             choices=[
                 questionary.Choice(title="Add a member", value="add"),
-                questionary.Choice(title="Edit a member's instructions", value="edit"),
+                questionary.Choice(title="Edit a member", value="edit"),
                 questionary.Choice(title="Remove a member", value="remove"),
                 questionary.Choice(title="Done", value="done"),
             ],
@@ -892,7 +901,7 @@ def _configure_team(settings: Settings) -> Settings:
         if action == "add":
             settings = _add_team_member(settings)
         elif action == "edit":
-            settings = _edit_member_instructions(settings)
+            settings = _edit_member(settings)
         elif action == "remove":
             settings = _remove_team_member(settings)
 
@@ -1029,7 +1038,9 @@ def _add_team_member(settings: Settings) -> Settings:
             default=False,
         ).ask()
         if use_custom_model:
-            model_provider, model_id = _select_provider()
+            model_provider = _select_provider_only()
+            api_key = _configure_auth_quick(model_provider)
+            model_id = _select_model(model_provider, api_key=api_key)
 
         mc = MemberConfig(
             name=name,
@@ -1138,8 +1149,8 @@ def _preview_member_config(mc: MemberConfig, settings: Settings) -> None:
     console.print()
 
 
-def _edit_member_instructions(settings: Settings) -> Settings:
-    """Edit instructions for an existing member."""
+def _edit_member(settings: Settings) -> Settings:
+    """Edit an existing team member's instructions or model."""
     if not settings.team.members:
         console.print("  [dim]No members to edit.[/dim]")
         return settings
@@ -1162,7 +1173,54 @@ def _edit_member_instructions(settings: Settings) -> Settings:
         member = _resolve_member(member)
         settings.team.members[idx] = member
 
-    member = _offer_instructions_paste(member)
+    # Build model description for the menu
+    if member.model_provider and member.model_id:
+        model_desc = f"{member.model_provider} / {member.model_id}"
+    else:
+        model_desc = "inherits main model"
+
+    field = questionary.select(
+        "What do you want to change?",
+        choices=[
+            questionary.Choice(title="Instructions", value="instructions"),
+            questionary.Choice(
+                title=f"Model (currently: {model_desc})", value="model",
+            ),
+            questionary.Choice(title="Back", value="back"),
+        ],
+    ).ask()
+
+    if field is None or field == "back":
+        return settings
+
+    if field == "instructions":
+        member = _offer_instructions_paste(member)
+    elif field == "model":
+        action = questionary.select(
+            "Model override:",
+            choices=[
+                questionary.Choice(
+                    title="Inherit main model (recommended)", value="inherit",
+                ),
+                questionary.Choice(
+                    title="Choose a different model", value="custom",
+                ),
+            ],
+        ).ask()
+        if action == "custom":
+            provider = _select_provider_only()
+            api_key = _configure_auth_quick(provider)
+            model_id = _select_model(provider, api_key=api_key)
+            member.model_provider = provider
+            member.model_id = model_id
+            console.print(
+                f"  [green]✓[/green] Model set to {provider} / {model_id}"
+            )
+        elif action == "inherit":
+            member.model_provider = ""
+            member.model_id = ""
+            console.print("  [green]✓[/green] Model reset to inherit main model")
+
     settings.team.members[idx] = member
     return settings
 
