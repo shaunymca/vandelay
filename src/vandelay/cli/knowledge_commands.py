@@ -75,7 +75,7 @@ def _ensure_knowledge():
 
 def _load_documents(file_path: Path) -> list:
     """Load documents from a file using the appropriate reader."""
-    from agno.document import Document
+    from agno.knowledge.document import Document
 
     text = file_path.read_text(encoding="utf-8", errors="replace")
 
@@ -281,4 +281,4 @@ def refresh_corpus(
 
     console.print("[bold]Indexing Agno documentation corpus...[/bold]")
     count = asyncio.run(index_corpus(knowledge, force=force))
-    console.print(f"\n  [green]✓[/green] Indexed {count} URL(s).")
+    console.print(f"\n  [green]✓[/green] Indexed {count} source(s).")
