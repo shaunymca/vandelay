@@ -493,6 +493,12 @@ def create_team(
 
         leader_tools.append(NotifyTools(channel_router=channel_router))
 
+    # Scheduler tools so the leader can create/manage cron jobs directly
+    if scheduler_engine is not None:
+        from vandelay.tools.scheduler import SchedulerTools
+
+        leader_tools.append(SchedulerTools(engine=scheduler_engine))
+
     # Determine respond_directly based on mode
     mode = settings.team.mode
     respond_directly = mode == "route"
