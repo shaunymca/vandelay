@@ -113,6 +113,7 @@ class MemberConfig(BaseModel):
     model_id: str = ""         # "" = inherit main model
     instructions: list[str] = Field(default_factory=list)
     instructions_file: str = ""  # path to .md file loaded at runtime
+    knowledge_enabled: bool = True  # False = member shares no knowledge collection
 
 
 class DeepWorkConfig(BaseModel):

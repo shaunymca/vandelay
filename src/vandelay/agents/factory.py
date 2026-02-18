@@ -236,6 +236,7 @@ def _build_member_agent(
     db,
     knowledge,
     settings: Settings,
+    extra_tools: list | None = None,
     scheduler_engine: object | None = None,
     task_store: object | None = None,
 ) -> Agent:
@@ -265,6 +266,10 @@ def _build_member_agent(
     from vandelay.tools.tool_request import ToolRequestTools
 
     tools.append(ToolRequestTools(settings=settings, member_name=mc.name))
+
+    # Inject any caller-provided extra tools (e.g., KnowledgeManagementTools for vandelay-expert)
+    if extra_tools:
+        tools.extend(extra_tools)
 
     # Build instructions: tag → tool awareness → file contents → inline
     tag = mc.name.upper()
@@ -434,11 +439,27 @@ def create_team(
     members = []
     for entry in settings.team.members:
         mc = _resolve_member(entry)
+
+        # Each member gets its own isolated knowledge collection (if enabled)
+        if mc.knowledge_enabled:
+            member_knowledge = create_knowledge(settings, db=db, member_name=mc.name)
+        else:
+            member_knowledge = None
+
+        # Vandelay Expert gets KnowledgeManagementTools so it can manage
+        # knowledge bases for any team member via natural language
+        extra_tools: list = []
+        if mc.name == "vandelay-expert" and settings.knowledge.enabled:
+            from vandelay.tools.knowledge_management import KnowledgeManagementTools
+
+            extra_tools.append(KnowledgeManagementTools(settings=settings, db=db))
+
         agent = _build_member_agent(
             mc,
             main_model=model,
             db=db,
-            knowledge=knowledge,
+            knowledge=member_knowledge,
+            extra_tools=extra_tools,
             settings=settings,
             scheduler_engine=scheduler_engine,
             task_store=task_store,
