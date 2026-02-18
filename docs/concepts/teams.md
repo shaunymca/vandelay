@@ -9,13 +9,11 @@ User Message
     ↓
 Team Supervisor (leader)
     ↓ delegates to
-┌────────────┬────────────┬────────────┐
-│  Browser   │  System    │  Vandelay  │
-│  Specialist│  Specialist│  Expert    │
-│  (crawl4ai,│  (shell,   │  (file,    │
-│  camoufox) │  file, py) │  python,   │
-│            │            │  shell)    │
-└────────────┴────────────┴────────────┘
+┌─────────────────┬────────────────────┐
+│  Vandelay Expert│  Your Custom       │
+│  (file, python, │  Specialists       │
+│   shell)        │  (any tools)       │
+└─────────────────┴────────────────────┘
 ```
 
 The supervisor receives all messages, decides which specialist should handle the task, and delegates accordingly. Each member has scoped tools — they can only use what's assigned to them.
@@ -48,15 +46,15 @@ Or in `config.json`:
 | `broadcast` | All members process the message, supervisor synthesizes |
 | `tasks` | Supervisor breaks work into tasks, assigns to members |
 
-## Built-in Specialists
+## Named Preset
+
+The `vandelay-expert` name is a built-in preset with pre-configured tools and role:
 
 | Name | Tools | Role |
 |------|-------|------|
-| `browser` | crawl4ai, camoufox | Web browsing, scraping, screenshots |
-| `system` | shell, file, python | Shell commands, file ops, packages |
-| `scheduler` | *(injected)* | Cron jobs, reminders, recurring tasks |
-| `knowledge` | *(injected)* | Document search, RAG queries |
 | `vandelay-expert` | file, python, shell | Agent builder — designs and improves team members |
+
+All other members are defined fully in `config.json` — no magic names.
 
 ## Custom Members
 
@@ -67,7 +65,6 @@ Define custom members in `config.json`:
   "team": {
     "members": [
       "vandelay-expert",
-      "browser",
       {
         "name": "my-researcher",
         "role": "Deep research specialist",

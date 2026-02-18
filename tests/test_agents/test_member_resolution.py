@@ -22,35 +22,14 @@ def _make_settings(**overrides) -> Settings:
 
 
 class TestResolveember:
-    def test_string_browser(self):
+    def test_vandelay_expert_preset(self):
         from vandelay.agents.factory import _resolve_member
 
-        mc = _resolve_member("browser")
+        mc = _resolve_member("vandelay-expert")
         assert isinstance(mc, MemberConfig)
-        assert mc.name == "browser"
-        assert mc.tools == ["crawl4ai", "camoufox"]
-        assert mc.role == "Web browsing, scraping, and screenshot specialist"
-
-    def test_string_system(self):
-        from vandelay.agents.factory import _resolve_member
-
-        mc = _resolve_member("system")
-        assert mc.name == "system"
-        assert mc.tools == ["shell", "file", "python"]
-
-    def test_string_scheduler(self):
-        from vandelay.agents.factory import _resolve_member
-
-        mc = _resolve_member("scheduler")
-        assert mc.name == "scheduler"
-        assert mc.tools == []  # SchedulerTools injected separately
-
-    def test_string_knowledge(self):
-        from vandelay.agents.factory import _resolve_member
-
-        mc = _resolve_member("knowledge")
-        assert mc.name == "knowledge"
-        assert mc.tools == []
+        assert mc.name == "vandelay-expert"
+        assert mc.tools == ["file", "python", "shell"]
+        assert "agent builder" in mc.role.lower()
 
     def test_unknown_string_gets_empty_tools(self):
         from vandelay.agents.factory import _resolve_member

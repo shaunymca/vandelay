@@ -41,7 +41,13 @@ class TestCreateTeam:
         mock_create_knowledge.return_value = None
 
         settings = self._make_settings(
-            team=TeamConfig(enabled=True, members=["browser", "system"]),
+            team=TeamConfig(
+                enabled=True,
+                members=[
+                    MemberConfig(name="researcher", tools=[]),
+                    MemberConfig(name="coder", tools=[]),
+                ],
+            ),
             workspace_dir=str(tmp_path),
         )
 
