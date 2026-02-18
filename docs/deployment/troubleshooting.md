@@ -50,6 +50,31 @@ vandelay config  # Opens the config editor (will show parse errors)
 - **Empty results**: Run `vandelay knowledge refresh --force` to rebuild the corpus
 - **Slow refresh**: Local fastembed depends on CPU speed. Consider using OpenAI embedder for faster processing.
 
+### Intel Mac (x86_64) — Knowledge Not Available
+
+Neither `chromadb` nor `lancedb` ships pre-built wheels for macOS x86_64. This is an upstream limitation — `onnxruntime` (a dependency of both) dropped Intel Mac support in v1.19+.
+
+Vandelay detects this automatically and disables knowledge during onboarding. You will see:
+
+```
+⚠ Knowledge is not available on Intel Mac (x86_64).
+```
+
+**Your options:**
+
+| Option | Notes |
+|---|---|
+| Run without knowledge | Default — agent works fully, just no RAG |
+| Build lancedb from source | Requires [Rust toolchain](https://rustup.rs) — `uv add lancedb` will compile |
+| Run a remote ChromaDB server | Point Vandelay at an external ChromaDB instance on a supported platform |
+| Use an Apple Silicon or Linux machine | Full knowledge support out of the box |
+
+To check your platform status at any time:
+
+```bash
+vandelay knowledge status
+```
+
 ## Memory Issues
 
 - **Agent not remembering**: Check `update_memory_on_run` is enabled (default: true)
