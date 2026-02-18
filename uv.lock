@@ -19,7 +19,7 @@ resolution-markers = [
 [[package]]
 name = "agno"
 version = "2.5.0"
-source = { git = "https://github.com/shaunymca/agno.git?subdirectory=libs%2Fagno&rev=feat%2Fexpand-telegram-tools#b3f5ae73cc3b8476430fe6a3a3ea9445ae481220" }
+source = { git = "https://github.com/shaunymca/agno.git?subdirectory=libs%2Fagno&rev=feat%2Fexpand-telegram-tools#ae9d8c94afd51c3cbd0b012753c350f4a526e765" }
 dependencies = [
     { name = "docstring-parser" },
     { name = "gitpython" },
