@@ -85,7 +85,8 @@ class SchedulerTools(Toolkit):
         Returns:
             str: Formatted list of all jobs, or a message if none exist.
         """
-        jobs = self._engine.list_jobs()
+        # Exclude system jobs (heartbeat) — those are managed automatically
+        jobs = [j for j in self._engine.list_jobs() if j.job_type.value != "heartbeat"]
         if not jobs:
             return "No scheduled jobs."
 

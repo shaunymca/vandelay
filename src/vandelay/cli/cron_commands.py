@@ -71,13 +71,12 @@ def add_job(
     """Add a new cron job. It will be picked up on the next server start."""
     from croniter import croniter
 
-    from vandelay.config.settings import load_settings
+    from vandelay.config.settings import get_settings
     from vandelay.scheduler.models import CronJob
 
     if timezone is None:
         try:
-            settings = load_settings()
-            timezone = settings.timezone
+            timezone = get_settings().timezone
         except Exception:
             timezone = "UTC"
 

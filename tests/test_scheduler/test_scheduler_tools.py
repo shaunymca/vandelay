@@ -121,6 +121,43 @@ def test_list_scheduled_jobs_with_data(toolkit: SchedulerTools, mock_engine):
     assert "enabled" in result
 
 
+def test_list_scheduled_jobs_hides_heartbeat(toolkit: SchedulerTools, mock_engine):
+    """list_scheduled_jobs should not show the heartbeat system job."""
+    mock_engine.list_jobs.return_value = [
+        CronJob(
+            id="__heartbeat__",
+            name="Heartbeat",
+            cron_expression="*/30 * * * *",
+            command="run heartbeat",
+            job_type=JobType.HEARTBEAT,
+        ),
+        CronJob(
+            id="user111222333",
+            name="User Job",
+            cron_expression="0 9 * * *",
+            command="do something",
+        ),
+    ]
+    result = toolkit.list_scheduled_jobs()
+    assert "Heartbeat" not in result
+    assert "User Job" in result
+
+
+def test_list_scheduled_jobs_empty_when_only_heartbeat(toolkit: SchedulerTools, mock_engine):
+    """list_scheduled_jobs should report no jobs when only heartbeat exists."""
+    mock_engine.list_jobs.return_value = [
+        CronJob(
+            id="__heartbeat__",
+            name="Heartbeat",
+            cron_expression="*/30 * * * *",
+            command="run heartbeat",
+            job_type=JobType.HEARTBEAT,
+        ),
+    ]
+    result = toolkit.list_scheduled_jobs()
+    assert "No scheduled jobs" in result
+
+
 def test_get_job_details_found(toolkit: SchedulerTools, mock_engine):
     """get_job_details should return formatted job info."""
     mock_engine.get_job.return_value = CronJob(
