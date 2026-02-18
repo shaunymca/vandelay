@@ -1,4 +1,4 @@
-"""Vector DB factory — resolves LanceDB or ChromaDB based on availability."""
+"""Vector DB factory — resolves ChromaDB or LanceDB based on availability."""
 
 from __future__ import annotations
 
@@ -14,21 +14,21 @@ _TABLE_NAME = "vandelay_knowledge"
 
 
 def create_vector_db(embedder: Any) -> Any | None:
-    """Create a vector DB instance, preferring LanceDB with ChromaDB fallback.
+    """Create a vector DB instance, preferring ChromaDB with LanceDB fallback.
 
     Returns ``None`` if neither is available.
     """
-    vdb = _try_lancedb(embedder)
+    vdb = _try_chromadb(embedder)
     if vdb is not None:
         return vdb
 
-    vdb = _try_chromadb(embedder)
+    vdb = _try_lancedb(embedder)
     if vdb is not None:
         return vdb
 
     logger.warning(
         "No vector database available. "
-        "Install lancedb (uv add lancedb) or chromadb (uv add chromadb)."
+        "Install chromadb (uv add chromadb) or lancedb (uv add lancedb)."
     )
     return None
 
