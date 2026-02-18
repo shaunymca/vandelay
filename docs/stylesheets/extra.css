@@ -1,0 +1,11 @@
+/* Vandelay docs custom styles */
+
+:root {
+  --md-primary-fg-color: #5e35b1;
+  --md-accent-fg-color: #ffb300;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #7e57c2;
+  --md-accent-fg-color: #ffca28;
+}
