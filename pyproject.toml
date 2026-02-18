@@ -27,7 +27,6 @@ dependencies = [
     "pyjwt>=2.11.0",
     "camoufox[geoip]>=0.4",
     "watchfiles>=1.0",
-    "fastembed>=0.4",
     "ddgs>=9.10.0",
     "google-api-python-client>=2.190.0",
     "google-auth-httplib2>=0.3.0",
@@ -46,11 +45,13 @@ google = ["google-genai>=1.0"]
 ollama = ["ollama>=0.4"]
 postgres = ["psycopg[binary]>=3.2"]
 lancedb = ["lancedb>=0.17"]
+fastembed = ["fastembed>=0.4"]
 all = [
     "anthropic>=0.40",
     "openai>=1.60",
     "google-genai>=1.0",
     "ollama>=0.4",
+    "fastembed>=0.4",
 ]
 
 [dependency-groups]

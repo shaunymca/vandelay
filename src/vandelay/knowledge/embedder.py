@@ -107,8 +107,10 @@ def _build_fastembed(settings: Settings) -> Any | None:
         from agno.knowledge.embedder.fastembed import FastEmbedEmbedder
     except ImportError:
         logger.warning(
-            "fastembed package not installed — cannot create local embedder. "
-            "Install with: uv add fastembed"
+            "fastembed is not installed — local embedder unavailable. "
+            "Knowledge will be disabled. To enable it without an API key, run: "
+            "uv add fastembed  (requires onnxruntime; may not work on Intel Mac). "
+            "Alternatively, set an OpenAI or Google API key to use a hosted embedder."
         )
         return None
 
