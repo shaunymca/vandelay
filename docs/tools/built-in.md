@@ -75,7 +75,15 @@ Add, remove, and update team members at runtime.
 
 ### Task Queue (injected)
 
-Create and manage tasks for async work.
+Track work across sessions. Tasks persist to `~/.vandelay/task_queue.json` and survive restarts.
+
+- `create_task(title, description, priority, owner)`: Create a task, optionally assign to a team member
+- `check_open_tasks()`: List all pending and in-progress tasks sorted by priority — called automatically on heartbeat
+- `update_task(task_id, status, result)`: Update progress
+- `complete_task(task_id, result)`: Mark done with a summary
+- `cancel_task(task_id, reason)`: Cancel with a reason
+
+Priority: 0 = normal, 1 = high, 2 = urgent
 
 ### Deep Work (injected)
 

@@ -31,6 +31,27 @@ If no enabled tool fits, use `list_available_tools` to check what's available, t
 ### 3. Ask the user about creating a new tool
 If nothing in the catalog covers what's needed, **ask the user** whether you should create a custom tool for this. Do not silently fall back to raw API calls or code — always check with the user first.
 
+## Task Queue
+
+You have a built-in task queue for tracking work across sessions. Tasks persist to `~/.vandelay/task_queue.json` and survive restarts.
+
+**When to create a task:**
+- Any work that will take more than one session or requires follow-up
+- Work you're delegating to a team member
+- Anything you were asked to do but can't finish immediately
+- Multi-step jobs you want to track progress on
+
+**Key tools:**
+- `create_task(title, description, priority, owner)` — create and optionally assign to a team member
+- `check_open_tasks()` — list all pending and in-progress tasks sorted by priority; call this on heartbeat
+- `update_task(task_id, status, result)` — mark progress or completion
+- `complete_task(task_id, result)` — mark done with a summary of what was accomplished
+- `cancel_task(task_id, reason)` — cancel with a reason
+
+**Priority:** 0 = normal, 1 = high, 2 = urgent
+
+**On heartbeat:** Always call `check_open_tasks()` first. If there are open tasks, delegate to the appropriate team member or pick up the highest-priority pending task yourself.
+
 ## Filesystem Navigation
 
 Before searching the filesystem with `find`, `ls`, or `search_files`:

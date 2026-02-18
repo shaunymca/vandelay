@@ -66,12 +66,20 @@ def add_job(
     name: str = typer.Argument(help="Human-readable job name"),
     cron_expression: str = typer.Argument(help="5-field cron expression (e.g. '*/5 * * * *')"),
     command: str = typer.Argument(help="Natural language command for the agent"),
-    timezone: str = typer.Option("UTC", "--tz", "-t", help="Timezone for the schedule"),
+    timezone: str | None = typer.Option(None, "--tz", "-t", help="Timezone (default: your configured timezone)"),
 ):
     """Add a new cron job. It will be picked up on the next server start."""
     from croniter import croniter
 
+    from vandelay.config.settings import load_settings
     from vandelay.scheduler.models import CronJob
+
+    if timezone is None:
+        try:
+            settings = load_settings()
+            timezone = settings.timezone
+        except Exception:
+            timezone = "UTC"
 
     if not croniter.is_valid(cron_expression):
         console.print(f"[red]Invalid cron expression: {cron_expression}[/red]")

@@ -6,6 +6,7 @@ import contextlib
 import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -20,6 +21,15 @@ if TYPE_CHECKING:
     from vandelay.core.chat_service import ChatService
 
 logger = logging.getLogger("vandelay.scheduler.engine")
+
+
+def _resolve_tz(tz_str: str) -> ZoneInfo:
+    """Convert a timezone string to a ZoneInfo object, falling back to UTC."""
+    try:
+        return ZoneInfo(tz_str)
+    except (ZoneInfoNotFoundError, KeyError):
+        logger.warning("Unknown timezone %r, falling back to UTC", tz_str)
+        return ZoneInfo("UTC")
 
 HEARTBEAT_JOB_ID = "__heartbeat__"
 HEARTBEAT_COMMAND = (
@@ -91,9 +101,10 @@ class SchedulerEngine:
         if not croniter.is_valid(job.cron_expression):
             raise ValueError(f"Invalid cron expression: {job.cron_expression}")
 
-        # Compute next_run
-        cron = croniter(job.cron_expression)
-        job.next_run = cron.get_next(datetime).replace(tzinfo=UTC)
+        # Compute next_run in the job's timezone
+        tz = _resolve_tz(job.timezone)
+        cron = croniter(job.cron_expression, datetime.now(tz))
+        job.next_run = cron.get_next(datetime).replace(tzinfo=tz).astimezone(UTC)
 
         self._store.add(job)
         if job.enabled and self._scheduler.running:
@@ -128,9 +139,10 @@ class SchedulerEngine:
             return None
         job.enabled = True
 
-        # Recompute next_run
-        cron = croniter(job.cron_expression)
-        job.next_run = cron.get_next(datetime).replace(tzinfo=UTC)
+        # Recompute next_run in the job's timezone
+        tz = _resolve_tz(job.timezone)
+        cron = croniter(job.cron_expression, datetime.now(tz))
+        job.next_run = cron.get_next(datetime).replace(tzinfo=tz).astimezone(UTC)
 
         self._store.update(job)
         if self._scheduler.running:
@@ -154,7 +166,7 @@ class SchedulerEngine:
         message = IncomingMessage(
             text=STARTUP_HEARTBEAT_COMMAND,
             session_id="scheduler-startup",
-            user_id="scheduler",
+            user_id=self._settings.user_id or "default",
             channel="scheduler",
         )
         try:
@@ -183,7 +195,7 @@ class SchedulerEngine:
         message = IncomingMessage(
             text=job.command,
             session_id=f"scheduler-{job.id}",
-            user_id="scheduler",
+            user_id=self._settings.user_id or "default",
             channel="scheduler",
         )
 
@@ -194,9 +206,10 @@ class SchedulerEngine:
         job.run_count += 1
         job.last_result = result.content[:500] if result.content else result.error
 
-        # Recompute next_run
-        cron = croniter(job.cron_expression)
-        job.next_run = cron.get_next(datetime).replace(tzinfo=UTC)
+        # Recompute next_run in the job's timezone
+        tz = _resolve_tz(job.timezone)
+        cron = croniter(job.cron_expression, datetime.now(tz))
+        job.next_run = cron.get_next(datetime).replace(tzinfo=tz).astimezone(UTC)
 
         self._store.update(job)
 
@@ -222,7 +235,7 @@ class SchedulerEngine:
                 day=parts[2],
                 month=parts[3],
                 day_of_week=parts[4],
-                timezone=job.timezone,
+                timezone=_resolve_tz(job.timezone),
             )
             self._scheduler.add_job(
                 self._execute_job,

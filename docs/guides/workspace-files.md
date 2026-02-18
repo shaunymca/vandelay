@@ -40,17 +40,18 @@ Tool usage guidance.
 
 Proactive tasks for the heartbeat system.
 
-- List of things the agent should check periodically
-- Evaluated during each heartbeat interval
-- Only relevant when heartbeat is enabled
+- Loaded into the system prompt so the agent knows its checklist without runtime file reads
+- When the scheduler fires a heartbeat, the agent runs through this file and responds `HEARTBEAT_OK` or alerts you if something needs attention
+- Default checklist: check open tasks, system health, missed jobs, monitored services
+- Only active when heartbeat is enabled in config
 
 ### BOOTSTRAP.md
 
 One-time startup instructions.
 
-- Tasks to run when the agent first starts
-- Initialization checks, welcome messages
-- Evaluated once per server start
+- Included in the system prompt exactly once — the system auto-deletes it on first read
+- Use this for a welcome message, initial setup tasks, or anything the agent should do exactly once
+- To run bootstrap again (e.g. after a fresh install), copy the default template back: `cp $(python -c "import vandelay; print(vandelay.__file__.replace('__init__.py',''))")workspace/templates/BOOTSTRAP.md ~/.vandelay/workspace/BOOTSTRAP.md`
 
 ### MEMORY.md
 

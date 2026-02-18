@@ -20,9 +20,9 @@ Update these files based on the conversation:
 - **USER.md** — Who are they? What do they care about?
 - **SOUL.md** — Who are you? What's your personality?
 
-## Step 3: Self-Destruct
+## Step 3: Done
 
-Once you've had a real conversation and filled in the basics, delete this file. You don't need training wheels anymore.
+Once you've had a real conversation and filled in the basics, you're good. This file has already been automatically removed — it only appears once.
 
 ---
 

@@ -116,16 +116,24 @@ def test_build_prompt_includes_bootstrap(tmp_workspace):
     """Prompt should include BOOTSTRAP.md on first run."""
     prompt = build_system_prompt(workspace_dir=tmp_workspace)
     assert "Bootstrap" in prompt
-    assert "Self-Destruct" in prompt
+    assert "Step 1" in prompt
+
+
+def test_build_prompt_auto_deletes_bootstrap(tmp_workspace):
+    """BOOTSTRAP.md should be auto-deleted after first read."""
+    bootstrap = tmp_workspace / "BOOTSTRAP.md"
+    assert bootstrap.exists()
+    build_system_prompt(workspace_dir=tmp_workspace)
+    assert not bootstrap.exists()
 
 
 def test_build_prompt_excludes_bootstrap_after_removal(tmp_workspace):
-    """Prompt should not include BOOTSTRAP.md after it's deleted."""
+    """Prompt should not include BOOTSTRAP.md after it's been used."""
     bootstrap = tmp_workspace / "BOOTSTRAP.md"
     if bootstrap.exists():
         bootstrap.unlink()
     prompt = build_system_prompt(workspace_dir=tmp_workspace)
-    assert "Self-Destruct" not in prompt
+    assert "Bootstrap" not in prompt
 
 
 def test_build_prompt_includes_tool_catalog(tmp_workspace, prompt_settings):
