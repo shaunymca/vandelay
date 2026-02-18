@@ -359,7 +359,7 @@ def create_agent(
     if scheduler_engine is not None:
         from vandelay.tools.scheduler import SchedulerTools
 
-        tools.append(SchedulerTools(engine=scheduler_engine))
+        tools.append(SchedulerTools(engine=scheduler_engine, default_timezone=settings.timezone))
 
     # Include task queue tools when store is available
     if task_store is not None:
@@ -483,7 +483,7 @@ def create_team(
     if scheduler_engine is not None:
         from vandelay.tools.scheduler import SchedulerTools
 
-        leader_tools.append(SchedulerTools(engine=scheduler_engine))
+        leader_tools.append(SchedulerTools(engine=scheduler_engine, default_timezone=settings.timezone))
 
     # Determine respond_directly based on mode
     mode = settings.team.mode

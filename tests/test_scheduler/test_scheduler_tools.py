@@ -22,6 +22,11 @@ def toolkit(mock_engine) -> SchedulerTools:
     return SchedulerTools(engine=mock_engine)
 
 
+@pytest.fixture
+def toolkit_with_tz(mock_engine) -> SchedulerTools:
+    return SchedulerTools(engine=mock_engine, default_timezone="America/New_York")
+
+
 def test_schedule_job_success(toolkit: SchedulerTools, mock_engine):
     """schedule_job should create a job and return success."""
     mock_engine.add_job.return_value = CronJob(
@@ -36,6 +41,36 @@ def test_schedule_job_success(toolkit: SchedulerTools, mock_engine):
     assert "abc123def456" in result
     assert "Daily check" in result
     mock_engine.add_job.assert_called_once()
+
+
+def test_schedule_job_uses_default_timezone(toolkit_with_tz: SchedulerTools, mock_engine):
+    """schedule_job should inherit the toolkit's default timezone when none is given."""
+    mock_engine.add_job.return_value = CronJob(
+        id="tz123default",
+        name="TZ check",
+        cron_expression="0 9 * * *",
+        command="check",
+        timezone="America/New_York",
+        next_run=datetime(2026, 1, 1, 9, 0, tzinfo=timezone.utc),
+    )
+    toolkit_with_tz.schedule_job("TZ check", "0 9 * * *", "check")
+    called_job: CronJob = mock_engine.add_job.call_args[0][0]
+    assert called_job.timezone == "America/New_York"
+
+
+def test_schedule_job_explicit_timezone_overrides_default(toolkit_with_tz: SchedulerTools, mock_engine):
+    """An explicit timezone arg should override the default."""
+    mock_engine.add_job.return_value = CronJob(
+        id="tz456override",
+        name="Override TZ",
+        cron_expression="0 9 * * *",
+        command="check",
+        timezone="Europe/London",
+        next_run=datetime(2026, 1, 1, 9, 0, tzinfo=timezone.utc),
+    )
+    toolkit_with_tz.schedule_job("Override TZ", "0 9 * * *", "check", timezone="Europe/London")
+    called_job: CronJob = mock_engine.add_job.call_args[0][0]
+    assert called_job.timezone == "Europe/London"
 
 
 def test_schedule_job_invalid_cron(toolkit: SchedulerTools, mock_engine):

@@ -39,19 +39,29 @@ Standard 5-field cron syntax: `minute hour day month weekday`
 
 ### Timezones
 
-Timezone is respected for both cron jobs and the heartbeat. Always specify it when creating a job:
+Cron jobs and the heartbeat default to your configured timezone (set during onboarding or via `/config` → Timezone). You don't need to specify it every time:
 
 ```
-You: Schedule a daily report at 9am Eastern time
+You: Schedule a daily report at 9am
 ```
 
-Or via CLI:
+To override for a specific job, include the timezone in your request:
+
+```
+You: Schedule a weekly backup at midnight London time
+```
+
+Or via CLI (omit `--tz` to use your configured timezone):
 
 ```bash
-vandelay cron add --name "daily-report" --schedule "0 9 * * *" --command "Generate daily report" --timezone "America/New_York"
+vandelay cron add "daily-report" "0 9 * * *" "Generate daily report"
+# Uses settings.timezone automatically
+
+vandelay cron add "london-backup" "0 0 * * 0" "Weekly backup" --tz "Europe/London"
+# Explicit override
 ```
 
-If no timezone is specified, UTC is used.
+To change your default timezone: `vandelay config` → Timezone.
 
 ### How Cron Jobs Execute
 

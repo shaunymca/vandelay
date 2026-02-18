@@ -19,9 +19,10 @@ logger = logging.getLogger("vandelay.tools.scheduler")
 class SchedulerTools(Toolkit):
     """Lets the agent schedule, list, pause, resume, and delete cron jobs."""
 
-    def __init__(self, engine: SchedulerEngine) -> None:
+    def __init__(self, engine: SchedulerEngine, default_timezone: str = "UTC") -> None:
         super().__init__(name="scheduler")
         self._engine = engine
+        self._default_tz = default_timezone
 
         self.register(self.schedule_job)
         self.register(self.list_scheduled_jobs)
@@ -35,7 +36,7 @@ class SchedulerTools(Toolkit):
         name: str,
         cron_expression: str,
         command: str,
-        timezone: str = "UTC",
+        timezone: str | None = None,
     ) -> str:
         """Create a new recurring scheduled job.
 
@@ -47,11 +48,13 @@ class SchedulerTools(Toolkit):
             name: Human-readable name for the job (e.g. "Daily email check").
             cron_expression: Standard 5-field cron (e.g. "0 9 * * *" = every day at 9am).
             command: Natural language instruction to execute when the job fires.
-            timezone: Timezone for the schedule (default UTC).
+            timezone: Timezone for the schedule. Defaults to the user's configured timezone.
+                      Use IANA names like "America/New_York" or "Europe/London".
 
         Returns:
             str: Success message with job ID, or error description.
         """
+        tz = timezone or self._default_tz
         if not croniter.is_valid(cron_expression):
             return (
                 f"Invalid cron expression: '{cron_expression}'. "
@@ -63,7 +66,7 @@ class SchedulerTools(Toolkit):
             name=name,
             cron_expression=cron_expression,
             command=command,
-            timezone=timezone,
+            timezone=tz,
         )
 
         try:
