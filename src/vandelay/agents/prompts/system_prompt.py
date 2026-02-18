@@ -201,6 +201,10 @@ def build_system_prompt(
     if memory:
         sections.append(memory)
 
+    heartbeat = get_template_content("HEARTBEAT.md", workspace_dir)
+    if heartbeat:
+        sections.append(heartbeat)
+
     # Bootstrap is included only on first run — the agent should
     # delete it from the workspace after the introductory conversation.
     # We check the workspace directly (no fallback to shipped default)
@@ -484,6 +488,10 @@ def build_team_leader_prompt(
     memory = get_template_content("MEMORY.md", workspace_dir)
     if memory:
         sections.append(memory)
+
+    heartbeat = get_template_content("HEARTBEAT.md", workspace_dir)
+    if heartbeat:
+        sections.append(heartbeat)
 
     # Bootstrap — same logic as standalone prompt
     if workspace_dir:

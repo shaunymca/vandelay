@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ModelConfig(BaseModel):
@@ -58,6 +58,19 @@ class HeartbeatConfig(BaseModel):
     active_hours_start: int = 8   # 24h format
     active_hours_end: int = 22
     timezone: str = "UTC"
+
+    @model_validator(mode="after")
+    def validate_active_hours(self) -> "HeartbeatConfig":
+        if not 0 <= self.active_hours_start <= 23:
+            raise ValueError(f"active_hours_start must be 0-23, got {self.active_hours_start}")
+        if not 0 <= self.active_hours_end <= 23:
+            raise ValueError(f"active_hours_end must be 0-23, got {self.active_hours_end}")
+        if self.active_hours_start >= self.active_hours_end:
+            raise ValueError(
+                f"active_hours_start ({self.active_hours_start}) must be less than "
+                f"active_hours_end ({self.active_hours_end})"
+            )
+        return self
 
 
 class ServerConfig(BaseModel):
