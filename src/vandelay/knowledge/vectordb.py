@@ -36,8 +36,11 @@ def create_vector_db(
         return vdb
 
     logger.warning(
-        "No vector database available. "
-        "Install chromadb (uv add chromadb) or lancedb (uv add lancedb)."
+        "No vector database available — knowledge will be disabled. "
+        "Install a vector DB to enable it: "
+        "Apple Silicon / Linux / Windows x86_64: uv add chromadb  |  "
+        "Intel Mac (x86_64): uv add lancedb (requires Rust toolchain from rustup.rs)  |  "
+        "Or set an OpenAI/Google API key to use a hosted embedder without a local vector DB."
     )
     return None
 
