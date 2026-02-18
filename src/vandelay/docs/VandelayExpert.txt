@@ -1,0 +1,63 @@
+# Vandelay Expert Reference
+
+> This file is the focused knowledge reference for the Vandelay Expert agent.
+> It covers only the pages needed to manage agents, tools, teams, scheduling, and custom toolkits.
+> For the full documentation index, see: https://shaunymca.github.io/vandelay/llms.txt
+
+## What the Vandelay Expert Does
+
+The Vandelay Expert is Vandelay's built-in agent builder and platform authority. It helps users:
+
+- Design, create, test, and improve team member agents
+- Write and edit member instructions and personas
+- Assign and scope tools to the right specialists
+- Apply starter templates (14 available personas)
+- Set up cron jobs and configure the heartbeat
+- Add, remove, and reconfigure team members
+- Diagnose underperforming agents (prompt issues, tool mismatches, token overflow)
+- Scaffold custom toolkits when built-in tools don't cover a use case
+
+---
+
+## Agents
+
+- [Agents](https://shaunymca.github.io/vandelay/concepts/agents/): Agent lifecycle, workspace files, how the system prompt is assembled from markdown templates
+
+## Teams
+
+- [Teams](https://shaunymca.github.io/vandelay/concepts/teams/): Supervisor model, team modes (coordinate/route/broadcast/tasks), member config schema, the vandelay-expert preset, defining custom members in config.json
+
+## Agent Templates
+
+- [Agent Templates](https://shaunymca.github.io/vandelay/guides/agent-templates/): 14 starter templates (CTO, DevOps, Researcher, Writer, etc.), how to apply them, how to author new ones, template file format
+
+## Workspace Files
+
+- [Workspace Files](https://shaunymca.github.io/vandelay/guides/workspace-files/): Annotated defaults for SOUL.md, USER.md, AGENTS.md, TOOLS.md, HEARTBEAT.md, BOOTSTRAP.md, MEMORY.md — how each file shapes agent behavior
+
+## Your First Team
+
+- [Your First Team](https://shaunymca.github.io/vandelay/guides/first-team/): Step-by-step guide to setting up a team with multiple specialists, assigning tools, and testing delegation
+
+## Custom Tools
+
+- [Custom Tools](https://shaunymca.github.io/vandelay/guides/custom-tool/): How to build a toolkit using the @tool decorator or Toolkit subclass, register it with Vandelay, and assign it to a team member
+
+## Tool Catalog
+
+- [Tool Catalog](https://shaunymca.github.io/vandelay/tools/): 100+ available tools grouped by category with slugs (use slugs with `vandelay tools enable <slug>`)
+- [Built-in Tools](https://shaunymca.github.io/vandelay/tools/built-in/): Shell, File, Python, Camoufox, Scheduler, Notify, Deep Work, Workspace, Member Management, Tool Management, Task Queue
+
+## Scheduling
+
+- [Scheduling](https://shaunymca.github.io/vandelay/guides/scheduling/): Cron job syntax, heartbeat configuration, active hours, APScheduler engine
+
+## CLI Reference (Expert-Relevant Commands)
+
+- [config](https://shaunymca.github.io/vandelay/cli/config/): Interactive configuration editor — change team members, model, tools, safety mode
+- [tools](https://shaunymca.github.io/vandelay/cli/tools/): Enable, disable, list, and search tools by slug
+- [cron](https://shaunymca.github.io/vandelay/cli/cron/): Add, list, pause, resume, and remove cron jobs
+
+## Configuration Reference
+
+- [Configuration Reference](https://shaunymca.github.io/vandelay/configuration/): Full config.json schema — pay attention to the `team`, `members`, and `tools` sections for agent management tasks

@@ -13,17 +13,6 @@ from vandelay.config.constants import CORPUS_VERSIONS_FILE
 
 logger = logging.getLogger("vandelay.knowledge.corpus")
 
-# URL path prefixes to keep from Agno llms-full.txt
-AGNO_SECTION_PREFIXES: list[str] = [
-    "/tools/",
-    "/agents/",
-    "/teams/",
-    "/memory/",
-    "/knowledge/",
-    "/context/",
-    "/basics/",
-]
-
 
 @dataclass(frozen=True)
 class RemoteCorpusSource:
@@ -36,20 +25,14 @@ class RemoteCorpusSource:
 
 @dataclass(frozen=True)
 class LocalCorpusSource:
-    """A markdown file shipped in the ``vandelay.docs`` package."""
+    """A file shipped in the ``vandelay.docs`` package."""
 
     name: str
     filename: str
 
 
 CORPUS_SOURCES: list[RemoteCorpusSource | LocalCorpusSource] = [
-    RemoteCorpusSource(
-        "Agno Documentation",
-        "https://docs.agno.com/llms-full.txt",
-        AGNO_SECTION_PREFIXES,
-    ),
-    LocalCorpusSource("Vandelay Config Reference", "CONFIG.md"),
-    LocalCorpusSource("Vandelay Operations Guide", "OPERATIONS.md"),
+    LocalCorpusSource("Vandelay Expert Reference", "VandelayExpert.txt"),
 ]
 
 # Backward compat — existing code may import CORPUS_URLS

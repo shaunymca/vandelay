@@ -46,16 +46,18 @@ def create_embedder(settings: Settings) -> Any | None:
 
 def _build_openai(settings: Settings) -> Any | None:
     ecfg = settings.knowledge.embedder
+    api_key = ecfg.api_key or os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        logger.info("No OPENAI_API_KEY found — falling back to local fastembed embedder.")
+        return _build_fastembed(settings)
+
     try:
         from agno.knowledge.embedder.openai import OpenAIEmbedder
     except ImportError:
-        logger.warning("openai package not installed — cannot create OpenAI embedder.")
-        return None
+        logger.warning("openai package not installed — falling back to local fastembed embedder.")
+        return _build_fastembed(settings)
 
-    kwargs: dict[str, Any] = {}
-    api_key = ecfg.api_key or os.environ.get("OPENAI_API_KEY")
-    if api_key:
-        kwargs["api_key"] = api_key
+    kwargs: dict[str, Any] = {"api_key": api_key}
     if ecfg.model:
         kwargs["id"] = ecfg.model
     if ecfg.base_url:
@@ -65,16 +67,18 @@ def _build_openai(settings: Settings) -> Any | None:
 
 def _build_google(settings: Settings) -> Any | None:
     ecfg = settings.knowledge.embedder
+    api_key = ecfg.api_key or os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        logger.info("No GOOGLE_API_KEY found — falling back to local fastembed embedder.")
+        return _build_fastembed(settings)
+
     try:
         from agno.knowledge.embedder.google import GeminiEmbedder
     except ImportError:
-        logger.warning("google-genai package not installed — cannot create Gemini embedder.")
-        return None
+        logger.warning("google-genai package not installed — falling back to local fastembed embedder.")
+        return _build_fastembed(settings)
 
-    kwargs: dict[str, Any] = {}
-    api_key = ecfg.api_key or os.environ.get("GOOGLE_API_KEY")
-    if api_key:
-        kwargs["api_key"] = api_key
+    kwargs: dict[str, Any] = {"api_key": api_key}
     if ecfg.model:
         kwargs["id"] = ecfg.model
     return GeminiEmbedder(**kwargs)
