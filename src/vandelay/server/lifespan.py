@@ -38,17 +38,17 @@ async def lifespan(app: FastAPI):
             "Set VANDELAY_SECRET_KEY in ~/.vandelay/.env."
         )
 
-    # Suggest memory migration if needed
+    # Auto-migrate MEMORY.md → DB on startup (idempotent)
     try:
-        from vandelay.core.memory_migration import check_migration_needed
+        from vandelay.core.memory_migration import check_migration_needed, migrate_memory_to_db
 
         if check_migration_needed(settings):
-            logger.info(
-                "MEMORY.md has entries that can be migrated to native memory. "
-                "Run: vandelay memory migrate"
-            )
+            from vandelay.memory.setup import create_db
+
+            result = migrate_memory_to_db(settings, db=create_db(settings))
+            logger.info("Auto-migrated %d memories from MEMORY.md to native DB.", result.imported)
     except Exception:
-        pass  # Non-critical — don't block startup
+        logger.warning("Memory auto-migration failed — run: vandelay memory migrate")
 
     # Background corpus indexing (non-blocking).
     # Skip on first run (no corpus_versions.json yet) to avoid a ~130MB

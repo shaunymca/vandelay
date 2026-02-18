@@ -47,15 +47,14 @@ def toolkit_with_db(test_settings: Settings, mock_db: MagicMock) -> WorkspaceToo
 
 
 class TestAppendMethods:
-    def test_update_memory_appends_timestamped_entry(
+    def test_update_memory_returns_warning_without_db(
         self, toolkit: WorkspaceTools, workspace_dir: Path
     ):
+        """Without a DB, update_memory returns a warning and writes no file."""
         result = toolkit.update_memory("User likes dark mode")
-        assert "Appended to MEMORY.md" in result
-
-        content = (workspace_dir / "MEMORY.md").read_text(encoding="utf-8")
-        assert "User likes dark mode" in content
-        assert "UTC]" in content  # timestamp present
+        assert "Warning" in result
+        assert "DB unavailable" in result or "not saved" in result
+        assert not (workspace_dir / "MEMORY.md").exists()
 
     def test_update_user_profile_appends(
         self, toolkit: WorkspaceTools, workspace_dir: Path
@@ -74,14 +73,6 @@ class TestAppendMethods:
 
         content = (workspace_dir / "TOOLS.md").read_text(encoding="utf-8")
         assert "Shell runs in trust mode" in content
-
-    def test_creates_file_if_missing(
-        self, toolkit: WorkspaceTools, workspace_dir: Path
-    ):
-        """Appending to a file that doesn't exist yet should create it."""
-        assert not (workspace_dir / "MEMORY.md").exists()
-        toolkit.update_memory("first entry")
-        assert (workspace_dir / "MEMORY.md").exists()
 
 
 class TestReadWorkspaceFile:
@@ -117,13 +108,19 @@ class TestReplaceWorkspaceFile:
     def test_replace_writable_file(
         self, toolkit: WorkspaceTools, workspace_dir: Path
     ):
-        (workspace_dir / "MEMORY.md").write_text("old stuff", encoding="utf-8")
-        result = toolkit.replace_workspace_file("MEMORY.md", "# Fresh Start\n")
-        assert "Replaced MEMORY.md" in result
+        (workspace_dir / "USER.md").write_text("old stuff", encoding="utf-8")
+        result = toolkit.replace_workspace_file("USER.md", "# Fresh Start\n")
+        assert "Replaced USER.md" in result
 
-        content = (workspace_dir / "MEMORY.md").read_text(encoding="utf-8")
+        content = (workspace_dir / "USER.md").read_text(encoding="utf-8")
         assert content == "# Fresh Start\n"
         assert "old stuff" not in content
+
+    def test_replace_memory_rejected(self, toolkit: WorkspaceTools):
+        """MEMORY.md is no longer in _WRITABLE_FILES — should be rejected."""
+        result = toolkit.replace_workspace_file("MEMORY.md", "hacked")
+        assert "Error" in result
+        assert "read-only" in result
 
     def test_replace_readonly_file_rejected(self, toolkit: WorkspaceTools):
         result = toolkit.replace_workspace_file("SOUL.md", "hacked")
@@ -157,20 +154,22 @@ class TestDbBackedMemory:
         # Should NOT have written to file
         assert not (workspace_dir / "MEMORY.md").exists()
 
-    def test_update_memory_falls_back_to_file_without_db(
+    def test_update_memory_returns_warning_without_db(
         self, toolkit: WorkspaceTools, workspace_dir: Path
     ):
-        result = toolkit.update_memory("Fallback entry")
-        assert "Appended to MEMORY.md" in result
-        assert (workspace_dir / "MEMORY.md").exists()
+        """Without a DB, update_memory returns a warning — no file fallback."""
+        result = toolkit.update_memory("No DB entry")
+        assert "Warning" in result
+        assert not (workspace_dir / "MEMORY.md").exists()
 
-    def test_update_memory_falls_back_on_db_error(
+    def test_update_memory_returns_warning_on_db_error(
         self, toolkit_with_db: WorkspaceTools, mock_db: MagicMock, workspace_dir: Path
     ):
+        """On DB error, update_memory returns a warning — no file fallback."""
         mock_db.upsert_user_memory.side_effect = RuntimeError("DB error")
         result = toolkit_with_db.update_memory("Error entry")
-        assert "Appended to MEMORY.md" in result
-        assert (workspace_dir / "MEMORY.md").exists()
+        assert "Warning" in result
+        assert not (workspace_dir / "MEMORY.md").exists()
 
     def test_other_append_methods_unaffected_by_db(
         self, toolkit_with_db: WorkspaceTools, mock_db: MagicMock, workspace_dir: Path

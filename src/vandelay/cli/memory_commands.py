@@ -16,7 +16,7 @@ console = Console()
 
 @app.command()
 def status():
-    """Show current memory state — file entries and DB memories."""
+    """Show current memory state — DB memories and any archived file entries."""
     from vandelay.config.settings import Settings, get_settings
 
     if not Settings.config_exists():
@@ -24,17 +24,6 @@ def status():
         raise typer.Exit(1)
 
     settings = get_settings()
-
-    # Count MEMORY.md entries
-    from pathlib import Path
-
-    from vandelay.core.memory_migration import parse_memory_entries
-
-    memory_path = Path(settings.workspace_dir) / "MEMORY.md"
-    file_entries = 0
-    if memory_path.exists():
-        content = memory_path.read_text(encoding="utf-8")
-        file_entries = len(parse_memory_entries(content))
 
     # Count DB memories
     from vandelay.memory.setup import create_db
@@ -52,6 +41,17 @@ def status():
             if m.topics and "imported_from_workspace" in m.topics
         ]
 
+    # Check if MEMORY.md still has entries (pre-migration archive)
+    from pathlib import Path
+
+    from vandelay.core.memory_migration import parse_memory_entries
+
+    memory_path = Path(settings.workspace_dir) / "MEMORY.md"
+    file_entries = 0
+    if memory_path.exists():
+        content = memory_path.read_text(encoding="utf-8")
+        file_entries = len(parse_memory_entries(content))
+
     console.print()
     console.print("[bold]Memory Status[/bold]")
     console.print()
@@ -60,14 +60,14 @@ def status():
     table.add_column("Label", style="bold")
     table.add_column("Value")
 
-    table.add_row("MEMORY.md entries", str(file_entries))
     table.add_row("DB memories (total)", str(db_count))
-    table.add_row("DB memories (imported)", str(len(imported)))
+    table.add_row("DB memories (from file import)", str(len(imported)))
 
     if file_entries > 0:
-        table.add_row("Migration", "[yellow]pending[/yellow] — run `vandelay memory migrate`")
-    else:
-        table.add_row("Migration", "[green]complete[/green] (or no file entries)")
+        table.add_row(
+            "MEMORY.md (archive)",
+            f"[yellow]{file_entries} entries[/yellow] — will be auto-migrated on next server start",
+        )
 
     console.print(table)
     console.print()

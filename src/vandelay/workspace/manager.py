@@ -40,15 +40,6 @@ def init_workspace(workspace_dir: Path | None = None) -> Path:
             if src.exists():
                 shutil.copy2(src, dest)
 
-    # Create empty MEMORY.md for curated long-term memory
-    memory_file = ws / "MEMORY.md"
-    if not memory_file.exists():
-        memory_file.write_text(
-            "# Memory\n\nCurated long-term memories."
-            " Update when something significant happens.\n",
-            encoding="utf-8",
-        )
-
     return ws
 
 

@@ -106,12 +106,6 @@ def test_build_prompt_includes_tools(tmp_workspace):
     assert "Shell Commands" in prompt
 
 
-def test_build_prompt_includes_memory(tmp_workspace):
-    """Prompt should include MEMORY.md content."""
-    prompt = build_system_prompt(workspace_dir=tmp_workspace)
-    assert "Memory" in prompt
-
-
 def test_build_prompt_includes_bootstrap(tmp_workspace):
     """Prompt should include BOOTSTRAP.md on first run."""
     prompt = build_system_prompt(workspace_dir=tmp_workspace)
@@ -227,13 +221,6 @@ class TestTeamLeaderPrompt:
             workspace_dir=tmp_workspace, settings=team_settings,
         )
         assert "Timezone" in prompt
-
-    def test_leader_prompt_includes_memory(self, tmp_workspace, team_settings):
-        """Leader prompt should include MEMORY.md."""
-        prompt = build_team_leader_prompt(
-            workspace_dir=tmp_workspace, settings=team_settings,
-        )
-        assert "Memory" in prompt
 
     def test_leader_prompt_includes_roster(self, tmp_workspace, team_settings):
         """Leader prompt should include the member roster."""
