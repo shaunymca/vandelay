@@ -21,20 +21,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Legacy string → tool mapping for backward-compatible member names
-_LEGACY_TOOL_MAP: dict[str, list[str]] = {
-    "browser": ["crawl4ai", "camoufox"],
-    "system": ["shell", "file", "python"],
-    "scheduler": [],    # uses SchedulerTools injection
-    "knowledge": [],    # uses search_knowledge
+# Named presets: maps known member names to their default tools and roles
+_PRESET_TOOL_MAP: dict[str, list[str]] = {
     "vandelay-expert": ["file", "python", "shell"],
 }
 
-_LEGACY_ROLE_MAP: dict[str, str] = {
-    "browser": "Web browsing, scraping, and screenshot specialist",
-    "system": "Shell commands, file operations, and package management specialist",
-    "scheduler": "Cron jobs, reminders, and recurring task specialist",
-    "knowledge": "Document search and RAG query specialist",
+_PRESET_ROLE_MAP: dict[str, str] = {
     "vandelay-expert": (
         "Agent builder — designs, creates, tests, and improves team member agents"
     ),
@@ -204,8 +196,8 @@ def _resolve_member(member: str | MemberConfig) -> MemberConfig:
     name = member
     mc = MemberConfig(
         name=name,
-        role=_LEGACY_ROLE_MAP.get(name, ""),
-        tools=list(_LEGACY_TOOL_MAP.get(name, [])),
+        role=_PRESET_ROLE_MAP.get(name, ""),
+        tools=list(_PRESET_TOOL_MAP.get(name, [])),
     )
 
     # Auto-bootstrap template instructions if available
@@ -262,12 +254,6 @@ def _build_member_agent(
     if tool_names:
         manager = ToolManager()
         tools = manager.instantiate_tools(tool_names, settings=settings)
-
-    # Scheduler member gets SchedulerTools injected
-    if mc.name == "scheduler" and scheduler_engine is not None:
-        from vandelay.tools.scheduler import SchedulerTools
-
-        tools.append(SchedulerTools(engine=scheduler_engine))
 
     # All members get task queue tools
     if task_store is not None:

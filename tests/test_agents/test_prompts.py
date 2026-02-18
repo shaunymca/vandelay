@@ -327,11 +327,11 @@ class TestBuildMemberRoster:
         settings = Settings(
             agent_name="Test",
             model=ModelConfig(provider="ollama"),
-            team=TeamConfig(enabled=True, members=["browser"]),
+            team=TeamConfig(enabled=True, members=["vandelay-expert"]),
             workspace_dir=str(tmp_path),
         )
         result = _build_member_roster(settings)
-        assert "| browser |" in result
+        assert "| vandelay-expert |" in result
 
 
 # --- Deep work prompt tests ---
@@ -422,7 +422,7 @@ class TestDeepWorkPrompt:
             agent_name="Test",
             model=ModelConfig(provider="ollama"),
             deep_work=DeepWorkConfig(enabled=True),
-            team=TeamConfig(enabled=True, members=["browser"]),
+            team=TeamConfig(enabled=True, members=[]),
             enabled_tools=[],
             workspace_dir=str(tmp_workspace),
             db_url="",
@@ -438,7 +438,7 @@ class TestDeepWorkPrompt:
             agent_name="Test",
             model=ModelConfig(provider="ollama"),
             deep_work=DeepWorkConfig(enabled=False),
-            team=TeamConfig(enabled=True, members=["browser"]),
+            team=TeamConfig(enabled=True, members=[]),
             enabled_tools=[],
             workspace_dir=str(tmp_workspace),
             db_url="",

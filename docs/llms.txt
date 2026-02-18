@@ -1,0 +1,60 @@
+# Vandelay
+
+> An always-on AI agent platform built on Agno.
+
+Vandelay gives you a self-hosted AI agent that runs 24/7 with memory, tools, scheduling, and multi-channel access.
+
+## Docs
+
+- [Home](index.md): Overview, features, quick install
+- [Getting Started](getting-started/index.md): What is Vandelay, architecture overview
+- [Installation](getting-started/installation.md): Prerequisites, uv install, platform notes
+- [Quickstart](getting-started/quickstart.md): Install → onboard → first message in <5 min
+
+## Concepts
+
+- [Architecture](concepts/architecture.md): System diagram, component overview, data flow
+- [Agents](concepts/agents.md): Agent lifecycle, workspace files, system prompt assembly
+- [Teams](concepts/teams.md): Supervisor model, specialist delegation, team modes
+- [Memory](concepts/memory.md): Session history, agentic memory, workspace files
+- [Knowledge](concepts/knowledge.md): RAG pipeline, embedders, vector store
+- [Channels](concepts/channels.md): Terminal, Telegram, WhatsApp, WebSocket
+- [Safety](concepts/safety.md): Safety modes, blocked patterns, sandboxing
+
+## Guides
+
+- [Your First Team](guides/first-team.md): Set up a team with specialist members
+- [Custom Tools](guides/custom-tool.md): Build a toolkit with @tool or Toolkit subclass
+- [Telegram Setup](guides/telegram-setup.md): BotFather → config → webhook → test
+- [Google Services](guides/google-services.md): OAuth setup for Gmail, Calendar, Drive, Sheets
+- [Scheduling](guides/scheduling.md): Cron jobs, heartbeat, active hours
+- [Agent Templates](guides/agent-templates.md): 14 starter templates, customization
+- [Workspace Files](guides/workspace-files.md): SOUL.md, USER.md, AGENTS.md, and more
+
+## Tools
+
+- [Tool Catalog](tools/index.md): 100+ tools grouped by category
+- [Built-in Tools](tools/built-in.md): Shell, File, Python, Camoufox, Scheduler, Notify
+
+## CLI Reference
+
+- [Overview](cli/index.md): All commands and global options
+- [onboard](cli/onboard.md): Interactive setup wizard
+- [start](cli/start.md): Start server and terminal chat
+- [config](cli/config.md): Interactive configuration editor
+- [tools](cli/tools.md): Enable, disable, list, search tools
+- [cron](cli/cron.md): Manage cron jobs
+- [knowledge](cli/knowledge.md): Manage RAG corpus
+- [memory](cli/memory.md): View and manage agent memory
+- [daemon](cli/daemon.md): Install and manage background daemon
+
+## Reference
+
+- [Configuration](configuration/index.md): Full config.json schema, env vars, examples
+
+## Deployment
+
+- [Overview](deployment/index.md): Deployment options and architecture
+- [VPS Setup](deployment/vps.md): Ubuntu/Debian install, systemd, Nginx, TLS
+- [Security](deployment/security.md): API keys, JWT, Telegram lock, safety modes
+- [Troubleshooting](deployment/troubleshooting.md): Common issues, debugging, FAQ
