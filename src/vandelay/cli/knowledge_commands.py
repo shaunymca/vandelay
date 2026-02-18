@@ -50,24 +50,20 @@ def _ensure_knowledge():
         raise typer.Exit(1)
 
     try:
-        from agno.vectordb.lancedb import LanceDb
-    except ImportError:
-        console.print("[red]lancedb not installed.[/red] Run: uv add lancedb")
-        raise typer.Exit(1) from None
-
-    from vandelay.config.constants import VANDELAY_HOME
-
-    vector_db = LanceDb(
-        uri=str(VANDELAY_HOME / "data" / "knowledge_vectors"),
-        table_name="vandelay_knowledge",
-        embedder=embedder,
-    )
-
-    try:
         from agno.knowledge.knowledge import Knowledge
     except ImportError:
         console.print("[red]agno knowledge package not available.[/red]")
         raise typer.Exit(1) from None
+
+    from vandelay.knowledge.vectordb import create_vector_db
+
+    vector_db = create_vector_db(embedder)
+    if vector_db is None:
+        console.print(
+            "[red]No vector database available.[/red] "
+            "Install chromadb (uv add chromadb) or lancedb (uv add lancedb)."
+        )
+        raise typer.Exit(1)
 
     knowledge = Knowledge(name="vandelay-knowledge", vector_db=vector_db)
     return knowledge, vector_db
@@ -135,17 +131,9 @@ def list_documents():
     """Show loaded documents and vector count."""
     knowledge, vector_db = _ensure_knowledge()
 
-    try:
-        # LanceDb exposes table info
-        if hasattr(vector_db, "table") and vector_db.table is not None:
-            count = vector_db.table.count_rows()
-        elif hasattr(vector_db, "_table") and vector_db._table is not None:
-            count = vector_db._table.count_rows()
-        else:
-            # Try to access via search with empty query to trigger table creation
-            count = 0
-    except Exception:
-        count = 0
+    from vandelay.knowledge.vectordb import get_vector_count
+
+    count = get_vector_count(vector_db)
 
     if count == 0:
         console.print("[dim]No documents in the knowledge base.[/dim]")
@@ -218,23 +206,16 @@ def knowledge_status():
     # Try to get vector count
     try:
         from vandelay.knowledge.embedder import create_embedder
+        from vandelay.knowledge.vectordb import create_vector_db, get_vector_count
 
         embedder = create_embedder(settings)
         if embedder:
-            from agno.vectordb.lancedb import LanceDb
-
-            vdb = LanceDb(
-                uri=str(db_path),
-                table_name="vandelay_knowledge",
-                embedder=embedder,
-            )
-            if hasattr(vdb, "table") and vdb.table is not None:
-                count = vdb.table.count_rows()
-            elif hasattr(vdb, "_table") and vdb._table is not None:
-                count = vdb._table.count_rows()
+            vdb = create_vector_db(embedder)
+            if vdb is not None:
+                count = get_vector_count(vdb)
+                console.print(f"  [bold]Vectors:[/bold]    {count}")
             else:
-                count = 0
-            console.print(f"  [bold]Vectors:[/bold]    {count}")
+                console.print("  [bold]Vectors:[/bold]    [yellow]no vector DB available[/yellow]")
         else:
             console.print("  [bold]Vectors:[/bold]    [yellow]embedder unavailable[/yellow]")
     except Exception:
