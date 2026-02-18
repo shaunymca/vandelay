@@ -33,7 +33,7 @@ Vandelay gives you a self-hosted AI agent that runs 24/7 with memory, tools, sch
 
 ## Tools
 
-- [Tool Catalog](tools/index.md): 100+ tools grouped by category
+- [Tool Catalog](tools/index.md): 117 tools grouped by category
 - [Built-in Tools](tools/built-in.md): Shell, File, Python, Camoufox, Scheduler, Notify
 
 ## CLI Reference

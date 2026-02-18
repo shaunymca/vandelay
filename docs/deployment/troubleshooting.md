@@ -21,7 +21,7 @@ journalctl --user -u vandelay -f
 **Verify config is valid:**
 
 ```bash
-vandelay config  # Opens the config editor — will show parse errors
+vandelay config  # Opens the config editor (will show parse errors)
 ```
 
 ## Telegram Bot Not Working

@@ -55,8 +55,8 @@ Without this, anyone who finds your bot can chat with it.
 
 For production servers:
 
-- **`tiered`** (recommended) — Auto-approves safe commands, blocks dangerous ones, confirms everything else
-- **`trust`** — Only use on isolated, dedicated servers where the agent needs full autonomy
+- **`tiered`** (recommended): Auto-approves safe commands, blocks dangerous ones, confirms everything else
+- **`trust`**: Only use on isolated, dedicated servers where the agent needs full autonomy
 
 ```json
 {
@@ -70,7 +70,7 @@ For production servers:
 
 - **Bind to localhost** if using a reverse proxy: set `"host": "127.0.0.1"` in server config
 - **Use TLS** via Nginx + Let's Encrypt (see [VPS guide](vps.md))
-- **Firewall** — Only expose ports 22, 80, 443
+- **Firewall:** Only expose ports 22, 80, 443
 
 ## File Write Protection
 

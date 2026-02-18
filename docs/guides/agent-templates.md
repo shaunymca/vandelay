@@ -11,10 +11,10 @@ Vandelay ships with 14 starter templates for common agent roles. Use them as-is 
 | Sales Executive | Pipeline management, outreach | gmail, googlesheets |
 | Marketer | Content strategy, campaigns | crawl4ai, googlesheets |
 | Personal Assistant | Calendar, email, reminders | gmail, googlecalendar |
-| Chef | Meal planning, recipes | — |
+| Chef | Meal planning, recipes | - |
 | Personal Trainer | Workouts, fitness tracking | googlesheets |
 | Research Analyst | Deep research, reports | tavily, crawl4ai |
-| Vandelay Expert | Agent builder — creates and improves team members | file, python, shell |
+| Vandelay Expert | Agent builder: creates and improves team members | file, python, shell |
 | Writer | Content creation, editing | file |
 | Data Analyst | Data analysis, visualization | python, googlesheets |
 | DevOps | Infrastructure, CI/CD, monitoring | shell, file |
@@ -35,12 +35,12 @@ Select a template from the picker. The template `.md` file is copied to `~/.vand
 
 Each template includes:
 
-- **Role** — What the agent does
-- **Expertise** — Domain knowledge areas
-- **How You Work** — Behavioral patterns and workflows
-- **Boundaries** — What the agent should and shouldn't do
-- **Memory First** — What to check before acting
-- **Tools You Prefer** — Recommended tools for the role
+- **Role:** What the agent does
+- **Expertise:** Domain knowledge areas
+- **How You Work:** Behavioral patterns and workflows
+- **Boundaries:** What the agent should and shouldn't do
+- **Memory First:** What to check before acting
+- **Tools You Prefer:** Recommended tools for the role
 
 ## Customizing Templates
 

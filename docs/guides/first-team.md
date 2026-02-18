@@ -35,8 +35,6 @@ Or edit `config.json` directly:
     "enabled": true,
     "members": [
       "vandelay-expert",
-      "browser",
-      "system",
       {
         "name": "my-researcher",
         "role": "Deep research specialist",
@@ -79,6 +77,6 @@ The supervisor reads `AGENTS.md` from the workspace to decide which member handl
 
 ## Next Steps
 
-- [Agent Templates](agent-templates.md) — Browse all 14 starter templates
-- [Custom Tools](custom-tool.md) — Build tools for your specialists
-- [Teams concept](../concepts/teams.md) — Understand team modes and architecture
+- [Agent Templates](agent-templates.md) - Browse all 14 starter templates
+- [Custom Tools](custom-tool.md) - Build tools for your specialists
+- [Teams concept](../concepts/teams.md) - Understand team modes and architecture

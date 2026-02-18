@@ -6,8 +6,8 @@ Vandelay is built for self-hosted deployment. Your agent runs on your server, wi
 
 | Path | Best For | Guide |
 |------|----------|-------|
-| [VPS](vps.md) | Production — Ubuntu/Debian server with systemd | Recommended |
-| Local | Development — run `vandelay start` on your machine | [Quickstart](../getting-started/quickstart.md) |
+| [VPS](vps.md) | Production: Ubuntu/Debian server with systemd | Recommended |
+| Local | Development: run `vandelay start` on your machine | [Quickstart](../getting-started/quickstart.md) |
 
 ## What You Need
 

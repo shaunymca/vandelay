@@ -10,15 +10,15 @@ theme:
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: deep purple
-      accent: amber
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: deep purple
-      accent: amber
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
@@ -33,6 +33,7 @@ theme:
     - content.code.copy
     - content.action.edit
   icon:
+    logo: material/alpha-v-box-outline
     repo: fontawesome/brands/github
 
 plugins:
@@ -64,15 +65,6 @@ nav:
       - Overview: getting-started/index.md
       - Installation: getting-started/installation.md
       - Quickstart: getting-started/quickstart.md
-  - Concepts:
-      - Overview: concepts/index.md
-      - Architecture: concepts/architecture.md
-      - Agents: concepts/agents.md
-      - Teams: concepts/teams.md
-      - Memory: concepts/memory.md
-      - Knowledge: concepts/knowledge.md
-      - Channels: concepts/channels.md
-      - Safety: concepts/safety.md
   - Guides:
       - Overview: guides/index.md
       - Your First Team: guides/first-team.md
@@ -82,6 +74,20 @@ nav:
       - Scheduling: guides/scheduling.md
       - Agent Templates: guides/agent-templates.md
       - Workspace Files: guides/workspace-files.md
+  - Deployment:
+      - Overview: deployment/index.md
+      - VPS Setup: deployment/vps.md
+      - Security: deployment/security.md
+      - Troubleshooting: deployment/troubleshooting.md
+  - Concepts:
+      - Overview: concepts/index.md
+      - Architecture: concepts/architecture.md
+      - Agents: concepts/agents.md
+      - Teams: concepts/teams.md
+      - Memory: concepts/memory.md
+      - Knowledge: concepts/knowledge.md
+      - Channels: concepts/channels.md
+      - Safety: concepts/safety.md
   - Tools:
       - Tool Catalog: tools/index.md
       - Built-in Tools: tools/built-in.md
@@ -96,8 +102,3 @@ nav:
       - memory: cli/memory.md
       - daemon: cli/daemon.md
   - Configuration: configuration/index.md
-  - Deployment:
-      - Overview: deployment/index.md
-      - VPS Setup: deployment/vps.md
-      - Security: deployment/security.md
-      - Troubleshooting: deployment/troubleshooting.md

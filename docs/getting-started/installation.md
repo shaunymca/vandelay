@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - **Python 3.11+**
-- **[uv](https://docs.astral.sh/uv/)** — Fast Python package manager
+- **[uv](https://docs.astral.sh/uv/):** Fast Python package manager
 - An API key for at least one LLM provider (Anthropic, OpenAI, Google, Ollama, or OpenRouter)
 
 ## Install Vandelay

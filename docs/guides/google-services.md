@@ -16,9 +16,20 @@ Set up Gmail, Google Calendar, Google Drive, and Google Sheets access for your a
     - Google Calendar API
     - Google Drive API
     - Google Sheets API
-4. Go to **Credentials** → **Create Credentials** → **OAuth 2.0 Client ID**
-5. Application type: **Desktop app**
-6. Download the credentials
+4. Go to **OAuth consent screen**:
+    - User type: **External**, status: **Testing**
+    - Add your your agent's or your email as a **test user**
+    - Add these scopes:
+        - `https://www.googleapis.com/auth/gmail.modify`
+        - `https://www.googleapis.com/auth/calendar`
+        - `https://www.googleapis.com/auth/drive`
+        - `https://www.googleapis.com/auth/spreadsheets`
+5. Go to **Credentials** → **Create Credentials** → **OAuth 2.0 Client ID**
+6. Application type: **Desktop app**
+7. Download the credentials (Client ID + Client Secret)
+
+!!! note
+    You don't configure scopes in Vandelay. They're hardcoded and automatically requested during `vandelay auth-google`. You only need to add them to the consent screen in Google Cloud so the OAuth flow is permitted to request them.
 
 ## Step 2: Configure Vandelay
 

@@ -20,7 +20,7 @@ vandelay onboard
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `agent_name` | string | `"Art"` | Display name for the agent |
-| `user_id` | string | `""` | Email or identifier — shared across all channels |
+| `user_id` | string | `""` | Email or identifier, shared across all channels |
 | `timezone` | string | `"UTC"` | Timezone for scheduling and heartbeat active hours |
 | `db_url` | string | `""` | Database URL. Empty = SQLite at `~/.vandelay/data/vandelay.db`. Set to a `postgresql://` URL for Postgres |
 | `workspace_dir` | string | `"~/.vandelay/workspace"` | Directory containing workspace markdown files (SOUL.md, USER.md, etc.) |
@@ -130,19 +130,15 @@ Agent team (supervisor mode) settings.
 |-----|------|---------|-------------|
 | `enabled` | bool | `true` | Enable team mode. When `false`, the main agent handles everything solo |
 | `mode` | string | `"coordinate"` | Team mode: `coordinate`, `route`, `broadcast`, `tasks` |
-| `members` | list | `["vandelay-expert"]` | Team members — strings (legacy names) or full `MemberConfig` objects |
+| `members` | list | `["vandelay-expert"]` | Team members: `"vandelay-expert"` or full `MemberConfig` objects |
 
-### Legacy member names
+### Named preset
 
-These string shortcuts resolve to preconfigured specialists:
+One string shortcut is supported:
 
 | Name | Tools | Role |
 |------|-------|------|
-| `browser` | crawl4ai, camoufox | Web browsing, scraping, screenshots |
-| `system` | shell, file, python | Shell commands, file ops, package management |
-| `scheduler` | *(injected)* | Cron jobs, reminders, recurring tasks |
-| `knowledge` | *(injected)* | Document search, RAG queries |
-| `vandelay-expert` | file, python, shell | Agent builder — designs, creates, tests, and improves team members |
+| `vandelay-expert` | file, python, shell | Agent builder: designs, creates, tests, and improves team members |
 
 ### MemberConfig schema
 

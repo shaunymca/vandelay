@@ -4,7 +4,7 @@ Set up cron jobs, heartbeat, and active hours for autonomous agent behavior.
 
 ## Cron Jobs
 
-Cron jobs let the agent perform tasks on a schedule — checking email, updating spreadsheets, running reports, etc.
+Cron jobs let the agent perform tasks on a schedule: checking email, updating spreadsheets, running reports, and more.
 
 ### Creating via Chat
 
@@ -71,5 +71,5 @@ The agent reads `~/.vandelay/workspace/HEARTBEAT.md` and evaluates each task. Ed
 
 ## Next Steps
 
-- [CLI Reference: cron](../cli/cron.md) — Full cron command reference
-- [Deployment](../deployment/vps.md) — Run scheduling 24/7 on a VPS
+- [CLI Reference: cron](../cli/cron.md) - Full cron command reference
+- [Deployment](../deployment/vps.md) - Run scheduling 24/7 on a VPS

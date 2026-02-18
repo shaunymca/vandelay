@@ -1,6 +1,6 @@
 # vandelay tools
 
-Manage the tool registry — enable, disable, list, and search tools.
+Manage the tool registry: enable, disable, list, and search tools.
 
 ## Usage
 

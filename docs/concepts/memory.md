@@ -8,9 +8,9 @@ Vandelay's memory system gives your agent persistent context across conversation
 
 Agno stores conversation history per session in the SQLite database. Configured with:
 
-- `num_history_runs=2` — Include the last 2 conversation turns for context
-- `max_tool_calls_from_history=5` — Limit tool call results in history to manage tokens
-- `enable_session_summaries=True` — Summarize older sessions for long-term context
+- `num_history_runs=2`: Include the last 2 conversation turns for context
+- `max_tool_calls_from_history=5`: Limit tool call results in history to manage tokens
+- `enable_session_summaries=True`: Summarize older sessions for long-term context
 
 ### 2. Agentic Memory
 

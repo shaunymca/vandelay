@@ -1,6 +1,6 @@
 # Tool Catalog
 
-Vandelay supports 100+ tools from Agno's ecosystem, grouped by category. Enable any tool with `vandelay tools enable <slug>`.
+Vandelay supports 100+ tools from Agno's ecosystem, grouped by category. Enable any tool with `vandelay tools enable <slug>`. For full details on each toolkit, see the [Agno Toolkit Index](https://docs-v1.agno.com/tools/toolkits/toolkits).
 
 ## Categories
 
@@ -80,8 +80,8 @@ vandelay tools search "search"
 
 ## Pricing Notes
 
-- **Free** — No API key needed, runs locally
-- **API key** — Requires a third-party API key (stored in `~/.vandelay/.env`)
-- **Google OAuth** — Uses unified Google OAuth flow (`vandelay auth-google`)
+- **Free:** No API key needed, runs locally
+- **API key:** Requires a third-party API key (stored in `~/.vandelay/.env`)
+- **Google OAuth:** Uses unified Google OAuth flow (`vandelay auth-google`)
 
 See [Built-in Tools](built-in.md) for Vandelay's custom toolkits.

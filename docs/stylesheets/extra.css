@@ -1,11 +1,88 @@
-/* Vandelay docs custom styles */
+/* Vandelay docs — flannel-inspired theme
+   Palette: deep navy + warm red + off-white
+   Goal: warm, readable, distinctive — not garish
+*/
 
-:root {
-  --md-primary-fg-color: #5e35b1;
-  --md-accent-fg-color: #ffb300;
+/* ── Light mode ── */
+[data-md-color-scheme="default"] {
+  /* Primary: deep flannel navy */
+  --md-primary-fg-color:        #2D3B6B;
+  --md-primary-fg-color--light: #3D5088;
+  --md-primary-fg-color--dark:  #1E2A4F;
+  --md-primary-bg-color:        #FFFFFF;
+  --md-primary-bg-color--light: rgba(255, 255, 255, 0.7);
+
+  /* Accent: muted flannel red */
+  --md-accent-fg-color:             #8C2020;
+  --md-accent-fg-color--transparent: rgba(140, 32, 32, 0.1);
+  --md-accent-bg-color:             #FFFFFF;
+
+  /* Page background: warm off-white instead of pure white */
+  --md-default-bg-color:          #F5F0EA;
+  --md-default-fg-color:          #1C1C1C;
+  --md-default-fg-color--light:   rgba(28, 28, 28, 0.54);
+  --md-default-fg-color--lighter: rgba(28, 28, 28, 0.32);
+  --md-default-fg-color--lightest: rgba(28, 28, 28, 0.12);
+
+  /* Code blocks: slightly warm */
+  --md-code-bg-color: #ECE7DF;
+  --md-code-fg-color: #1C1C1C;
+
+  /* Links use the red accent */
+  --md-typeset-a-color: #8C2020;
 }
 
+/* ── Dark mode ── */
 [data-md-color-scheme="slate"] {
-  --md-primary-fg-color: #7e57c2;
-  --md-accent-fg-color: #ffca28;
+  /* Primary: lighter navy so the header doesn't disappear */
+  --md-primary-fg-color:        #3D5088;
+  --md-primary-fg-color--light: #4D62A8;
+  --md-primary-fg-color--dark:  #2D3B6B;
+  --md-primary-bg-color:        #FFFFFF;
+  --md-primary-bg-color--light: rgba(255, 255, 255, 0.7);
+
+  /* Accent: slightly brighter red for dark-mode contrast */
+  --md-accent-fg-color:             #C0392B;
+  --md-accent-fg-color--transparent: rgba(192, 57, 43, 0.1);
+
+  /* Page background: deep navy-charcoal, not pure black */
+  --md-default-bg-color:          #1A1F2C;
+  --md-default-fg-color:          hsla(30, 10%, 92%, 1);
+  --md-default-fg-color--light:   hsla(30, 10%, 92%, 0.62);
+  --md-default-fg-color--lighter: hsla(30, 10%, 92%, 0.32);
+  --md-default-fg-color--lightest: hsla(30, 10%, 92%, 0.12);
+
+  /* Code blocks */
+  --md-code-bg-color: #232939;
+  --md-code-fg-color: #E8E4DE;
+
+  /* Links */
+  --md-typeset-a-color: #D04040;
+}
+
+/* ── Sidebar: faint warm tint in light mode ── */
+[data-md-color-scheme="default"] .md-sidebar {
+  background-color: #EFE9E1;
+}
+
+/* ── Nav items: subtle hover warmth ── */
+[data-md-color-scheme="default"] .md-nav__link:hover {
+  color: #8C2020;
+}
+
+/* ── Headings: navy in light, warm off-white in dark ── */
+[data-md-color-scheme="default"] .md-typeset h1,
+[data-md-color-scheme="default"] .md-typeset h2 {
+  color: #2D3B6B;
+}
+
+/* ── Admonitions: red left-border for note/tip ── */
+.md-typeset .admonition,
+.md-typeset details {
+  border-left-width: 4px;
+}
+
+/* ── Code copy button: use accent color ── */
+.md-clipboard:hover {
+  color: var(--md-accent-fg-color);
 }

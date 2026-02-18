@@ -5,7 +5,7 @@ Vandelay includes a RAG (Retrieval-Augmented Generation) pipeline for giving you
 ## How It Works
 
 ```
-Documents → Chunking → Embedding → LanceDB Vector Store
+Documents → Chunking → Embedding → ChromaDB Vector Store
                                         ↓
                               Agent queries knowledge
                                         ↓
@@ -42,7 +42,7 @@ The embedder is auto-resolved from your model provider:
 | Anthropic | fastembed (local) | `BAAI/bge-small-en-v1.5` |
 | OpenRouter | OpenAI (if key set) or fastembed | varies |
 
-Anthropic has no embedding API, so Vandelay falls back to fastembed — a local embedder that requires no API key.
+Anthropic has no embedding API, so Vandelay falls back to fastembed, a local embedder that requires no API key.
 
 Override the embedder explicitly in config:
 
@@ -59,15 +59,18 @@ Override the embedder explicitly in config:
 
 ## Vector Store
 
-Documents are stored in [LanceDB](https://lancedb.github.io/lancedb/) at `~/.vandelay/data/knowledge_vectors/`. LanceDB is embedded (no server needed) and supports fast similarity search.
+Documents are stored in [ChromaDB](https://www.trychroma.com/) at `~/.vandelay/data/knowledge_vectors/`. ChromaDB is embedded (no server needed) and supports fast similarity search.
 
 ## CLI Commands
 
 ```bash
-vandelay knowledge status          # Check knowledge status
-vandelay knowledge refresh         # Refresh the corpus
-vandelay knowledge refresh --force # Force full rebuild
-vandelay knowledge clear --yes     # Clear all knowledge
+vandelay knowledge add ~/docs/report.pdf   # Add a file
+vandelay knowledge add ~/my-notes/         # Add a directory
+vandelay knowledge status                  # Check status
+vandelay knowledge list                    # Show vector count
+vandelay knowledge refresh                 # Refresh built-in corpus
+vandelay knowledge refresh --force         # Force full rebuild
+vandelay knowledge clear --yes             # Clear all knowledge
 ```
 
 See [CLI Reference: knowledge](../cli/knowledge.md) for full details.

@@ -26,9 +26,9 @@ Memory / Knowledge    Specialist Members
 SQLite DB            Scoped Tools
 ```
 
-The agent receives messages from any channel, processes them through Agno's agent framework, and responds — with full access to tools, memory, and knowledge.
+The agent receives messages from any channel, processes them through Agno's agent framework, and responds, with full access to tools, memory, and knowledge.
 
 ## Next Steps
 
-1. **[Installation](installation.md)** — Install Vandelay and its dependencies
-2. **[Quickstart](quickstart.md)** — Send your first message in under 5 minutes
+1. **[Installation](installation.md):** Install Vandelay and its dependencies
+2. **[Quickstart](quickstart.md):** Send your first message in under 5 minutes
