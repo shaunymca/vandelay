@@ -49,19 +49,14 @@ class TestCreateKnowledge:
         assert result is None
 
     @patch("vandelay.knowledge.setup.create_embedder")
-    def test_missing_lancedb_returns_none(self, mock_create_embedder):
-        """Gracefully handle missing lancedb."""
+    def test_no_vector_db_returns_none(self, mock_create_embedder):
+        """Gracefully handle no vector DB available."""
         mock_create_embedder.return_value = MagicMock()
         settings = _make_settings()
 
-        # Simulate lancedb not being importable
-        import sys
-        with patch.dict(sys.modules, {"agno.vectordb.lancedb": None}):
-            # The ImportError should be caught and return None
+        with patch("vandelay.knowledge.vectordb.create_vector_db", return_value=None):
             result = create_knowledge(settings)
-            # Since LanceDb may already be imported, this might not trigger.
-            # The key assertion is that the function handles it gracefully.
-            # It may return None or a Knowledge instance depending on cache.
+            assert result is None
 
     @patch("vandelay.knowledge.setup.create_embedder")
     def test_success_calls_embedder(self, mock_create_embedder, tmp_path):
@@ -69,7 +64,7 @@ class TestCreateKnowledge:
         mock_create_embedder.return_value = MagicMock()
         settings = _make_settings(workspace_dir=str(tmp_path))
 
-        # Even if LanceDb/Knowledge imports fail, we verify the embedder check
+        # Even if vector DB creation fails, we verify the embedder check
         try:
             create_knowledge(settings)
         except Exception:
@@ -80,7 +75,10 @@ class TestCreateKnowledge:
         """When knowledge is enabled and embedder is available, knowledge dir is created."""
         settings = _make_settings(workspace_dir=str(tmp_path))
 
-        with patch("vandelay.knowledge.setup.create_embedder", return_value=MagicMock()):
+        with (
+            patch("vandelay.knowledge.setup.create_embedder", return_value=MagicMock()),
+            patch("vandelay.knowledge.vectordb.create_vector_db", return_value=MagicMock()),
+        ):
             try:
                 create_knowledge(settings)
             except (ImportError, Exception):

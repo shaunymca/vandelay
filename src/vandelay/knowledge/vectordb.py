@@ -1,0 +1,97 @@
+"""Vector DB factory — resolves LanceDB or ChromaDB based on availability."""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from vandelay.config.constants import VANDELAY_HOME
+
+logger = logging.getLogger(__name__)
+
+_VECTOR_DIR = VANDELAY_HOME / "data" / "knowledge_vectors"
+_TABLE_NAME = "vandelay_knowledge"
+
+
+def create_vector_db(embedder: Any) -> Any | None:
+    """Create a vector DB instance, preferring LanceDB with ChromaDB fallback.
+
+    Returns ``None`` if neither is available.
+    """
+    vdb = _try_lancedb(embedder)
+    if vdb is not None:
+        return vdb
+
+    vdb = _try_chromadb(embedder)
+    if vdb is not None:
+        return vdb
+
+    logger.warning(
+        "No vector database available. "
+        "Install lancedb (uv add lancedb) or chromadb (uv add chromadb)."
+    )
+    return None
+
+
+def get_vector_count(vector_db: Any) -> int:
+    """Get the number of vectors in a vector DB, handling both backends."""
+    try:
+        # LanceDB: table.count_rows()
+        if hasattr(vector_db, "table") and vector_db.table is not None:
+            return vector_db.table.count_rows()
+        if hasattr(vector_db, "_table") and vector_db._table is not None:
+            return vector_db._table.count_rows()
+        # ChromaDB: _collection.count()
+        if hasattr(vector_db, "_collection") and vector_db._collection is not None:
+            return vector_db._collection.count()
+        if hasattr(vector_db, "collection") and vector_db.collection is not None:
+            return vector_db.collection.count()
+    except Exception:
+        pass
+    return 0
+
+
+def _try_lancedb(embedder: Any) -> Any | None:
+    try:
+        from agno.vectordb.lancedb import LanceDb
+    except ImportError:
+        return None
+
+    import os
+
+    # Suppress noisy Lance Rust WARN on stderr during first-run table creation
+    _devnull = os.open(os.devnull, os.O_WRONLY)
+    _prev_stderr_fd = os.dup(2)
+    os.dup2(_devnull, 2)
+    os.close(_devnull)
+    try:
+        return LanceDb(
+            uri=str(_VECTOR_DIR),
+            table_name=_TABLE_NAME,
+            embedder=embedder,
+        )
+    except Exception as exc:
+        logger.debug("LanceDB init failed: %s", exc)
+        return None
+    finally:
+        os.dup2(_prev_stderr_fd, 2)
+        os.close(_prev_stderr_fd)
+
+
+def _try_chromadb(embedder: Any) -> Any | None:
+    try:
+        from agno.vectordb.chroma import ChromaDb
+    except ImportError:
+        return None
+
+    _VECTOR_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        return ChromaDb(
+            path=str(_VECTOR_DIR),
+            collection=_TABLE_NAME,
+            persistent_client=True,
+            embedder=embedder,
+        )
+    except Exception as exc:
+        logger.debug("ChromaDB init failed: %s", exc)
+        return None
