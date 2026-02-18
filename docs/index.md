@@ -2,18 +2,18 @@
 
 **An always-on AI agent platform built on [Agno](https://github.com/agno-agi/agno).**
 
-Vandelay gives you a self-hosted AI agent that runs 24/7 — with memory, tools, scheduling, and multi-channel access out of the box.
+Vandelay gives you a self-hosted AI agent that runs 24/7, with memory, tools, scheduling, and multi-channel access out of the box.
 
 ---
 
 ## Why Vandelay?
 
-- **Always on** — Runs as a daemon with heartbeat, cron jobs, and proactive scheduling
-- **Self-hosted first** — Your data stays on your server. No cloud lock-in.
-- **Multi-channel** — Terminal, Telegram, WhatsApp, WebSocket — same agent, shared memory
-- **Team mode** — Supervisor delegates to specialist agents with scoped tools
-- **Extensible** — 100+ tools from Agno's ecosystem, plus custom tool authoring
-- **CLI-first** — One command to install, onboard, and start
+- **Always on:** Runs as a daemon with heartbeat, cron jobs, and proactive scheduling
+- **Self-hosted first:** Your data stays on your server. No cloud lock-in.
+- **Multi-channel:** Terminal, Telegram, WhatsApp, WebSocket - same agent, shared memory
+- **Team mode:** Supervisor delegates to specialist agents with scoped tools
+- **Extensible:** 117 tools from Agno's ecosystem, plus custom tool authoring
+- **CLI-first:** One command to install, onboard, and start
 
 ## Quick Install
 

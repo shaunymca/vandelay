@@ -68,13 +68,13 @@ Once registered, assign tools to team members:
 
 ## Best Practices
 
-- Keep tool functions focused — one action per function
-- Write clear docstrings — the agent uses them to understand when to call the tool
-- Return strings — the agent reads the return value as text
-- Handle errors gracefully — return error messages, don't raise exceptions
-- Use type hints — they help the agent understand parameter types
+- Keep tool functions focused: one action per function
+- Write clear docstrings: the agent uses them to understand when to call the tool
+- Return strings: the agent reads the return value as text
+- Handle errors gracefully: return error messages, don't raise exceptions
+- Use type hints: they help the agent understand parameter types
 
 ## Next Steps
 
-- [Tool Catalog](../tools/index.md) — Browse available tools
-- [Built-in Tools](../tools/built-in.md) — See Vandelay's custom toolkits
+- [Tool Catalog](../tools/index.md) - Browse available tools
+- [Built-in Tools](../tools/built-in.md) - See Vandelay's custom toolkits

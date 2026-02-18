@@ -30,9 +30,9 @@ vandelay memory clear --yes
 
 Vandelay uses multiple memory layers:
 
-- **Session history** — Conversation turns stored per session
-- **Agentic memory** — Facts and preferences auto-extracted by Agno
-- **Workspace MEMORY.md** — Agent-maintained persistent notes
+- **Session history:** Conversation turns stored per session
+- **Agentic memory:** Facts and preferences auto-extracted by Agno
+- **Workspace MEMORY.md:** Agent-maintained persistent notes
 
 The `memory` CLI manages the agentic memory records in the SQLite database. Session history and workspace files are managed separately.
 

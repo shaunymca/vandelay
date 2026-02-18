@@ -10,10 +10,10 @@ vandelay onboard
 
 ## What It Does
 
-1. **Model selection** — Pick from 10 LLM providers, fetches available models in real time
-2. **API key** — Securely stored in `~/.vandelay/.env`
-3. **Config creation** — Writes `~/.vandelay/config.json` with sensible defaults
-4. **Workspace setup** — Creates 7 workspace markdown files in `~/.vandelay/workspace/`
+1. **Model selection:** Pick from 10 LLM providers, fetches available models in real time
+2. **API key:** Securely stored in `~/.vandelay/.env`
+3. **Config creation:** Writes `~/.vandelay/config.json` with sensible defaults
+4. **Workspace setup:** Creates 7 workspace markdown files in `~/.vandelay/workspace/`
 
 ## Options
 

@@ -37,10 +37,19 @@ And in `config.json`:
 
 To lock the bot to your chat only (recommended for security):
 
-1. Start a conversation with your bot
-2. Send any message
-3. Check the server logs — the chat ID will be printed
-4. Add it to config as `telegram_chat_id`
+1. Start a conversation with your bot and send any message
+2. Open this URL in your browser (replace with your token):
+   ```
+   https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates
+   ```
+3. Find your chat ID in the response:
+   ```json
+   {"message": {"chat": {"id": 123456789, ...}}}
+   ```
+4. Add it to `~/.vandelay/.env`:
+   ```bash
+   TELEGRAM_CHAT_ID=123456789
+   ```
 
 ## Step 4: Start the Server
 
@@ -52,10 +61,10 @@ The Telegram webhook is automatically registered when the server starts.
 
 ## Features
 
-- **Persistent typing** — The bot shows "typing..." while processing (re-sent every 4s)
-- **File sending** — The agent can send files via Telegram using `send_file()`
-- **Chat lock** — Set `telegram_chat_id` to restrict access to your chat only
-- **Shared memory** — Conversations in Telegram share memory with Terminal and other channels
+- **Persistent typing:** The bot shows "typing..." while processing (re-sent every 4s)
+- **File sending:** The agent can send files via Telegram using `send_file()`
+- **Chat lock:** Set `telegram_chat_id` to restrict access to your chat only
+- **Shared memory:** Conversations in Telegram share memory with Terminal and other channels
 
 ## Troubleshooting
 

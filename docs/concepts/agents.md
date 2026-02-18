@@ -4,12 +4,12 @@ Vandelay agents are built on [Agno's Agent class](https://docs.agno.com/agents/o
 
 ## Agent Lifecycle
 
-1. **Config loaded** — Settings read from `config.json`, `.env`, and environment variables
-2. **Model created** — LLM provider initialized from `model.provider` and `model_id`
-3. **Tools resolved** — Enabled tools instantiated from the tool registry
-4. **Workspace assembled** — Seven markdown files compose the system prompt
-5. **Agent created** — Agno `Agent` (or `Team`) instantiated with all components
-6. **Ready** — Agent accepts messages via ChatService
+1. **Config loaded:** Settings read from `config.json`, `.env`, and environment variables
+2. **Model created:** LLM provider initialized from `model.provider` and `model_id`
+3. **Tools resolved:** Enabled tools instantiated from the tool registry
+4. **Workspace assembled:** Seven markdown files compose the system prompt
+5. **Agent created:** Agno `Agent` (or `Team`) instantiated with all components
+6. **Ready:** Agent accepts messages via ChatService
 
 ## System Prompt Assembly
 
@@ -19,7 +19,7 @@ The system prompt is built from workspace files in `~/.vandelay/workspace/`:
 |------|---------|
 | `SOUL.md` | Core personality, communication style, behavioral rules |
 | `USER.md` | User preferences, context, personal details |
-| `AGENTS.md` | Team delegation rules — which member handles what |
+| `AGENTS.md` | Team delegation rules: which member handles what |
 | `TOOLS.md` | Tool usage guidance, best practices per tool |
 | `HEARTBEAT.md` | Proactive tasks to check during heartbeat |
 | `BOOTSTRAP.md` | One-time startup instructions |
@@ -29,7 +29,7 @@ These files are yours to edit. Changes take effect on the next agent reload.
 
 ## Hot Reload
 
-When you enable or disable a tool (via CLI or chat), the agent is recreated with the new tool set — no server restart needed. The `AgentProvider` protocol ensures ChatService always gets the current agent instance.
+When you enable or disable a tool (via CLI or chat), the agent is recreated with the new tool set without a server restart. The `AgentProvider` protocol ensures ChatService always gets the current agent instance.
 
 ## Single Agent vs Team
 

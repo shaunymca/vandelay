@@ -130,5 +130,5 @@ journalctl --user -u vandelay -f
 
 ## Next Steps
 
-- [Security](security.md) — API key management, JWT, Telegram lock
-- [Troubleshooting](troubleshooting.md) — Common issues and debugging
+- [Security](security.md) - API key management, JWT, Telegram lock
+- [Troubleshooting](troubleshooting.md) - Common issues and debugging

@@ -10,6 +10,17 @@ vandelay knowledge <subcommand>
 
 ## Subcommands
 
+### `add`
+
+Add a file or directory to the knowledge base:
+
+```bash
+vandelay knowledge add ~/docs/report.pdf
+vandelay knowledge add ~/my-notes/
+```
+
+Supported formats: `.pdf`, `.txt`, `.md`, `.csv`, `.json`, `.docx`, `.doc`
+
 ### `status`
 
 Check the current knowledge corpus status:
@@ -20,9 +31,17 @@ vandelay knowledge status
 
 Shows: enabled state, embedder provider, document count, vector store path.
 
+### `list`
+
+Show the current vector count and storage path:
+
+```bash
+vandelay knowledge list
+```
+
 ### `refresh`
 
-Refresh the knowledge corpus:
+Re-index the built-in corpus:
 
 ```bash
 vandelay knowledge refresh
@@ -41,10 +60,10 @@ vandelay knowledge clear --yes
 
 ## How It Works
 
-1. The refresh command downloads/reads source documents
+1. Documents are read from disk (file or directory)
 2. Documents are chunked into passages
 3. Each chunk is embedded via the configured embedder
-4. Vectors are stored in LanceDB at `~/.vandelay/data/knowledge_vectors/`
+4. Vectors are stored in ChromaDB at `~/.vandelay/data/knowledge_vectors/`
 
 The agent queries this vector store when `knowledge.enabled` is `true` and `search_knowledge` is active on the agent.
 

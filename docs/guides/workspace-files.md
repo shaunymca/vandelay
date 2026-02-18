@@ -10,7 +10,7 @@ The agent's core personality and communication style.
 
 - Defines tone, formality, language preferences
 - Sets behavioral rules (e.g., "always confirm before destructive actions")
-- This is the most important file — it shapes how the agent acts
+- This is the most important file; it shapes how the agent acts
 
 ### USER.md
 
@@ -68,7 +68,7 @@ Edit any file directly:
 nano ~/.vandelay/workspace/SOUL.md
 ```
 
-Or ask the agent to update its own workspace files — it has `WorkspaceTools` for reading and writing these files.
+Or ask the agent to update its own workspace files. It has `WorkspaceTools` for reading and writing these files directly.
 
 Changes take effect on the next agent reload (automatic when using `WorkspaceTools`).
 

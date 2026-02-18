@@ -1,6 +1,6 @@
 # Built-in Tools
 
-These are Vandelay's custom toolkits — built specifically for the platform, not from Agno's third-party ecosystem.
+These are Vandelay's custom toolkits, built specifically for the platform rather than sourced from Agno's third-party ecosystem.
 
 ## System Tools
 
@@ -35,7 +35,7 @@ Execute Python code.
 
 Anti-detect Firefox browser via [Camoufox](https://github.com/daijro/camoufox).
 
-- Playwright API — no Node.js needed
+- Playwright API (no Node.js needed)
 - Lazy-starts browser on first use
 - Navigate, screenshot, extract content, fill forms
 - Anti-fingerprinting built in
@@ -44,20 +44,20 @@ Anti-detect Firefox browser via [Camoufox](https://github.com/daijro/camoufox).
 
 ### Scheduler (injected)
 
-Cron job management. Automatically injected — not enabled via `tools enable`.
+Cron job management. Automatically injected (not enabled via `tools enable`).
 
-- `schedule_job()` — Create a cron job
-- `list_scheduled_jobs()` — List all jobs
-- `get_job_details()` — Get job info
-- `pause_scheduled_job()` / `resume_scheduled_job()` — Toggle jobs
-- `delete_scheduled_job()` — Remove a job
+- `schedule_job()`: Create a cron job
+- `list_scheduled_jobs()`: List all jobs
+- `get_job_details()`: Get job info
+- `pause_scheduled_job()` / `resume_scheduled_job()`: Toggle jobs
+- `delete_scheduled_job()`: Remove a job
 
 ### Notify (injected)
 
 Send proactive messages to the user. Automatically injected when a channel router is available.
 
-- `notify_user()` — Send a message to the user's active channel
-- `send_file()` — Send a file via the active channel
+- `notify_user()`: Send a message to the user's active channel
+- `send_file()`: Send a file via the active channel
 
 ## Agent Management
 

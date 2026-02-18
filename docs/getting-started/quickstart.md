@@ -10,9 +10,9 @@ vandelay onboard
 
 The interactive wizard asks three things:
 
-1. **LLM provider** — Pick from 10 providers (Anthropic, OpenAI, Google, Ollama, etc.)
-2. **Model** — Fetches available models from your provider in real time
-3. **API key** — Stored securely in `~/.vandelay/.env`
+1. **LLM provider:** Pick from 10 providers (Anthropic, OpenAI, Google, Ollama, etc.)
+2. **Model:** Fetches available models from your provider in real time
+3. **API key:** Stored securely in `~/.vandelay/.env`
 
 This creates your config at `~/.vandelay/config.json` and workspace files at `~/.vandelay/workspace/`.
 
@@ -47,7 +47,7 @@ You: Create a cron job that runs every morning at 8am to check the weather
 
 ## Next Steps
 
-- [Enable tools](../cli/tools.md) — Add shell, file, browser, and more
-- [Set up Telegram](../guides/telegram-setup.md) — Chat with your agent from your phone
-- [Configure your team](../guides/first-team.md) — Add specialist members
-- [Deploy to a server](../deployment/index.md) — Run 24/7 on a VPS
+- [Enable tools](../cli/tools.md) - Add shell, file, browser, and more
+- [Set up Telegram](../guides/telegram-setup.md) - Chat with your agent from your phone
+- [Configure your team](../guides/first-team.md) - Add specialist members
+- [Deploy to a server](../deployment/index.md) - Run 24/7 on a VPS
