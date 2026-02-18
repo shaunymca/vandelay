@@ -37,10 +37,11 @@ def create_vector_db(
 
     logger.warning(
         "No vector database available — knowledge will be disabled. "
-        "Install a vector DB to enable it: "
-        "Apple Silicon / Linux / Windows x86_64: uv add chromadb  |  "
-        "Intel Mac (x86_64): uv add lancedb (requires Rust toolchain from rustup.rs)  |  "
-        "Or set an OpenAI/Google API key to use a hosted embedder without a local vector DB."
+        "To enable: run 'uv add chromadb' (Apple Silicon / Linux / Windows) or "
+        "'uv add lancedb' (Linux / Windows). "
+        "Note: neither package currently ships pre-built wheels for Intel Mac (x86_64). "
+        "Intel Mac users should disable knowledge (knowledge.enabled=false) or "
+        "run a remote ChromaDB server."
     )
     return None
 
