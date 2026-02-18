@@ -198,10 +198,6 @@ def build_system_prompt(
     if creds:
         sections.append(creds)
 
-    memory = get_template_content("MEMORY.md", workspace_dir)
-    if memory:
-        sections.append(memory)
-
     heartbeat = get_template_content("HEARTBEAT.md", workspace_dir)
     if heartbeat:
         sections.append(heartbeat)
@@ -486,10 +482,6 @@ def build_team_leader_prompt(
     creds = _build_credentials_summary()
     if creds:
         sections.append(creds)
-
-    memory = get_template_content("MEMORY.md", workspace_dir)
-    if memory:
-        sections.append(memory)
 
     heartbeat = get_template_content("HEARTBEAT.md", workspace_dir)
     if heartbeat:

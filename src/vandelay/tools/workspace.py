@@ -16,19 +16,19 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("vandelay.tools.workspace")
 
-# Files the agent can write to
-_WRITABLE_FILES = {"MEMORY.md", "USER.md", "TOOLS.md"}
+# Files the agent can write to (MEMORY.md is no longer writable — use update_memory() instead)
+_WRITABLE_FILES = {"USER.md", "TOOLS.md"}
 
-# Files the agent can read (superset of writable)
-_READABLE_FILES = _WRITABLE_FILES | {"SOUL.md", "AGENTS.md", "BOOTSTRAP.md", "HEARTBEAT.md"}
+# Files the agent can read (superset of writable; MEMORY.md kept for backwards compat archive reads)
+_READABLE_FILES = _WRITABLE_FILES | {"MEMORY.md", "SOUL.md", "AGENTS.md", "BOOTSTRAP.md", "HEARTBEAT.md"}
 
 
 class WorkspaceTools(Toolkit):
     """Lets the agent read and update its workspace markdown files.
 
-    Workspace files (MEMORY.md, USER.md, TOOLS.md) are the agent's persistent
-    memory — injected into the system prompt on every restart. This toolkit
-    gives the agent a safe, structured way to maintain them.
+    Workspace files (USER.md, TOOLS.md) are injected into the system prompt on
+    every restart. Long-term memories are stored in Agno's native memory DB via
+    update_memory() — no longer written to MEMORY.md.
     """
 
     def __init__(self, settings: Settings, db: SqliteDb | None = None) -> None:
@@ -90,14 +90,14 @@ class WorkspaceTools(Toolkit):
             logger.info("Wrote memory to DB: %s", entry[:80])
             return f"Memory saved: {entry[:80]}"
         except Exception:
-            logger.exception("Failed to write memory to DB, falling back to file")
+            logger.exception("Failed to write memory to DB")
             return None
 
     def update_memory(self, entry: str) -> str:
-        """Save a long-term memory entry.
+        """Save a long-term memory entry to the native memory database.
 
-        When native memory is active, writes to the database for better
-        retrieval. Falls back to MEMORY.md file append otherwise.
+        Memories are stored in Agno's native DB and automatically retrieved
+        on the next run — no file is written.
 
         Use this when you learn something important: user preferences,
         key decisions, lessons learned, or facts worth remembering.
@@ -108,13 +108,14 @@ class WorkspaceTools(Toolkit):
         Returns:
             str: Confirmation message.
         """
-        # Try DB-backed memory first
         result = self._write_memory_to_db(entry)
         if result is not None:
             return result
 
-        # Fall back to file append
-        return self._append_entry("MEMORY.md", entry)
+        return (
+            "Warning: native memory DB unavailable — memory not saved. "
+            "Restart Vandelay to reinitialise the database."
+        )
 
     def update_user_profile(self, entry: str) -> str:
         """Append a timestamped entry to USER.md — your profile of the user.
@@ -169,11 +170,11 @@ class WorkspaceTools(Toolkit):
     def replace_workspace_file(self, name: str, content: str) -> str:
         """Replace the entire contents of a writable workspace file.
 
-        Only MEMORY.md, USER.md, and TOOLS.md can be replaced. Use this for
-        curating and reorganizing — e.g. removing outdated entries.
+        Only USER.md and TOOLS.md can be replaced. Use this for curating and
+        reorganizing — e.g. removing outdated entries.
 
         Args:
-            name: The filename to replace (e.g. "MEMORY.md").
+            name: The filename to replace (e.g. "USER.md").
             content: The new full content for the file.
 
         Returns:
