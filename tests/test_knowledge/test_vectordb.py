@@ -20,7 +20,7 @@ class TestCreateVectorDb:
         ) as try_chroma:
             result = create_vector_db(mock_embedder)
             assert result is mock_chroma
-            try_chroma.assert_called_once_with(mock_embedder)
+            try_chroma.assert_called_once_with(mock_embedder, "vandelay_knowledge")
 
     def test_falls_back_to_lancedb(self):
         """LanceDB is used when ChromaDB is unavailable."""
@@ -35,7 +35,7 @@ class TestCreateVectorDb:
         ):
             result = create_vector_db(mock_embedder)
             assert result is mock_lance
-            try_lance.assert_called_once_with(mock_embedder)
+            try_lance.assert_called_once_with(mock_embedder, "vandelay_knowledge")
 
     def test_returns_none_when_neither_available(self):
         """Returns None when both ChromaDB and LanceDB are unavailable."""

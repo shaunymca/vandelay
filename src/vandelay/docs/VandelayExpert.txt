@@ -16,6 +16,7 @@ The Vandelay Expert is Vandelay's built-in agent builder and platform authority.
 - Add, remove, and reconfigure team members
 - Diagnose underperforming agents (prompt issues, tool mismatches, token overflow)
 - Scaffold custom toolkits when built-in tools don't cover a use case
+- Manage per-member knowledge bases (add documents, check status, clear collections)
 
 ---
 
@@ -52,11 +53,98 @@ The Vandelay Expert is Vandelay's built-in agent builder and platform authority.
 
 - [Scheduling](https://shaunymca.github.io/vandelay/guides/scheduling/): Cron job syntax, heartbeat configuration, active hours, APScheduler engine
 
+## Per-Member Knowledge Bases
+
+Every team member gets their own isolated knowledge collection. The Vandelay Expert
+has `KnowledgeManagementTools` built in so it can manage all knowledge bases.
+
+### How collections work
+
+| Collection | ChromaDB / LanceDB name | Who uses it |
+|---|---|---|
+| Shared | `vandelay_knowledge` | Main agent, leader |
+| Per-member | `vandelay_knowledge_<slug>` | That member only |
+
+Slugs are derived from member names: `cto` → `vandelay_knowledge_cto`,
+`devops-lead` → `vandelay_knowledge_devops_lead`.
+
+### Tools available to the Vandelay Expert
+
+```
+add_knowledge_document(file_path, member_name="")
+  Add a file or directory to a member's knowledge base.
+  Pass member_name="" for the shared base.
+  Supports: .pdf .txt .md .csv .json .docx .doc
+
+list_knowledge(member_name="")
+  Show vector count for a knowledge collection.
+
+clear_knowledge(member_name="")
+  Delete all vectors from a knowledge collection. Irreversible.
+
+knowledge_status(member_name="")
+  Show vector counts for all collections, or just one member's.
+  Pass member_name="" to see everything.
+```
+
+### Example agent interactions
+
+```
+User: Add the Q3 report to the CTO's knowledge base.
+Expert: [calls add_knowledge_document("/path/q3-report.pdf", "cto")]
+
+User: How many documents does the DevOps agent have?
+Expert: [calls list_knowledge("devops")]
+
+User: Clear the researcher's knowledge and start fresh.
+Expert: [calls clear_knowledge("researcher")]
+
+User: Show me the status of all knowledge bases.
+Expert: [calls knowledge_status("")]
+```
+
+### CLI commands (for human use)
+
+```bash
+# Add to shared knowledge base
+vandelay knowledge add ./docs/
+
+# Add to a specific member's knowledge base
+vandelay knowledge add ./docs/ --member cto
+vandelay knowledge add ./runbooks/ --member devops
+
+# Check vector counts for all collections
+vandelay knowledge status
+
+# List vectors in a specific collection
+vandelay knowledge list --member cto
+
+# Clear a member's knowledge base
+vandelay knowledge clear --member researcher --yes
+```
+
+### Opting a member out of knowledge
+
+Set `knowledge_enabled: false` in their MemberConfig to skip collection creation:
+
+```json
+{
+  "team": {
+    "members": [
+      {"name": "cto", "knowledge_enabled": false}
+    ]
+  }
+}
+```
+
+---
+
 ## CLI Reference (Expert-Relevant Commands)
 
 - [config](https://shaunymca.github.io/vandelay/cli/config/): Interactive configuration editor — change team members, model, tools, safety mode
 - [tools](https://shaunymca.github.io/vandelay/cli/tools/): Enable, disable, list, and search tools by slug
 - [cron](https://shaunymca.github.io/vandelay/cli/cron/): Add, list, pause, resume, and remove cron jobs
+- [knowledge](https://shaunymca.github.io/vandelay/cli/knowledge/): Add documents, list, clear, and check status — with --member flag for per-member collections
 
 ## Configuration Reference
 

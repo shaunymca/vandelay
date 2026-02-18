@@ -10,19 +10,28 @@ from vandelay.config.constants import VANDELAY_HOME
 logger = logging.getLogger(__name__)
 
 _VECTOR_DIR = VANDELAY_HOME / "data" / "knowledge_vectors"
-_TABLE_NAME = "vandelay_knowledge"
+_DEFAULT_COLLECTION = "vandelay_knowledge"
 
 
-def create_vector_db(embedder: Any) -> Any | None:
+def create_vector_db(
+    embedder: Any,
+    collection_name: str = _DEFAULT_COLLECTION,
+) -> Any | None:
     """Create a vector DB instance, preferring ChromaDB with LanceDB fallback.
+
+    Args:
+        embedder: The embedder instance to use for vector creation.
+        collection_name: ChromaDB collection / LanceDB table name.
+            Defaults to ``"vandelay_knowledge"`` (the shared collection).
+            Pass ``"vandelay_knowledge_<member>"`` for per-member isolation.
 
     Returns ``None`` if neither is available.
     """
-    vdb = _try_chromadb(embedder)
+    vdb = _try_chromadb(embedder, collection_name)
     if vdb is not None:
         return vdb
 
-    vdb = _try_lancedb(embedder)
+    vdb = _try_lancedb(embedder, collection_name)
     if vdb is not None:
         return vdb
 
@@ -51,7 +60,7 @@ def get_vector_count(vector_db: Any) -> int:
     return 0
 
 
-def _try_lancedb(embedder: Any) -> Any | None:
+def _try_lancedb(embedder: Any, collection_name: str = _DEFAULT_COLLECTION) -> Any | None:
     try:
         from agno.vectordb.lancedb import LanceDb
     except ImportError:
@@ -67,7 +76,7 @@ def _try_lancedb(embedder: Any) -> Any | None:
     try:
         return LanceDb(
             uri=str(_VECTOR_DIR),
-            table_name=_TABLE_NAME,
+            table_name=collection_name,
             embedder=embedder,
         )
     except Exception as exc:
@@ -78,7 +87,7 @@ def _try_lancedb(embedder: Any) -> Any | None:
         os.close(_prev_stderr_fd)
 
 
-def _try_chromadb(embedder: Any) -> Any | None:
+def _try_chromadb(embedder: Any, collection_name: str = _DEFAULT_COLLECTION) -> Any | None:
     try:
         from agno.vectordb.chroma import ChromaDb
     except ImportError:
@@ -88,7 +97,7 @@ def _try_chromadb(embedder: Any) -> Any | None:
     try:
         return ChromaDb(
             path=str(_VECTOR_DIR),
-            collection=_TABLE_NAME,
+            collection=collection_name,
             persistent_client=True,
             embedder=embedder,
         )

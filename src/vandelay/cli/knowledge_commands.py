@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 import typer
 from rich.console import Console
@@ -20,6 +21,11 @@ SUPPORTED_EXTENSIONS = {
     ".pdf", ".txt", ".md", ".csv", ".json", ".docx", ".doc",
 }
 
+_MEMBER_HELP = (
+    "Team member name to target their private knowledge base "
+    "(e.g. --member cto). Omit to use the shared knowledge base."
+)
+
 
 def _get_settings():
     from vandelay.config.settings import get_settings
@@ -27,8 +33,13 @@ def _get_settings():
     return get_settings()
 
 
-def _ensure_knowledge():
-    """Return (knowledge, vector_db) or exit with an error."""
+def _ensure_knowledge(member_name: str | None = None):
+    """Return (knowledge, vector_db) or exit with an error.
+
+    Args:
+        member_name: When provided, opens the per-member collection.
+            ``None`` opens the shared collection.
+    """
     settings = _get_settings()
 
     if not settings.knowledge.enabled:
@@ -38,35 +49,18 @@ def _ensure_knowledge():
         )
         raise typer.Exit(1)
 
-    from vandelay.knowledge.embedder import create_embedder
+    from vandelay.knowledge.setup import create_knowledge
 
-    embedder = create_embedder(settings)
-    if embedder is None:
+    knowledge = create_knowledge(settings, member_name=member_name)
+    if knowledge is None:
         console.print(
-            "[red]No embedder available.[/red] "
-            "Set knowledge.embedder.provider in config "
-            "or ensure your model provider supports embeddings."
+            "[red]Could not initialise knowledge.[/red] "
+            "Check embedder and vector DB configuration "
+            "(run [bold]vandelay knowledge status[/bold] for details)."
         )
         raise typer.Exit(1)
 
-    try:
-        from agno.knowledge.knowledge import Knowledge
-    except ImportError:
-        console.print("[red]agno knowledge package not available.[/red]")
-        raise typer.Exit(1) from None
-
-    from vandelay.knowledge.vectordb import create_vector_db
-
-    vector_db = create_vector_db(embedder)
-    if vector_db is None:
-        console.print(
-            "[red]No vector database available.[/red] "
-            "Install chromadb (uv add chromadb) or lancedb (uv add lancedb)."
-        )
-        raise typer.Exit(1)
-
-    knowledge = Knowledge(name="vandelay-knowledge", vector_db=vector_db)
-    return knowledge, vector_db
+    return knowledge, knowledge.vector_db
 
 
 def _load_documents(file_path: Path) -> list:
@@ -95,6 +89,7 @@ def _find_supported_files(path: Path) -> list[Path]:
 @app.command("add")
 def add_document(
     path: str = typer.Argument(help="File or directory path to add to the knowledge base"),
+    member: Optional[str] = typer.Option(None, "--member", "-m", help=_MEMBER_HELP),
 ):
     """Load a file or directory into the knowledge base."""
     target = Path(path).resolve()
@@ -111,7 +106,10 @@ def add_document(
         )
         raise typer.Exit(1)
 
-    knowledge, vector_db = _ensure_knowledge()
+    label = f"'{member}'" if member else "shared"
+    console.print(f"  Adding to [bold]{label}[/bold] knowledge base…")
+
+    knowledge, _vector_db = _ensure_knowledge(member_name=member)
 
     total_docs = 0
     for file_path in files:
@@ -127,20 +125,24 @@ def add_document(
 
 
 @app.command("list")
-def list_documents():
+def list_documents(
+    member: Optional[str] = typer.Option(None, "--member", "-m", help=_MEMBER_HELP),
+):
     """Show loaded documents and vector count."""
-    knowledge, vector_db = _ensure_knowledge()
+    knowledge, vector_db = _ensure_knowledge(member_name=member)
 
     from vandelay.knowledge.vectordb import get_vector_count
 
     count = get_vector_count(vector_db)
+    label = f"'{member}'" if member else "shared"
 
     if count == 0:
-        console.print("[dim]No documents in the knowledge base.[/dim]")
-        console.print("[dim]Add some: vandelay knowledge add <path>[/dim]")
+        console.print(f"[dim]No documents in the {label} knowledge base.[/dim]")
+        hint = f"vandelay knowledge add --member {member} <path>" if member else "vandelay knowledge add <path>"
+        console.print(f"[dim]Add some: {hint}[/dim]")
         raise typer.Exit()
 
-    table = Table(title="Knowledge Base", show_lines=False)
+    table = Table(title=f"Knowledge Base ({label})", show_lines=False)
     table.add_column("Metric", style="bold")
     table.add_column("Value")
     table.add_row("Vector count", str(count))
@@ -156,20 +158,22 @@ def list_documents():
 @app.command("clear")
 def clear_knowledge(
     confirm: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+    member: Optional[str] = typer.Option(None, "--member", "-m", help=_MEMBER_HELP),
 ):
     """Remove all vectors from the knowledge base (fresh start)."""
+    label = f"'{member}'" if member else "shared"
     if not confirm:
-        proceed = typer.confirm("This will delete all knowledge vectors. Continue?")
+        proceed = typer.confirm(f"This will delete all vectors from the {label} knowledge base. Continue?")
         if not proceed:
             console.print("[dim]Cancelled.[/dim]")
             raise typer.Exit()
 
-    _knowledge, vector_db = _ensure_knowledge()
+    _knowledge, vector_db = _ensure_knowledge(member_name=member)
 
     try:
         if hasattr(vector_db, "drop"):
             vector_db.drop()
-        console.print("[green]\u2713[/green] Knowledge base cleared.")
+        console.print(f"[green]\u2713[/green] {label.capitalize()} knowledge base cleared.")
     except Exception as e:
         console.print(f"[red]Error clearing knowledge base: {e}[/red]")
         raise typer.Exit(1) from None
@@ -177,7 +181,7 @@ def clear_knowledge(
 
 @app.command("status")
 def knowledge_status():
-    """Show embedder, vector DB path, and document count."""
+    """Show embedder, vector DB path, and document count for all collections."""
     settings = _get_settings()
 
     console.print()
@@ -203,21 +207,24 @@ def knowledge_status():
     db_path = VANDELAY_HOME / "data" / "knowledge_vectors"
     console.print(f"  [bold]Vector DB:[/bold]  {db_path}")
 
-    # Try to get vector count
+    # Vector counts: shared + per-member
     try:
-        from vandelay.knowledge.embedder import create_embedder
-        from vandelay.knowledge.vectordb import create_vector_db, get_vector_count
+        from vandelay.knowledge.setup import create_knowledge
+        from vandelay.knowledge.vectordb import get_vector_count
 
-        embedder = create_embedder(settings)
-        if embedder:
-            vdb = create_vector_db(embedder)
-            if vdb is not None:
-                count = get_vector_count(vdb)
-                console.print(f"  [bold]Vectors:[/bold]    {count}")
-            else:
-                console.print("  [bold]Vectors:[/bold]    [yellow]no vector DB available[/yellow]")
-        else:
-            console.print("  [bold]Vectors:[/bold]    [yellow]embedder unavailable[/yellow]")
+        def _count_label(member_name: str | None, label: str) -> None:
+            k = create_knowledge(settings, member_name=member_name)
+            if k is None:
+                console.print(f"  [bold]{label}:[/bold]    [yellow]unavailable[/yellow]")
+                return
+            count = get_vector_count(k.vector_db)
+            console.print(f"  [bold]{label}:[/bold]    {count} vector(s)")
+
+        _count_label(None, "Vectors (shared)")
+        for entry in settings.team.members:
+            name = entry if isinstance(entry, str) else entry.name
+            _count_label(name, f"Vectors ({name})")
+
     except Exception:
         console.print("  [bold]Vectors:[/bold]    [dim]unknown (DB not initialized)[/dim]")
 
