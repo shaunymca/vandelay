@@ -182,9 +182,24 @@ def clear_knowledge(
 @app.command("status")
 def knowledge_status():
     """Show embedder, vector DB path, and document count for all collections."""
+    from vandelay.knowledge.vectordb import is_knowledge_supported
+
     settings = _get_settings()
 
     console.print()
+
+    if not is_knowledge_supported():
+        console.print(
+            "  [bold]Supported:[/bold]  [yellow]no[/yellow]  "
+            "(Intel Mac x86_64 — no vector DB wheels available)"
+        )
+        console.print(
+            "\n  [dim]Neither chromadb nor lancedb ships pre-built wheels for macOS x86_64.\n"
+            "  Knowledge is unavailable on this platform without building from source.[/dim]"
+        )
+        console.print()
+        return
+
     enabled = settings.knowledge.enabled
     status = "[green]yes[/green]" if enabled else "[dim]no[/dim]"
     console.print(f"  [bold]Enabled:[/bold]    {status}")

@@ -378,8 +378,36 @@ def _configure_channels(channel_cfg: ChannelConfig) -> ChannelConfig:
     return channel_cfg
 
 
+def _knowledge_enabled_default() -> bool:
+    """Return the safe default for knowledge.enabled based on the current platform."""
+    from vandelay.knowledge.vectordb import is_knowledge_supported
+
+    return is_knowledge_supported()
+
+
+def _knowledge_menu_label(settings: "Settings") -> str:
+    """Return the /config menu label for the Knowledge section."""
+    from vandelay.knowledge.vectordb import is_knowledge_supported
+
+    if not is_knowledge_supported():
+        return "Knowledge       [not available on Intel Mac]"
+    state = "enabled" if settings.knowledge.enabled else "disabled"
+    return f"Knowledge       [{state}]"
+
+
 def _configure_knowledge(provider: str) -> bool:
     """Ask if user wants to enable knowledge/RAG."""
+    from vandelay.knowledge.vectordb import is_knowledge_supported
+
+    if not is_knowledge_supported():
+        console.print(
+            "  [yellow]⚠[/yellow] Knowledge is not available on Intel Mac (x86_64).\n"
+            "  [dim]Neither chromadb nor lancedb ships pre-built wheels for this platform.\n"
+            "  Knowledge will be disabled. You can enable it later if you install\n"
+            "  a compatible vector DB from source.[/dim]"
+        )
+        return False
+
     # Anthropic has no embeddings — let user know we'll use local embedder
     no_embedder_providers = {"anthropic"}
     if provider in no_embedder_providers:
@@ -719,8 +747,7 @@ def run_config_menu(settings: Settings, exit_label: str | None = None) -> Settin
                     value="channels",
                 ),
                 questionary.Choice(
-                    title=f"Knowledge       "
-                          f"[{'enabled' if settings.knowledge.enabled else 'disabled'}]",
+                    title=_knowledge_menu_label(settings),
                     value="knowledge",
                 ),
                 questionary.Choice(
@@ -806,8 +833,16 @@ def run_config_menu(settings: Settings, exit_label: str | None = None) -> Settin
             console.print(f"  [green]✓[/green] Channels: {_channel_summary(settings)}")
 
         elif section == "knowledge":
-            enabled = _configure_knowledge(settings.model.provider)
-            settings.knowledge.enabled = enabled
+            from vandelay.knowledge.vectordb import is_knowledge_supported
+
+            if not is_knowledge_supported():
+                console.print(
+                    "  [yellow]⚠[/yellow] Knowledge is not available on Intel Mac (x86_64).\n"
+                    "  [dim]Neither chromadb nor lancedb ships pre-built wheels for this platform.[/dim]"
+                )
+            else:
+                enabled = _configure_knowledge(settings.model.provider)
+                settings.knowledge.enabled = enabled
 
         elif section == "google":
             settings = _configure_google_settings(settings)
@@ -1729,7 +1764,7 @@ def run_onboarding() -> Settings:
         channels=ChannelConfig(),
         heartbeat=HeartbeatConfig(timezone=timezone),
         server=ServerConfig(),
-        knowledge=KnowledgeConfig(enabled=True),
+        knowledge=KnowledgeConfig(enabled=_knowledge_enabled_default()),
         workspace_dir=str(ws),
         enabled_tools=["shell", "file", "python", "duckduckgo", "camoufox"],
     )
