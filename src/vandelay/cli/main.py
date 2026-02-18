@@ -139,6 +139,72 @@ def config():
 
 
 @app.command()
+def update(
+    no_restart: bool = typer.Option(
+        False, "--no-restart", help="Skip daemon restart after update"
+    ),
+):
+    """Pull the latest code, sync dependencies, and restart the daemon."""
+    import subprocess
+    from pathlib import Path
+
+    from vandelay.cli.daemon import is_daemon_running, restart_daemon
+
+    # Find repo root by walking up from this file's location
+    repo_root: Path | None = None
+    for parent in Path(__file__).parents:
+        if (parent / ".git").exists():
+            repo_root = parent
+            break
+
+    # --- git pull ---
+    if repo_root is None:
+        console.print("[yellow]Warning:[/yellow] Not running from a git repository — skipping git pull.")
+        console.print("[dim]To update manually: git pull && uv sync[/dim]")
+    else:
+        console.print(f"[bold]Pulling latest code[/bold] from {repo_root}...")
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "pull"],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            output = result.stdout.strip()
+            console.print(f"  [green]✓[/green] {output or 'Already up to date.'}")
+        else:
+            console.print(f"  [red]✗ git pull failed:[/red] {result.stderr.strip()}")
+            raise typer.Exit(1)
+
+        # --- uv sync ---
+        console.print("[bold]Syncing dependencies...[/bold]")
+        result = subprocess.run(
+            ["uv", "sync"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            console.print("  [green]✓[/green] Dependencies up to date.")
+        else:
+            console.print(f"  [red]✗ uv sync failed:[/red] {result.stderr.strip()}")
+            raise typer.Exit(1)
+
+    # --- daemon restart ---
+    if no_restart:
+        console.print("[dim]Skipping daemon restart (--no-restart).[/dim]")
+    elif not is_daemon_running():
+        console.print("[dim]Daemon not running — no restart needed.[/dim]")
+    else:
+        console.print("[bold]Restarting daemon...[/bold]")
+        if restart_daemon():
+            console.print("  [green]✓[/green] Daemon restarted.")
+        else:
+            console.print("  [yellow]⚠[/yellow] Daemon restart failed — restart manually with [bold]vandelay daemon restart[/bold].")
+
+    console.print("\n[bold green]Update complete.[/bold green]")
+
+
+@app.command()
 def status():
     """Show current configuration and agent status."""
     from vandelay.config.settings import Settings, get_settings
