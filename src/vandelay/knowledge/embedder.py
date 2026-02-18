@@ -108,9 +108,10 @@ def _build_fastembed(settings: Settings) -> Any | None:
     except ImportError:
         logger.warning(
             "fastembed is not installed — local embedder unavailable. "
-            "Knowledge will be disabled. To enable it without an API key, run: "
-            "uv add fastembed  (requires onnxruntime; may not work on Intel Mac). "
-            "Alternatively, set an OpenAI or Google API key to use a hosted embedder."
+            "To enable local embeddings: uv add fastembed "
+            "(requires onnxruntime; not supported on Intel Mac x86_64). "
+            "If you have an OpenAI or Google API key, knowledge will use that embedder "
+            "automatically — but a vector DB (chromadb or lancedb) is still required."
         )
         return None
 
