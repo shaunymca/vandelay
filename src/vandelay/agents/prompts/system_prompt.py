@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -205,14 +206,15 @@ def build_system_prompt(
     if heartbeat:
         sections.append(heartbeat)
 
-    # Bootstrap is included only on first run — the agent should
-    # delete it from the workspace after the introductory conversation.
-    # We check the workspace directly (no fallback to shipped default)
-    # because deletion from workspace means it's been used.
+    # Bootstrap is included once and then auto-deleted so it never
+    # appears again. We read directly (no shipped-default fallback)
+    # because absence of the file means it has already been used.
     if workspace_dir:
         bootstrap_path = workspace_dir / "BOOTSTRAP.md"
         if bootstrap_path.exists():
             sections.append(bootstrap_path.read_text(encoding="utf-8"))
+            with contextlib.suppress(OSError):
+                bootstrap_path.unlink()
 
     return "\n\n---\n\n".join(sections)
 
@@ -493,10 +495,12 @@ def build_team_leader_prompt(
     if heartbeat:
         sections.append(heartbeat)
 
-    # Bootstrap — same logic as standalone prompt
+    # Bootstrap — same logic as standalone prompt (read once, auto-delete)
     if workspace_dir:
         bootstrap_path = workspace_dir / "BOOTSTRAP.md"
         if bootstrap_path.exists():
             sections.append(bootstrap_path.read_text(encoding="utf-8"))
+            with contextlib.suppress(OSError):
+                bootstrap_path.unlink()
 
     return "\n\n---\n\n".join(sections)

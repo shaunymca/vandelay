@@ -49,9 +49,9 @@ Proactive tasks for the heartbeat system.
 
 One-time startup instructions.
 
-- Included in the system prompt on first run only
-- Once the agent has completed the bootstrap conversation, it deletes this file from the workspace — on the next restart it will be gone and won't be included again
+- Included in the system prompt exactly once — the system auto-deletes it on first read
 - Use this for a welcome message, initial setup tasks, or anything the agent should do exactly once
+- To run bootstrap again (e.g. after a fresh install), copy the default template back: `cp $(python -c "import vandelay; print(vandelay.__file__.replace('__init__.py',''))")workspace/templates/BOOTSTRAP.md ~/.vandelay/workspace/BOOTSTRAP.md`
 
 ### MEMORY.md
 
