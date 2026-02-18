@@ -1635,6 +1635,28 @@ def _configure_auth_quick(provider: str) -> str | None:
     return value
 
 
+def _try_index_corpus(settings: "Settings") -> None:
+    """Attempt to index the corpus during onboarding. Skips gracefully on failure."""
+    import asyncio
+
+    try:
+        from vandelay.knowledge.corpus import index_corpus
+        from vandelay.knowledge.setup import create_knowledge
+
+        knowledge = create_knowledge(settings)
+        if knowledge is None:
+            return  # No embedder available — skip silently
+
+        console.print("[dim]Indexing Vandelay Expert knowledge base...[/dim]")
+        count = asyncio.run(index_corpus(knowledge, force=False))
+        if count > 0:
+            console.print(f"[dim]  ✓ Corpus indexed ({count} source(s))[/dim]")
+    except Exception:
+        console.print(
+            "[dim]  ⚠ Could not index corpus — run [bold]vandelay knowledge refresh[/bold] later.[/dim]"
+        )
+
+
 def run_onboarding() -> Settings:
     """Run the streamlined 3-step onboarding wizard. Returns configured Settings.
 
@@ -1714,6 +1736,9 @@ def run_onboarding() -> Settings:
 
     # Persist
     settings.save()
+
+    # Index corpus now that model/embedder is configured
+    _try_index_corpus(settings)
 
     console.print(
         Panel.fit(
@@ -1816,4 +1841,5 @@ def run_headless_onboarding() -> Settings:
     )
 
     settings.save()
+    _try_index_corpus(settings)
     return settings

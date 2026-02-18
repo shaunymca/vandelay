@@ -17,7 +17,7 @@ from vandelay.knowledge.corpus import (
     _save_versions,
     corpus_needs_refresh,
     index_corpus,
-    parse_and_filter_sections,
+    parse_and_filter_sections,  # kept — useful utility even if not used by default corpus
 )
 
 
@@ -187,29 +187,11 @@ def test_parse_and_filter_sections_no_source_url():
 
 @pytest.mark.asyncio
 async def test_index_corpus_calls_ainsert(tmp_path):
-    """Remote source is downloaded, filtered, and inserted as Documents."""
+    """Local corpus sources are indexed on first run."""
     versions_file = tmp_path / "data" / "corpus_versions.json"
     knowledge = AsyncMock()
 
-    fake_text = (
-        "# Tools Overview\n"
-        "Source: https://docs.agno.com/tools/overview\n\n"
-        "Tool docs here.\n\n"
-        "# Evals\n"
-        "Source: https://docs.agno.com/evals/intro\n\n"
-        "Eval docs here."
-    )
-
-    mock_response = MagicMock()
-    mock_response.text = fake_text
-    mock_response.raise_for_status = MagicMock()
-
-    mock_client = AsyncMock()
-    mock_client.get.return_value = mock_response
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
-
-    local_text = "# Local Doc\nSome content."
+    local_text = "# Vandelay Expert Reference\nSome content."
     mock_file = MagicMock()
     mock_file.read_text.return_value = local_text
 
@@ -218,17 +200,13 @@ async def test_index_corpus_calls_ainsert(tmp_path):
 
     with (
         patch("vandelay.knowledge.corpus.CORPUS_VERSIONS_FILE", versions_file),
-        patch("httpx.AsyncClient", return_value=mock_client),
-        patch(
-            "importlib.resources.files",
-            return_value=mock_pkg,
-        ),
+        patch("importlib.resources.files", return_value=mock_pkg),
     ):
         count = await index_corpus(knowledge, force=True)
 
-    # 1 filtered page from remote + 2 local sources = 3
-    assert count == 3
-    assert knowledge.ainsert.call_count == 3
+    # 1 local source (VandelayExpert.txt)
+    assert count == 1
+    assert knowledge.ainsert.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -259,15 +237,6 @@ async def test_index_corpus_force_overrides(tmp_path):
         "Eval docs."
     )
 
-    mock_response = MagicMock()
-    mock_response.text = fake_text
-    mock_response.raise_for_status = MagicMock()
-
-    mock_client = AsyncMock()
-    mock_client.get.return_value = mock_response
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
-
     local_text = "# Doc\nContent."
     mock_file = MagicMock()
     mock_file.read_text.return_value = local_text
@@ -276,7 +245,6 @@ async def test_index_corpus_force_overrides(tmp_path):
 
     with (
         patch("vandelay.knowledge.corpus.CORPUS_VERSIONS_FILE", versions_file),
-        patch("httpx.AsyncClient", return_value=mock_client),
         patch("importlib.resources.files", return_value=mock_pkg),
     ):
         _save_versions(_get_current_versions())
@@ -292,28 +260,17 @@ async def test_index_corpus_partial_failure(tmp_path):
     versions_file = tmp_path / "data" / "corpus_versions.json"
     knowledge = AsyncMock()
 
-    # Remote download fails
-    mock_client = AsyncMock()
-    mock_client.get.side_effect = Exception("network error")
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
-
-    # Local sources succeed
-    local_text = "# Doc\nContent."
-    mock_file = MagicMock()
-    mock_file.read_text.return_value = local_text
+    # Local source fails
     mock_pkg = MagicMock()
-    mock_pkg.__truediv__ = MagicMock(return_value=mock_file)
+    mock_pkg.__truediv__ = MagicMock(side_effect=Exception("file error"))
 
     with (
         patch("vandelay.knowledge.corpus.CORPUS_VERSIONS_FILE", versions_file),
-        patch("httpx.AsyncClient", return_value=mock_client),
         patch("importlib.resources.files", return_value=mock_pkg),
     ):
         count = await index_corpus(knowledge, force=True)
 
-    # Only the 2 local sources succeed
-    assert count == 2
+    assert count == 0
     assert versions_file.exists()
 
 
@@ -357,7 +314,7 @@ def test_corpus_sources_valid():
         if isinstance(source, RemoteCorpusSource):
             assert source.url.startswith("https://"), f"{source.name}: URL must be HTTPS"
         elif isinstance(source, LocalCorpusSource):
-            assert source.filename.endswith(".md"), f"{source.name}: expected .md file"
+            assert source.filename.endswith((".md", ".txt")), f"{source.name}: expected .md or .txt file"
 
 
 def test_corpus_urls_valid():

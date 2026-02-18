@@ -249,7 +249,7 @@ def refresh_corpus(
         False, "--force", "-f", help="Re-index even if versions match"
     ),
 ):
-    """Re-index the built-in Agno documentation corpus."""
+    """Re-index the built-in Vandelay Expert documentation corpus."""
     import asyncio
 
     knowledge, _vector_db = _ensure_knowledge()
