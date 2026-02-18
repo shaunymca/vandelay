@@ -2,59 +2,63 @@
 
 > An always-on AI agent platform built on Agno.
 
-Vandelay gives you a self-hosted AI agent that runs 24/7 with memory, tools, scheduling, and multi-channel access.
+Vandelay gives you a self-hosted AI agent that runs 24/7 with memory, tools, scheduling, and multi-channel access. One command to install, onboard, and start.
 
-## Docs
+## Getting Started
 
-- [Home](index.md): Overview, features, quick install
-- [Getting Started](getting-started/index.md): What is Vandelay, architecture overview
-- [Installation](getting-started/installation.md): Prerequisites, uv install, platform notes
-- [Quickstart](getting-started/quickstart.md): Install → onboard → first message in <5 min
+- [Home](https://shaunymca.github.io/vandelay/): Overview, features, quick install
+- [Getting Started](https://shaunymca.github.io/vandelay/getting-started/): What is Vandelay, architecture overview
+- [Installation](https://shaunymca.github.io/vandelay/getting-started/installation/): Prerequisites, uv install, platform notes
+- [Quickstart](https://shaunymca.github.io/vandelay/getting-started/quickstart/): Install → onboard → first message in under 5 minutes
 
 ## Concepts
 
-- [Architecture](concepts/architecture.md): System diagram, component overview, data flow
-- [Agents](concepts/agents.md): Agent lifecycle, workspace files, system prompt assembly
-- [Teams](concepts/teams.md): Supervisor model, specialist delegation, team modes
-- [Memory](concepts/memory.md): Session history, agentic memory, workspace files
-- [Knowledge](concepts/knowledge.md): RAG pipeline, embedders, vector store
-- [Channels](concepts/channels.md): Terminal, Telegram, WhatsApp, WebSocket
-- [Safety](concepts/safety.md): Safety modes, blocked patterns, sandboxing
+- [Architecture](https://shaunymca.github.io/vandelay/concepts/architecture/): System diagram, component overview, data flow
+- [Agents](https://shaunymca.github.io/vandelay/concepts/agents/): Agent lifecycle, workspace files, system prompt assembly
+- [Teams](https://shaunymca.github.io/vandelay/concepts/teams/): Supervisor model, specialist delegation, team modes, member config
+- [Memory](https://shaunymca.github.io/vandelay/concepts/memory/): Session history, agentic memory, workspace files, SQLite backend
+- [Knowledge](https://shaunymca.github.io/vandelay/concepts/knowledge/): RAG pipeline, embedders, ChromaDB vector store, document ingestion
+- [Channels](https://shaunymca.github.io/vandelay/concepts/channels/): Terminal, Telegram, WhatsApp, WebSocket — channel-agnostic design
+- [Safety](https://shaunymca.github.io/vandelay/concepts/safety/): Safety modes (trust/confirm/tiered), blocked patterns, sandboxing
 
 ## Guides
 
-- [Your First Team](guides/first-team.md): Set up a team with specialist members
-- [Custom Tools](guides/custom-tool.md): Build a toolkit with @tool or Toolkit subclass
-- [Telegram Setup](guides/telegram-setup.md): BotFather → config → webhook → test
-- [Google Services](guides/google-services.md): OAuth setup for Gmail, Calendar, Drive, Sheets
-- [Scheduling](guides/scheduling.md): Cron jobs, heartbeat, active hours
-- [Agent Templates](guides/agent-templates.md): 14 starter templates, customization
-- [Workspace Files](guides/workspace-files.md): SOUL.md, USER.md, AGENTS.md, and more
+- [Your First Team](https://shaunymca.github.io/vandelay/guides/first-team/): Set up a team with specialist members step by step
+- [Custom Tools](https://shaunymca.github.io/vandelay/guides/custom-tool/): Build a toolkit with @tool decorator or Toolkit subclass
+- [Telegram Setup](https://shaunymca.github.io/vandelay/guides/telegram-setup/): BotFather → config → webhook → test
+- [Google Services](https://shaunymca.github.io/vandelay/guides/google-services/): OAuth setup for Gmail, Calendar, Drive, Sheets
+- [Scheduling](https://shaunymca.github.io/vandelay/guides/scheduling/): Cron jobs, heartbeat, active hours
+- [Agent Templates](https://shaunymca.github.io/vandelay/guides/agent-templates/): 14 starter templates, customization, authoring your own
+- [Workspace Files](https://shaunymca.github.io/vandelay/guides/workspace-files/): SOUL.md, USER.md, AGENTS.md, TOOLS.md, HEARTBEAT.md, BOOTSTRAP.md, MEMORY.md
 
 ## Tools
 
-- [Tool Catalog](tools/index.md): 117 tools grouped by category
-- [Built-in Tools](tools/built-in.md): Shell, File, Python, Camoufox, Scheduler, Notify
+- [Tool Catalog](https://shaunymca.github.io/vandelay/tools/): 100+ tools grouped by category with slugs and pricing
+- [Built-in Tools](https://shaunymca.github.io/vandelay/tools/built-in/): Shell, File, Python, Camoufox, Scheduler, Notify and other custom toolkits
 
 ## CLI Reference
 
-- [Overview](cli/index.md): All commands and global options
-- [onboard](cli/onboard.md): Interactive setup wizard
-- [start](cli/start.md): Start server and terminal chat
-- [config](cli/config.md): Interactive configuration editor
-- [tools](cli/tools.md): Enable, disable, list, search tools
-- [cron](cli/cron.md): Manage cron jobs
-- [knowledge](cli/knowledge.md): Manage RAG corpus
-- [memory](cli/memory.md): View and manage agent memory
-- [daemon](cli/daemon.md): Install and manage background daemon
+- [Overview](https://shaunymca.github.io/vandelay/cli/): All commands and global options
+- [onboard](https://shaunymca.github.io/vandelay/cli/onboard/): Interactive setup wizard
+- [start](https://shaunymca.github.io/vandelay/cli/start/): Start server and terminal chat
+- [config](https://shaunymca.github.io/vandelay/cli/config/): Interactive configuration editor
+- [tools](https://shaunymca.github.io/vandelay/cli/tools/): Enable, disable, list, search tools
+- [cron](https://shaunymca.github.io/vandelay/cli/cron/): Manage cron jobs
+- [knowledge](https://shaunymca.github.io/vandelay/cli/knowledge/): Manage RAG corpus
+- [memory](https://shaunymca.github.io/vandelay/cli/memory/): View and manage agent memory
+- [daemon](https://shaunymca.github.io/vandelay/cli/daemon/): Install and manage background daemon
 
-## Reference
+## Configuration
 
-- [Configuration](configuration/index.md): Full config.json schema, env vars, examples
+- [Configuration Reference](https://shaunymca.github.io/vandelay/configuration/): Full config.json schema, all settings, environment variables, examples
 
 ## Deployment
 
-- [Overview](deployment/index.md): Deployment options and architecture
-- [VPS Setup](deployment/vps.md): Ubuntu/Debian install, systemd, Nginx, TLS
-- [Security](deployment/security.md): API keys, JWT, Telegram lock, safety modes
-- [Troubleshooting](deployment/troubleshooting.md): Common issues, debugging, FAQ
+- [Overview](https://shaunymca.github.io/vandelay/deployment/): Deployment options and architecture
+- [VPS Setup](https://shaunymca.github.io/vandelay/deployment/vps/): Ubuntu/Debian install, systemd daemon, Nginx, TLS
+- [Security](https://shaunymca.github.io/vandelay/deployment/security/): API keys, JWT, Telegram chat lock, safety modes
+- [Troubleshooting](https://shaunymca.github.io/vandelay/deployment/troubleshooting/): Common issues, debugging, logs, FAQ
+
+## Optional
+
+- [Vandelay Expert Reference](https://shaunymca.github.io/vandelay/VandelayExpert.txt): Focused reference for the Vandelay Expert agent — teams, tools, templates, scheduling, custom toolkits
