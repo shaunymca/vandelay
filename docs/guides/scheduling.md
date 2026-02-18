@@ -37,9 +37,25 @@ Standard 5-field cron syntax: `minute hour day month weekday`
 | `*/30 * * * *` | Every 30 minutes |
 | `0 19 * * 1-5` | Weekdays at 7:00 PM |
 
+### Timezones
+
+Timezone is respected for both cron jobs and the heartbeat. Always specify it when creating a job:
+
+```
+You: Schedule a daily report at 9am Eastern time
+```
+
+Or via CLI:
+
+```bash
+vandelay cron add --name "daily-report" --schedule "0 9 * * *" --command "Generate daily report" --timezone "America/New_York"
+```
+
+If no timezone is specified, UTC is used.
+
 ### How Cron Jobs Execute
 
-When a cron job fires, the scheduler sends the command through `ChatService` as if it were a user message. The agent (or team) processes it normally, with full access to tools and memory.
+When a cron job fires, the scheduler sends the command through `ChatService` as if it were a user message. The agent (or team) processes it normally, with full access to tools and memory, using your user ID so it shares your conversation history and memory.
 
 Jobs are persisted in `~/.vandelay/cron_jobs.json` and restored on startup.
 
@@ -67,7 +83,16 @@ The heartbeat only fires within the active hours window. Outside this window, th
 
 ### What Happens on Heartbeat
 
-The agent reads `~/.vandelay/workspace/HEARTBEAT.md` and evaluates each task. Edit this file to define what the agent should check proactively.
+`HEARTBEAT.md` is loaded into the agent's system prompt at startup, so the agent knows its checklist without any extra file reads. When the heartbeat fires, the agent runs through its checklist and responds with `HEARTBEAT_OK` if everything is fine, or alerts you via your primary channel if something needs attention.
+
+The default checklist:
+
+1. Call `check_open_tasks()` — resume in-progress work, pick up pending tasks by priority
+2. Check system health (disk, memory, CPU) — alert if critical
+3. Check for any missed scheduled jobs
+4. Check monitored services
+
+Edit `~/.vandelay/workspace/HEARTBEAT.md` to customize what the agent checks.
 
 ## Next Steps
 
