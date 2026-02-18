@@ -68,6 +68,22 @@ def test_remove_nonexistent(engine: SchedulerEngine):
     assert engine.remove_job("nope") is False
 
 
+def test_remove_heartbeat_job_raises(engine: SchedulerEngine):
+    """remove_job should refuse to delete the heartbeat system job."""
+    hb = CronJob(
+        id="__heartbeat__",
+        name="Heartbeat",
+        cron_expression="*/30 * * * *",
+        command="run heartbeat",
+        job_type=JobType.HEARTBEAT,
+    )
+    engine._store.add(hb)
+    with pytest.raises(ValueError, match="system job"):
+        engine.remove_job("__heartbeat__")
+    # Heartbeat should still be there
+    assert engine.get_job("__heartbeat__") is not None
+
+
 def test_pause_job(engine: SchedulerEngine):
     """pause_job should set enabled=False."""
     job = CronJob(name="Pause Me", cron_expression="0 * * * *", command="wait")
@@ -80,6 +96,20 @@ def test_pause_job(engine: SchedulerEngine):
 def test_pause_nonexistent(engine: SchedulerEngine):
     """pause_job for a missing ID should return None."""
     assert engine.pause_job("nope") is None
+
+
+def test_pause_heartbeat_job_raises(engine: SchedulerEngine):
+    """pause_job should refuse to pause the heartbeat system job."""
+    hb = CronJob(
+        id="__heartbeat__",
+        name="Heartbeat",
+        cron_expression="*/30 * * * *",
+        command="run heartbeat",
+        job_type=JobType.HEARTBEAT,
+    )
+    engine._store.add(hb)
+    with pytest.raises(ValueError, match="system job"):
+        engine.pause_job("__heartbeat__")
 
 
 def test_resume_job(engine: SchedulerEngine):

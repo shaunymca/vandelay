@@ -114,7 +114,16 @@ class SchedulerEngine:
         return job
 
     def remove_job(self, job_id: str) -> bool:
-        """Remove a job from the scheduler and store."""
+        """Remove a job from the scheduler and store.
+
+        Raises ValueError if the job is a system job (e.g. heartbeat).
+        """
+        job = self._store.get(job_id)
+        if job is not None and job.job_type.value == "heartbeat":
+            raise ValueError(
+                f"Cannot delete system job '{job.name}' — "
+                "heartbeat is managed automatically by the scheduler."
+            )
         self._unregister_job(job_id)
         removed = self._store.remove(job_id)
         if removed:
@@ -122,10 +131,18 @@ class SchedulerEngine:
         return removed
 
     def pause_job(self, job_id: str) -> CronJob | None:
-        """Pause a job (disable without deleting)."""
+        """Pause a job (disable without deleting).
+
+        Returns None if the job doesn't exist or is a system job.
+        """
         job = self._store.get(job_id)
         if job is None:
             return None
+        if job.job_type.value == "heartbeat":
+            raise ValueError(
+                f"Cannot pause system job '{job.name}' — "
+                "use the heartbeat config to disable it."
+            )
         job.enabled = False
         self._store.update(job)
         self._unregister_job(job_id)
