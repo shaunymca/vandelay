@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import platform
+import sys
 from typing import Any
 
 from vandelay.config.constants import VANDELAY_HOME
@@ -11,6 +13,16 @@ logger = logging.getLogger(__name__)
 
 _VECTOR_DIR = VANDELAY_HOME / "data" / "knowledge_vectors"
 _DEFAULT_COLLECTION = "vandelay_knowledge"
+
+
+def is_knowledge_supported() -> bool:
+    """Return False on platforms where no vector DB has pre-built wheels.
+
+    Currently, neither chromadb nor lancedb ships macOS x86_64 wheels
+    (onnxruntime dropped Intel Mac support in v1.19+). Knowledge is
+    therefore unavailable on Intel Mac without building from source.
+    """
+    return not (sys.platform == "darwin" and platform.machine() == "x86_64")
 
 
 def create_vector_db(
