@@ -19,7 +19,6 @@ dependencies = [
     "httpx>=0.28",
     "apscheduler>=3.11",
     "playwright>=1.49",
-    "chromadb>=0.5",
     "croniter>=6.0",
     "python-telegram-bot>=21",
     "sqlalchemy>=2.0.46",
@@ -46,11 +45,13 @@ ollama = ["ollama>=0.4"]
 postgres = ["psycopg[binary]>=3.2"]
 lancedb = ["lancedb>=0.17"]
 fastembed = ["fastembed>=0.4"]
+chromadb = ["chromadb>=0.5"]
 all = [
     "anthropic>=0.40",
     "openai>=1.60",
     "google-genai>=1.0",
     "ollama>=0.4",
+    "chromadb>=0.5",
     "fastembed>=0.4",
 ]
 

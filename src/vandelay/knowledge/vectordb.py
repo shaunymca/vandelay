@@ -36,8 +36,12 @@ def create_vector_db(
         return vdb
 
     logger.warning(
-        "No vector database available. "
-        "Install chromadb (uv add chromadb) or lancedb (uv add lancedb)."
+        "No vector database available — knowledge will be disabled. "
+        "To enable: run 'uv add chromadb' (Apple Silicon / Linux / Windows) or "
+        "'uv add lancedb' (Linux / Windows). "
+        "Note: neither package currently ships pre-built wheels for Intel Mac (x86_64). "
+        "Intel Mac users should disable knowledge (knowledge.enabled=false) or "
+        "run a remote ChromaDB server."
     )
     return None
 
