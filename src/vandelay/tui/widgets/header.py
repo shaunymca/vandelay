@@ -28,9 +28,9 @@ _LIGHT: dict[str, str] = {
 }
 
 _LABEL: dict[str, str] = {
-    "online":        "Online",
-    "offline":       "Offline",
-    "transitioning": "…",
+    "online":        "Running",
+    "offline":       "Not Running",
+    "transitioning": "Working…",
 }
 
 
@@ -168,18 +168,37 @@ class VandelayHeader(Horizontal):
         if handler:
             handler()
 
+    def _resume_polling(self) -> None:
+        """Reset transitioning state so the poll loop can take over again."""
+        if self.server_state == "transitioning":
+            self.server_state = "offline"
+
     def _do_start(self) -> None:
+        import sys
+
         self.server_state = "transitioning"
         try:
-            subprocess.Popen(
-                ["vandelay", "start", "--server"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            self.app.notify("Server starting…", severity="information", timeout=4)
+            # Prefer daemon (background service) on Linux/macOS; foreground on Windows.
+            if sys.platform != "win32":
+                subprocess.Popen(
+                    ["vandelay", "daemon", "start"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                self.app.notify("Daemon starting…", severity="information", timeout=4)
+            else:
+                subprocess.Popen(
+                    ["vandelay", "start", "--server"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                self.app.notify("Server starting…", severity="information", timeout=4)
         except Exception as exc:
             self.server_state = "offline"
-            self.app.notify(f"Failed to start server: {exc}", severity="error")
+            self.app.notify(f"Failed to start: {exc}", severity="error")
+            return
+        # Let polling resume after enough time for the process to bind the port.
+        self.set_timer(6, self._resume_polling)
 
     def _do_restart(self) -> None:
         self.server_state = "transitioning"
@@ -191,11 +210,14 @@ class VandelayHeader(Horizontal):
                 msg = "Daemon restarting…" if ok else "Daemon restart failed."
                 self.app.notify(msg, severity="information" if ok else "error", timeout=4)
             else:
-                self._do_stop()
+                # No daemon — kill the port process and start fresh.
+                self._kill_port()
                 self._do_start()
+                return  # _do_start already schedules _resume_polling
         except Exception as exc:
-            self.server_state = "offline"
             self.app.notify(f"Restart failed: {exc}", severity="error")
+        # Always resume polling so buttons come back.
+        self.set_timer(8, self._resume_polling)
 
     def _do_stop(self) -> None:
         self.server_state = "transitioning"
@@ -213,6 +235,8 @@ class VandelayHeader(Horizontal):
                 self._kill_port()
         except Exception as exc:
             self.app.notify(f"Stop failed: {exc}", severity="error")
+        # Reset to offline so poll loop can confirm.
+        self.set_timer(2, self._resume_polling)
 
     def _kill_port(self) -> None:
         import sys

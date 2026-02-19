@@ -24,6 +24,7 @@ def _fmt_uptime(seconds: float) -> str:
 
 
 _METRICS: list[tuple[str, str]] = [
+    ("server",   "Server"),
     ("agent",    "Agent"),
     ("model",    "Model"),
     ("safety",   "Safety mode"),
@@ -92,7 +93,7 @@ class StatusTab(Widget):
         with Vertical(id="status-outer"):
             yield Static("● Server Status", id="status-heading")
             yield Static(
-                "Server offline — press Start in the header to begin.",
+                "[bold red]Not Running[/bold red]  — press Start in the header to begin.",
                 id="status-offline",
             )
             for key, label in _METRICS:
@@ -109,6 +110,15 @@ class StatusTab(Widget):
         self.query_one("#status-offline").display = not online
         for row in self.query(".metric-row"):
             row.display = online
+
+    def _server_mode(self) -> str:
+        """Return 'daemon' if the daemon is running, 'foreground' otherwise."""
+        try:
+            from vandelay.cli.daemon import is_daemon_running
+
+            return "daemon" if is_daemon_running() else "foreground"
+        except Exception:
+            return "foreground"
 
     async def _refresh(self) -> None:
         base = f"http://{self._host}:{self._port}"
@@ -136,7 +146,11 @@ class StatusTab(Widget):
             channels = status.get("channels", [])
             channels_str = ", ".join(channels) if channels else "none"
 
+            mode = self._server_mode()
+            server_str = f"[bold green]Running[/bold green]  ({mode})"
+
             updates: dict[str, str] = {
+                "server":   server_str,
                 "agent":    health.get("agent_name", "—"),
                 "model":    model_str or "—",
                 "safety":   status.get("safety_mode", "—"),
