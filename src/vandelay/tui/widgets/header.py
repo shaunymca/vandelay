@@ -42,8 +42,8 @@ class VandelayHeader(Widget):
     VandelayHeader {
         height: 7;
         layout: horizontal;
-        background: $surface;
-        border-bottom: tall $border;
+        background: #161b22;
+        border-bottom: tall #30363d;
     }
     #header-brand {
         width: 1fr;
@@ -54,17 +54,17 @@ class VandelayHeader(Widget):
     }
     #wordmark {
         height: 3;
-        color: $danger;
+        color: #f85149;
         text-style: bold;
     }
     #tagline {
         height: 1;
-        color: $dim;
+        color: #8b949e;
         text-style: italic;
     }
     #status-light {
         height: 1;
-        color: $text;
+        color: #c9d1d9;
         margin-top: 1;
     }
     #header-controls {
