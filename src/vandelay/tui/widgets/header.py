@@ -10,13 +10,12 @@ from typing import Literal
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
-from textual.widget import Widget
 from textual.widgets import Button, Static
 
 WORDMARK = """\
     ╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦  ╔═╗╦ ╦
     ╚╗╔╝╠═╣║║║ ║║║╣ ║  ╠═╣╚╦╝
-    ╚╝ ╩ ╩╝╚╝═╩╝╚═╝╩═╝╩ ╩ ╩"""
+     ╚╝ ╩ ╩╝╚╝═╩╝╚═╝╩═╝╩ ╩ ╩"""
 
 TAGLINE = "The employee who doesn't exist."
 
@@ -29,28 +28,29 @@ _LIGHT: dict[str, str] = {
 }
 
 _LABEL: dict[str, str] = {
-    "online":        "Online",
-    "offline":       "Offline",
-    "transitioning": "…",
+    "online":        "Running",
+    "offline":       "Not Running",
+    "transitioning": "Working…",
 }
 
 
-class VandelayHeader(Widget):
-    """Left: ASCII art + tagline + dot. Right: server control buttons."""
+class VandelayHeader(Horizontal):
+    """Left: ASCII art + tagline + status dot. Right: server control buttons.
+
+    Extends Horizontal directly so the widget itself provides horizontal layout
+    without needing a nested container — avoids Textual 8 layout quirks.
+    """
 
     DEFAULT_CSS = """
     VandelayHeader {
-        height: 7;
-        layout: horizontal;
         background: #161b22;
         border-bottom: tall #30363d;
+        height: 9;
     }
     #header-brand {
         width: 1fr;
         height: 100%;
-        layout: vertical;
         padding: 1 2;
-        align: left top;
     }
     #wordmark {
         height: 3;
@@ -70,18 +70,18 @@ class VandelayHeader(Widget):
     #header-controls {
         width: auto;
         height: 100%;
-        layout: vertical;
         padding: 1 2;
         align: right middle;
     }
     #btn-row {
         height: auto;
-        layout: horizontal;
+        width: auto;
         align: right middle;
     }
     #btn-row Button {
         margin-left: 1;
         min-width: 11;
+        height: 3;
     }
     """
 
@@ -106,14 +106,12 @@ class VandelayHeader(Widget):
             pass
 
     def compose(self) -> ComposeResult:
-        # Left: brand + status dot
+        # VandelayHeader IS a Horizontal — children compose left-to-right naturally.
         with Vertical(id="header-brand"):
             yield Static(WORDMARK, id="wordmark")
             yield Static(TAGLINE, id="tagline")
             yield Static("", id="status-light")
-
-        # Right: server control buttons only
-        with Vertical(id="header-controls"):
+        with Vertical(id="header-controls"):  # noqa: SIM117 — must be nested for Textual compose
             with Horizontal(id="btn-row"):
                 yield Button("Start",   id="btn-start",   variant="success")
                 yield Button("Restart", id="btn-restart", variant="warning")
@@ -124,11 +122,9 @@ class VandelayHeader(Widget):
         self.set_interval(3, self._poll_server)
         self.call_after_refresh(self._poll_server)
 
-
     # ── Polling ───────────────────────────────────────────────────────────
 
     async def _poll_server(self) -> None:
-        # Skip poll during transitioning — let the action settle first
         if self.server_state == "transitioning":
             return
         loop = asyncio.get_event_loop()
@@ -149,12 +145,11 @@ class VandelayHeader(Widget):
 
     def _apply_state(self, state: ServerState) -> None:
         try:
-            light = self.query_one("#status-light", Static)
-            light.update(f"{_LIGHT[state]}  {_LABEL[state]}")
-
+            self.query_one("#status-light", Static).update(
+                f"{_LIGHT[state]}  {_LABEL[state]}"
+            )
             online = state == "online"
             transitioning = state == "transitioning"
-
             self.query_one("#btn-start").display   = not online and not transitioning
             self.query_one("#btn-restart").display = online
             self.query_one("#btn-stop").display    = online
@@ -173,18 +168,37 @@ class VandelayHeader(Widget):
         if handler:
             handler()
 
+    def _resume_polling(self) -> None:
+        """Reset transitioning state so the poll loop can take over again."""
+        if self.server_state == "transitioning":
+            self.server_state = "offline"
+
     def _do_start(self) -> None:
+        import sys
+
         self.server_state = "transitioning"
         try:
-            subprocess.Popen(
-                ["vandelay", "start", "--server"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            self.app.notify("Server starting…", severity="information", timeout=4)
+            # Prefer daemon (background service) on Linux/macOS; foreground on Windows.
+            if sys.platform != "win32":
+                subprocess.Popen(
+                    ["vandelay", "daemon", "start"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                self.app.notify("Daemon starting…", severity="information", timeout=4)
+            else:
+                subprocess.Popen(
+                    ["vandelay", "start", "--server"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                self.app.notify("Server starting…", severity="information", timeout=4)
         except Exception as exc:
             self.server_state = "offline"
-            self.app.notify(f"Failed to start server: {exc}", severity="error")
+            self.app.notify(f"Failed to start: {exc}", severity="error")
+            return
+        # Let polling resume after enough time for the process to bind the port.
+        self.set_timer(6, self._resume_polling)
 
     def _do_restart(self) -> None:
         self.server_state = "transitioning"
@@ -194,14 +208,16 @@ class VandelayHeader(Widget):
             if is_daemon_running():
                 ok = restart_daemon()
                 msg = "Daemon restarting…" if ok else "Daemon restart failed."
-                sev = "information" if ok else "error"
-                self.app.notify(msg, severity=sev, timeout=4)
+                self.app.notify(msg, severity="information" if ok else "error", timeout=4)
             else:
-                self._do_stop()
+                # No daemon — kill the port process and start fresh.
+                self._kill_port()
                 self._do_start()
+                return  # _do_start already schedules _resume_polling
         except Exception as exc:
-            self.server_state = "offline"
             self.app.notify(f"Restart failed: {exc}", severity="error")
+        # Always resume polling so buttons come back.
+        self.set_timer(8, self._resume_polling)
 
     def _do_stop(self) -> None:
         self.server_state = "transitioning"
@@ -219,9 +235,10 @@ class VandelayHeader(Widget):
                 self._kill_port()
         except Exception as exc:
             self.app.notify(f"Stop failed: {exc}", severity="error")
+        # Reset to offline so poll loop can confirm.
+        self.set_timer(2, self._resume_polling)
 
     def _kill_port(self) -> None:
-        """Kill the process bound to the server port (non-daemon fallback)."""
         import sys
 
         try:

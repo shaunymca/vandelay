@@ -37,7 +37,7 @@ def run_tui() -> None:
         try:
             settings = run_onboarding()
             console.print(
-                f"\n[green]✓[/green] Setup complete — [bold]{settings.agent_name}[/bold] is ready.\n"
+                f"\n[green]✓[/green] Setup complete — [bold]{settings.agent_name}[/bold] is ready.\n"  # noqa: E501
                 "[dim]Run [bold]vandelay[/bold] to open the dashboard.[/dim]\n"
             )
         except KeyboardInterrupt:
