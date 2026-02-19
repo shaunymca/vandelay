@@ -69,16 +69,26 @@ class AgentsTab(Widget):
             return Path.home() / ".vandelay" / "members"
 
     def _load_members(self) -> list[tuple[str, bool]]:
-        """Return [(name, enabled)] — from settings if available, else from filesystem."""
+        """Return [(name, enabled)] — from settings if available, else from filesystem.
+
+        settings.team.members is a list of strings (member slugs), not objects.
+        """
         try:
             from vandelay.config.settings import Settings, get_settings
 
             if Settings.config_exists():
                 s = get_settings()
                 if s.team and s.team.members:
-                    return [(m.name, m.enabled) for m in s.team.members]
+                    result = []
+                    for m in s.team.members:
+                        if isinstance(m, str):
+                            result.append((m, True))
+                        else:
+                            result.append((m.name, getattr(m, "enabled", True)))
+                    return result
         except Exception:
             pass
+        # Fallback: list files present in the members directory
         md = self._members_dir()
         if md.exists():
             return [(p.stem, True) for p in sorted(md.glob("*.md"))]
@@ -96,6 +106,10 @@ class AgentsTab(Widget):
                     yield Button("Save", id="agents-save", variant="primary", disabled=True)
 
     def on_mount(self) -> None:
+        self._populate_list()
+
+    def on_show(self) -> None:
+        """Reload the member list every time this tab becomes visible."""
         self._populate_list()
 
     def _populate_list(self) -> None:

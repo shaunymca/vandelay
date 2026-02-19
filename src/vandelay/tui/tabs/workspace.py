@@ -106,6 +106,10 @@ class WorkspaceTab(Widget):
     def on_mount(self) -> None:
         self._populate_list()
 
+    def on_show(self) -> None:
+        """Reload the file list every time this tab becomes visible."""
+        self._populate_list()
+
     def _populate_list(self) -> None:
         lv = self.query_one("#ws-file-list", ListView)
         lv.clear()
