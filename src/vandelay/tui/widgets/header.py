@@ -36,7 +36,54 @@ _LABEL: dict[str, str] = {
 
 
 class VandelayHeader(Widget):
-    """Left: ASCII art + tagline. Right: status light + server control buttons."""
+    """Left: ASCII art + tagline + dot. Right: server control buttons."""
+
+    DEFAULT_CSS = """
+    VandelayHeader {
+        height: 7;
+        layout: horizontal;
+        background: $surface;
+        border-bottom: tall $border;
+    }
+    #header-brand {
+        width: 1fr;
+        height: 100%;
+        layout: vertical;
+        padding: 1 2;
+        align: left top;
+    }
+    #wordmark {
+        height: 3;
+        color: $danger;
+        text-style: bold;
+    }
+    #tagline {
+        height: 1;
+        color: $dim;
+        text-style: italic;
+    }
+    #status-light {
+        height: 1;
+        color: $text;
+        margin-top: 1;
+    }
+    #header-controls {
+        width: auto;
+        height: 100%;
+        layout: vertical;
+        padding: 1 2;
+        align: right middle;
+    }
+    #btn-row {
+        height: auto;
+        layout: horizontal;
+        align: right middle;
+    }
+    #btn-row Button {
+        margin-left: 1;
+        min-width: 11;
+    }
+    """
 
     server_state: reactive[ServerState] = reactive("offline")
 

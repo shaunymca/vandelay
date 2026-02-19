@@ -18,62 +18,7 @@ Screen {
     layers: base overlay;
 }
 
-/* ── Header ──────────────────────────────────────── */
-VandelayHeader {
-    height: 6;
-    layout: horizontal;
-    background: $surface;
-    border-bottom: tall $border;
-}
-
-/* Left: ASCII art + tagline */
-#header-brand {
-    width: 1fr;
-    height: 100%;
-    layout: vertical;
-    padding: 1 2;
-    align: left top;
-}
-
-#wordmark {
-    color: $danger;
-    text-style: bold;
-    height: 3;
-}
-
-#tagline {
-    color: $dim;
-    text-style: italic;
-    height: 1;
-    margin-top: 1;
-}
-
-/* Left: status dot sits below tagline */
-#status-light {
-    height: 1;
-    color: $text;
-}
-
-/* Right: server control buttons */
-#header-controls {
-    width: auto;
-    height: 100%;
-    layout: vertical;
-    padding: 1 2;
-    align: right middle;
-}
-
-#btn-row {
-    height: auto;
-    layout: horizontal;
-    align: right middle;
-}
-
-#btn-row Button {
-    margin-left: 1;
-    min-width: 11;
-    height: 1;
-}
+/* ── Header — sizing/layout lives in VandelayHeader.DEFAULT_CSS ── */
 
 /* ── Tabs ────────────────────────────────────────── */
 TabbedContent {
