@@ -1,10 +1,11 @@
-"""VandelayHeader — fixed header with server status, controls, and ASCII art."""
+"""VandelayHeader — fixed header with ASCII art left, status + controls right."""
 
 from __future__ import annotations
 
 import asyncio
 import socket
 import subprocess
+from typing import Literal
 
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
@@ -19,18 +20,30 @@ WORDMARK = """\
 
 TAGLINE = "The employee who doesn't exist."
 
+ServerState = Literal["online", "offline", "transitioning"]
+
+_LIGHT: dict[str, str] = {
+    "online":        "[bold green]●[/bold green]",
+    "offline":       "[bold red]●[/bold red]",
+    "transitioning": "[bold yellow]●[/bold yellow]",
+}
+
+_LABEL: dict[str, str] = {
+    "online":        "Online",
+    "offline":       "Offline",
+    "transitioning": "…",
+}
+
 
 class VandelayHeader(Widget):
-    """Custom header: server status + controls + ASCII art brand."""
+    """Left: ASCII art + tagline. Right: status light + server control buttons."""
 
-    server_online: reactive[bool] = reactive(False)
+    server_state: reactive[ServerState] = reactive("offline")
 
     def __init__(self) -> None:
         super().__init__()
         self._host = "127.0.0.1"
         self._port = 8000
-        self._agent_label = "Vandelay"
-        self._model_label = ""
         self._load_settings()
 
     def _load_settings(self) -> None:
@@ -42,35 +55,37 @@ class VandelayHeader(Widget):
                 host = s.server.host
                 self._host = "127.0.0.1" if host == "0.0.0.0" else host
                 self._port = s.server.port
-                self._agent_label = s.agent_name
-                self._model_label = f"{s.model.provider}/{s.model.model_id}"
         except Exception:
             pass
 
     def compose(self) -> ComposeResult:
-        with Vertical(id="header-left"):
-            yield Static("", id="status-line")
-            with Horizontal(id="btn-row"):
-                yield Button("  Start  ", id="btn-start", variant="success")
-                yield Button(" Restart ", id="btn-restart", variant="warning")
-                yield Button("  Stop   ", id="btn-stop", variant="error")
+        # Left: brand
         with Vertical(id="header-brand"):
             yield Static(WORDMARK, id="wordmark")
             yield Static(TAGLINE, id="tagline")
 
+        # Right: status light + buttons
+        with Vertical(id="header-controls"):
+            yield Static("", id="status-light")
+            with Horizontal(id="btn-row"):
+                yield Button("Start",   id="btn-start",   variant="success")
+                yield Button("Restart", id="btn-restart", variant="warning")
+                yield Button("Stop",    id="btn-stop",    variant="error")
+
     def on_mount(self) -> None:
-        # Initial button visibility before first poll
-        self._set_buttons(self.server_online)
-        self._update_status_line(self.server_online)
-        # Start polling
+        self._apply_state(self.server_state)
         self.set_interval(3, self._poll_server)
-        # Fire an immediate poll
         self.call_after_refresh(self._poll_server)
 
+    # ── Polling ───────────────────────────────────────────────────────────
+
     async def _poll_server(self) -> None:
+        # Skip poll during transitioning — let the action settle first
+        if self.server_state == "transitioning":
+            return
         loop = asyncio.get_event_loop()
-        online = await loop.run_in_executor(None, self._check_server)
-        self.server_online = online
+        reachable = await loop.run_in_executor(None, self._check_server)
+        self.server_state = "online" if reachable else "offline"
 
     def _check_server(self) -> bool:
         try:
@@ -79,42 +94,39 @@ class VandelayHeader(Widget):
         except OSError:
             return False
 
-    def watch_server_online(self, online: bool) -> None:
-        self._set_buttons(online)
-        self._update_status_line(online)
+    # ── Reactive watch ────────────────────────────────────────────────────
 
-    def _update_status_line(self, online: bool) -> None:
-        try:
-            indicator = self.query_one("#status-line", Static)
-            if online:
-                model_part = f"  [dim]{self._model_label}[/dim]" if self._model_label else ""
-                indicator.update(
-                    f"[bold green]●[/bold green] Online  "
-                    f"[bold]{self._agent_label}[/bold]{model_part}"
-                )
-            else:
-                indicator.update("[bold red]●[/bold red]  [dim]Server offline[/dim]")
-        except Exception:
-            pass
+    def watch_server_state(self, state: ServerState) -> None:
+        self._apply_state(state)
 
-    def _set_buttons(self, online: bool) -> None:
+    def _apply_state(self, state: ServerState) -> None:
         try:
-            self.query_one("#btn-start").display = not online
+            light = self.query_one("#status-light", Static)
+            light.update(f"{_LIGHT[state]}  {_LABEL[state]}")
+
+            online = state == "online"
+            transitioning = state == "transitioning"
+
+            self.query_one("#btn-start").display   = not online and not transitioning
             self.query_one("#btn-restart").display = online
-            self.query_one("#btn-stop").display = online
+            self.query_one("#btn-stop").display    = online
         except Exception:
             pass
+
+    # ── Button handlers ───────────────────────────────────────────────────
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        btn = event.button.id
-        if btn == "btn-start":
-            self._do_start()
-        elif btn == "btn-restart":
-            self._do_restart()
-        elif btn == "btn-stop":
-            self._do_stop()
+        handlers = {
+            "btn-start":   self._do_start,
+            "btn-restart": self._do_restart,
+            "btn-stop":    self._do_stop,
+        }
+        handler = handlers.get(event.button.id or "")
+        if handler:
+            handler()
 
     def _do_start(self) -> None:
+        self.server_state = "transitioning"
         try:
             subprocess.Popen(
                 ["vandelay", "start", "--server"],
@@ -123,26 +135,28 @@ class VandelayHeader(Widget):
             )
             self.app.notify("Server starting…", severity="information", timeout=4)
         except Exception as exc:
+            self.server_state = "offline"
             self.app.notify(f"Failed to start server: {exc}", severity="error")
 
     def _do_restart(self) -> None:
+        self.server_state = "transitioning"
         try:
             from vandelay.cli.daemon import is_daemon_running, restart_daemon
 
             if is_daemon_running():
                 ok = restart_daemon()
-                if ok:
-                    self.app.notify("Daemon restarting…", severity="information", timeout=4)
-                else:
-                    self.app.notify("Daemon restart failed.", severity="error")
+                msg = "Daemon restarting…" if ok else "Daemon restart failed."
+                sev = "information" if ok else "error"
+                self.app.notify(msg, severity=sev, timeout=4)
             else:
-                # No daemon — kill the port and restart
                 self._do_stop()
                 self._do_start()
         except Exception as exc:
+            self.server_state = "offline"
             self.app.notify(f"Restart failed: {exc}", severity="error")
 
     def _do_stop(self) -> None:
+        self.server_state = "transitioning"
         try:
             from vandelay.cli.daemon import is_daemon_running
 
@@ -154,7 +168,6 @@ class VandelayHeader(Widget):
                 )
                 self.app.notify("Daemon stopped.", severity="information", timeout=4)
             else:
-                # Kill whatever is listening on the port
                 self._kill_port()
         except Exception as exc:
             self.app.notify(f"Stop failed: {exc}", severity="error")
@@ -166,26 +179,19 @@ class VandelayHeader(Widget):
         try:
             if sys.platform == "win32":
                 result = subprocess.run(
-                    ["netstat", "-ano"],
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
+                    ["netstat", "-ano"], capture_output=True, text=True, timeout=5
                 )
                 for line in result.stdout.splitlines():
                     if f":{self._port}" in line and "LISTENING" in line:
-                        parts = line.split()
-                        pid = parts[-1]
+                        pid = line.split()[-1]
                         subprocess.run(["taskkill", "/PID", pid, "/F"], capture_output=True)
                         break
             else:
                 subprocess.run(
-                    ["fuser", "-k", f"{self._port}/tcp"],
-                    capture_output=True,
-                    timeout=5,
+                    ["fuser", "-k", f"{self._port}/tcp"], capture_output=True, timeout=5
                 )
             self.app.notify("Server stopped.", severity="information", timeout=4)
         except Exception:
             self.app.notify(
-                f"Could not stop server on port {self._port}.",
-                severity="warning",
+                f"Could not stop server on port {self._port}.", severity="warning"
             )
