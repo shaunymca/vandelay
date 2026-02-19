@@ -1,26 +1,20 @@
-"""Agents tab — team members list, sub-nav, and content editor."""
+"""Agents tab — three-column agent editor."""
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from textual.app import ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.widget import Widget
-from textual.widgets import Button, Input, Label, ListItem, ListView, Static, TextArea
+from textual.widgets import Button, Input, Label, ListItem, ListView, Select, Static, TextArea
 
-# Workspace prompt files in the order they appear in the system prompt.
+# Workspace prompt files in system-prompt order.
 _LEADER_PROMPT_FILES = [
-    "SOUL.md",
-    "USER.md",
-    "AGENTS.md",
-    "BOOTSTRAP.md",
-    "HEARTBEAT.md",
-    "TOOLS.md",
+    "SOUL.md", "USER.md", "AGENTS.md", "BOOTSTRAP.md", "HEARTBEAT.md", "TOOLS.md",
 ]
 
-# Sub-nav entries: (key, label, content_type)
-# content_type: "name" | "file" | "model" | "tools"
 _LEADER_SUBNAV: list[tuple[str, str, str]] = [
     ("name", "Name", "name"),
     *[(f.lower().replace(".", "_"), f, "file") for f in _LEADER_PROMPT_FILES],
@@ -30,25 +24,31 @@ _LEADER_SUBNAV: list[tuple[str, str, str]] = [
 
 _MEMBER_SUBNAV: list[tuple[str, str, str]] = [
     ("prompt", "Prompt", "file"),
-    ("model", "Model", "model"),
-    ("tools", "Tools", "tools"),
+    ("model",  "Model",  "model"),
+    ("tools",  "Tools",  "tools"),
 ]
+
+# Provider → common model IDs.  Ollama fetched at runtime; openrouter = text input.
+_PROVIDER_MODELS: dict[str, list[str]] = {
+    "anthropic":  ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
+    "openai":     ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini"],
+    "google":     ["gemini-2.0-flash", "gemini-2.0-flash-thinking", "gemini-1.5-pro", "gemini-1.5-flash"],  # noqa: E501
+    "ollama":     [],
+    "openrouter": [],
+}
+_FREEFORM_PROVIDERS = {"ollama", "openrouter"}   # use text input instead of Select
 
 
 class AgentsTab(Widget):
     """Three-column agent editor: agent list | sub-nav | content."""
 
     DEFAULT_CSS = """
-    AgentsTab {
-        height: 1fr;
-    }
-    AgentsTab > Horizontal {
-        height: 1fr;
-    }
+    AgentsTab { height: 1fr; }
+    AgentsTab > Horizontal { height: 1fr; }
 
-    /* ── Left column: agent list ──────────────────────── */
+    /* ── Left: agent list ─────────────────────────────── */
     #agents-left {
-        width: 22;
+        width: 24;
         border-right: tall #30363d;
         height: 100%;
     }
@@ -65,13 +65,15 @@ class AgentsTab(Widget):
         border: none;
         height: 3;
     }
-    #agents-list {
-        height: 1fr;
-    }
+    #agents-list { height: 1fr; }
 
-    /* ── Middle column: sub-nav ───────────────────────── */
+    /* dot colours — CSS, not Rich markup, so selection highlight can't override */
+    Label.dot-on  { color: #3fb950; }
+    Label.dot-off { color: #f85149; }
+
+    /* ── Middle: sub-nav ──────────────────────────────── */
     #agents-mid {
-        width: 18;
+        width: 20;
         border-right: tall #30363d;
         height: 100%;
     }
@@ -82,9 +84,13 @@ class AgentsTab(Widget):
         padding: 0 1;
         text-style: bold;
     }
-    #subnav-list {
-        height: 1fr;
+    #toggle-btn {
+        width: 100%;
+        margin: 0;
+        border: none;
+        height: 3;
     }
+    #subnav-list  { height: 1fr; }
     #subnav-empty {
         height: 1fr;
         align: center middle;
@@ -92,78 +98,90 @@ class AgentsTab(Widget):
         padding: 0 1;
     }
 
-    /* ── Right column: content ────────────────────────── */
-    #agents-right {
-        width: 1fr;
-        height: 100%;
-    }
+    /* ── Right: content panels ───────────────────────── */
+    #agents-right { width: 1fr; height: 100%; }
     #content-empty {
         height: 1fr;
         align: center middle;
         color: #8b949e;
     }
-    #content-file {
-        height: 1fr;
-    }
-    #file-editor {
-        height: 1fr;
-    }
-    #content-name {
-        height: 1fr;
-        padding: 2 3;
-    }
-    #content-model {
-        height: 1fr;
-        padding: 2 3;
-    }
-    #content-tools {
-        height: 1fr;
-        padding: 2 3;
-    }
-    .content-label {
-        height: 1;
-        color: #8b949e;
-        margin-bottom: 1;
-    }
-    .content-input {
-        margin-bottom: 2;
-    }
-    .content-heading {
-        color: #58a6ff;
-        text-style: bold;
-        height: 1;
-        margin-bottom: 2;
-    }
-    .save-row {
+
+    /* shared save row at TOP */
+    .save-top {
         height: 3;
         background: #161b22;
-        border-top: tall #30363d;
+        border-bottom: tall #30363d;
         align: right middle;
         padding: 0 2;
     }
-    .save-row Button {
-        min-width: 10;
-    }
-    .tool-item {
+    .save-top .panel-title {
+        width: 1fr;
         height: 1;
-        color: #c9d1d9;
-        margin-bottom: 1;
+        color: #8b949e;
+    }
+    .save-top Button { min-width: 10; }
+
+    /* file panel */
+    #content-file { height: 1fr; }
+    #file-editor  { height: 1fr; }
+    #file-empty-msg {
+        height: 1fr;
+        align: center middle;
+        color: #8b949e;
+        padding: 2 4;
+    }
+
+    /* name / model panels */
+    #content-name, #content-model { height: 1fr; }
+    #name-body, #model-body {
+        height: 1fr;
+        padding: 1 3;
+    }
+    .field-label {
+        height: 1;
+        color: #8b949e;
+        margin-top: 1;
+        margin-bottom: 0;
+    }
+    .field-input { margin-bottom: 1; }
+    .hint { color: #8b949e; height: 1; text-style: italic; }
+
+    /* tools panel */
+    #content-tools { height: 1fr; }
+    #tools-add-row {
+        height: 3;
+        background: #161b22;
+        border-bottom: tall #30363d;
+        padding: 0 2;
+        align: left middle;
+    }
+    #tool-add-select { width: 1fr; }
+    #tool-add-btn { min-width: 8; margin-left: 1; }
+    #tools-scroll { height: 1fr; }
+    .tool-row {
+        height: 3;
+        border-bottom: solid #21262d;
+        padding: 0 2;
+        align: left middle;
+    }
+    .tool-name { width: 1fr; color: #c9d1d9; }
+    .tool-remove { min-width: 8; }
+    #tools-empty {
+        padding: 2 3;
+        color: #8b949e;
+        text-style: italic;
     }
     """
 
     def __init__(self) -> None:
         super().__init__()
-        # Selected agent: "leader" or a member slug string
-        self._selected_agent: str | None = None
-        # Selected sub-nav key
+        self._selected_agent: str | None = None   # "leader" or member slug
         self._selected_section: str | None = None
-        self._selected_content_type: str | None = None
-        # For file editing
+        self._selected_type: str | None = None
         self._current_file: Path | None = None
-        # Track agent list entries: [(display, agent_id)]
         self._agent_entries: list[tuple[str, str]] = []
-        # Sub-nav for current agent: [(key, label, content_type)]
         self._subnav_entries: list[tuple[str, str, str]] = []
+        self._save_gen: int = 0   # for auto-save debounce
 
     # ── Directory helpers ─────────────────────────────────────────────────
 
@@ -181,111 +199,165 @@ class AgentsTab(Widget):
         except Exception:
             return Path.home() / ".vandelay" / "members"
 
-    # ── Settings helpers ──────────────────────────────────────────────────
-
-    def _get_settings(self):  # noqa: ANN202
+    def _settings(self):  # noqa: ANN202
         from vandelay.config.settings import get_settings
         return get_settings()
 
-    def _leader_name(self) -> str:
-        try:
-            return self._get_settings().agent_name or "Leader"
-        except Exception:
-            return "Leader"
+    # ── Available tools ───────────────────────────────────────────────────
 
-    def _member_slugs(self) -> list[str]:
+    def _all_tool_names(self) -> list[str]:
         try:
-            s = self._get_settings()
-            return [m if isinstance(m, str) else m.name for m in s.team.members]
+            from vandelay.config.constants import VANDELAY_HOME
+            f = VANDELAY_HOME / "tool_registry.json"
+            if f.exists():
+                data = json.loads(f.read_text(encoding="utf-8"))
+                tools = data.get("tools", data)
+                if isinstance(tools, dict):
+                    return sorted(tools.keys())
+                if isinstance(tools, list):
+                    return sorted(t.get("name", t) if isinstance(t, dict) else t for t in tools)
+        except Exception:
+            pass
+        return sorted([
+            "shell", "file", "python", "duckduckgo", "camoufox",
+            "gmail", "calendar", "drive", "sheets", "notion",
+            "github", "slack", "discord", "docker",
+        ])
+
+    # ── Member helpers ────────────────────────────────────────────────────
+
+    def _enabled_slugs(self) -> list[str]:
+        """Slugs currently in settings.team.members (i.e. enabled)."""
+        try:
+            s = self._settings()
+            return [
+                m if isinstance(m, str) else m.name
+                for m in s.team.members
+            ]
         except Exception:
             return []
 
+    def _all_member_slugs(self) -> list[str]:
+        """All slugs: enabled + files that exist in members dir."""
+        enabled = self._enabled_slugs()
+        md = self._members_dir()
+        from_files = [p.stem for p in md.glob("*.md")] if md.exists() else []
+        seen: set[str] = set()
+        result: list[str] = []
+        for slug in [*enabled, *from_files]:
+            if slug not in seen:
+                seen.add(slug)
+                result.append(slug)
+        return result
+
+    def _is_enabled(self, slug: str) -> bool:
+        return slug in self._enabled_slugs()
+
+    def _get_or_create_member_config(self, slug: str):  # noqa: ANN202
+        """Return existing MemberConfig for slug, or None if stored as a string."""
+        try:
+            from vandelay.config.models import MemberConfig
+            s = self._settings()
+            for m in s.team.members:
+                if isinstance(m, MemberConfig) and m.name == slug:
+                    return m
+        except Exception:
+            pass
+        return None
+
     # ── Compose ───────────────────────────────────────────────────────────
 
-    def compose(self) -> ComposeResult:
+    def compose(self) -> ComposeResult:  # noqa: PLR0912
         with Horizontal():
-            # Left: agent list
+            # ── Left column ──────────────────────────────────────────────
             with Vertical(id="agents-left"):
                 yield Static("Agents", id="agents-left-title")
                 yield Button("+ Add Agent", id="add-agent-btn", variant="default", disabled=True)
                 yield ListView(id="agents-list")
 
-            # Middle: sub-nav
+            # ── Middle column ─────────────────────────────────────────────
             with Vertical(id="agents-mid"):
                 yield Static("", id="agents-mid-title")
-                yield Static(
-                    "Select an agent", id="subnav-empty"
-                )
+                yield Button("", id="toggle-btn", variant="default")
+                yield Static("Select an agent", id="subnav-empty")
                 yield ListView(id="subnav-list")
 
-            # Right: content panels (only one visible at a time)
+            # ── Right column ──────────────────────────────────────────────
             with Vertical(id="agents-right"):
-                yield Static(
-                    "Select an agent and section", id="content-empty"
-                )
+                yield Static("Select an agent and section", id="content-empty")
 
-                # File editor panel
+                # File panel (auto-saves)
                 with Vertical(id="content-file"):
+                    yield Static("", id="file-empty-msg")
                     yield TextArea("", id="file-editor", language="markdown")
-                    with Horizontal(classes="save-row"):
-                        yield Static("", id="file-label", classes="content-label")
-                        yield Button("Save", id="file-save", variant="primary")
 
-                # Name editor panel
+                # Name panel
                 with Vertical(id="content-name"):
-                    yield Static("Agent Name", classes="content-heading")
-                    yield Label("Display name used in responses and the UI.", classes="content-label")  # noqa: E501
-                    yield Input(placeholder="Agent name…", id="name-input", classes="content-input")  # noqa: E501
-                    with Horizontal(classes="save-row"):
+                    with Horizontal(classes="save-top"):
+                        yield Static("Agent Name", classes="panel-title")
                         yield Button("Save", id="name-save", variant="primary")
+                    with Vertical(id="name-body"):
+                        yield Label("Display name used in responses and the UI.", classes="field-label")  # noqa: E501
+                        yield Input(placeholder="Agent name…", id="name-input", classes="field-input")  # noqa: E501
 
-                # Model editor panel
+                # Model panel
                 with Vertical(id="content-model"):
-                    yield Static("Model", classes="content-heading")
-                    yield Label("Provider  (anthropic / openai / google / ollama)", classes="content-label")  # noqa: E501
-                    yield Input(placeholder="e.g. anthropic", id="model-provider", classes="content-input")  # noqa: E501
-                    yield Label("Model ID", classes="content-label")
-                    yield Input(placeholder="e.g. claude-opus-4-6", id="model-id", classes="content-input")  # noqa: E501
-                    yield Label(
-                        "[dim]Leave blank to inherit the main agent's model.[/dim]",
-                        id="model-inherit-note",
-                        classes="content-label",
-                    )
-                    with Horizontal(classes="save-row"):
+                    with Horizontal(classes="save-top"):
+                        yield Static("Model", classes="panel-title")
                         yield Button("Save", id="model-save", variant="primary")
+                    with Vertical(id="model-body"):
+                        yield Label("Provider", classes="field-label")
+                        yield Select(
+                            [(p, p) for p in _PROVIDER_MODELS],
+                            id="provider-select",
+                            allow_blank=False,
+                        )
+                        yield Label("Model ID", classes="field-label")
+                        yield Select([], id="model-select", allow_blank=True)
+                        yield Input(
+                            placeholder="Model ID (e.g. llama3.2)",
+                            id="model-input",
+                            classes="field-input",
+                        )
+                        yield Label(
+                            "[dim]Leave blank to inherit the leader's model.[/dim]",
+                            id="model-inherit-note",
+                            classes="hint",
+                        )
 
                 # Tools panel
                 with Vertical(id="content-tools"):
-                    yield Static("Tools", classes="content-heading")
-                    yield Label("Enabled tools for this agent:", classes="content-label")
-                    yield ScrollableContainer(Static("", id="tools-list-body"))
-                    yield Label(
-                        "[dim]Enable / disable tools in the Config tab.[/dim]",
-                        classes="content-label",
+                    with Horizontal(id="tools-add-row"):
+                        yield Select([], id="tool-add-select", allow_blank=True)
+                        yield Button("Add", id="tool-add-btn", variant="success")
+                    yield ScrollableContainer(
+                        Static("No tools enabled.", id="tools-empty"),
+                        id="tools-scroll",
                     )
 
     def on_mount(self) -> None:
-        self._hide_all_content()
+        self._hide_all()
         self._populate_agent_list()
         self._hide_subnav()
+        self.query_one("#toggle-btn").display = False
 
     def on_show(self) -> None:
         self._populate_agent_list()
 
-    # ── Visibility helpers ────────────────────────────────────────────────
+    # ── Visibility ────────────────────────────────────────────────────────
 
-    _CONTENT_PANELS = (
+    _PANELS = (
         "content-empty", "content-file", "content-name", "content-model", "content-tools"
     )
 
-    def _hide_all_content(self) -> None:
-        for wid in self._CONTENT_PANELS:
-            self.query_one(f"#{wid}").display = False
+    def _hide_all(self) -> None:
+        for p in self._PANELS:
+            self.query_one(f"#{p}").display = False
         self.query_one("#content-empty").display = True
 
-    def _show_content(self, panel_id: str) -> None:
-        for wid in self._CONTENT_PANELS:
-            self.query_one(f"#{wid}").display = (wid == panel_id)
+    def _show(self, panel: str) -> None:
+        for p in self._PANELS:
+            self.query_one(f"#{p}").display = (p == panel)
 
     def _hide_subnav(self) -> None:
         self.query_one("#subnav-empty").display = True
@@ -302,15 +374,26 @@ class AgentsTab(Widget):
         lv.clear()
         self._agent_entries = []
 
-        # Leader
-        leader = self._leader_name()
-        lv.append(ListItem(Label(f"[bold]{leader}[/bold]  [dim](Leader)[/dim]")))
+        # Leader first
+        try:
+            leader = self._settings().agent_name or "Leader"
+        except Exception:
+            leader = "Leader"
+        lbl = Label(f"● {leader}  (Leader)")
+        lbl.add_class("dot-on")
+        lv.append(ListItem(lbl))
         self._agent_entries.append((leader, "leader"))
 
-        # Members
-        for slug in self._member_slugs():
-            lv.append(ListItem(Label(f"[green]●[/green]  {slug}")))
+        # All members (enabled + disabled)
+        enabled = set(self._enabled_slugs())
+        for slug in self._all_member_slugs():
+            on = slug in enabled
+            lbl = Label(f"● {slug}")
+            lbl.add_class("dot-on" if on else "dot-off")
+            lv.append(ListItem(lbl))
             self._agent_entries.append((slug, slug))
+
+    # ── Agent selection ───────────────────────────────────────────────────
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         if event.list_view.id == "agents-list":
@@ -319,27 +402,28 @@ class AgentsTab(Widget):
                 return
             _, agent_id = self._agent_entries[idx]
             self._select_agent(agent_id)
-
         elif event.list_view.id == "subnav-list":
             idx = event.list_view.index
             if idx is None or idx >= len(self._subnav_entries):
                 return
-            key, _, content_type = self._subnav_entries[idx]
-            self._select_section(key, content_type)
-
-    # ── Agent selection ───────────────────────────────────────────────────
+            key, _, ctype = self._subnav_entries[idx]
+            self._select_section(key, ctype)
 
     def _select_agent(self, agent_id: str) -> None:
         self._selected_agent = agent_id
         self._selected_section = None
-        self._hide_all_content()
+        self._hide_all()
 
+        btn = self.query_one("#toggle-btn", Button)
         if agent_id == "leader":
             self.query_one("#agents-mid-title", Static).update("Leader")
             self._subnav_entries = _LEADER_SUBNAV
+            btn.display = False
         else:
             self.query_one("#agents-mid-title", Static).update(agent_id)
             self._subnav_entries = _MEMBER_SUBNAV
+            btn.display = True
+            self._refresh_toggle_btn(agent_id)
 
         lv = self.query_one("#subnav-list", ListView)
         lv.clear()
@@ -347,154 +431,318 @@ class AgentsTab(Widget):
             lv.append(ListItem(Label(label)))
         self._show_subnav()
 
+    def _refresh_toggle_btn(self, slug: str) -> None:
+        enabled = self._is_enabled(slug)
+        btn = self.query_one("#toggle-btn", Button)
+        if enabled:
+            btn.label = "Disable Member"
+            btn.variant = "error"
+        else:
+            btn.label = "Enable Member"
+            btn.variant = "success"
+
     # ── Section selection ─────────────────────────────────────────────────
 
-    def _select_section(self, key: str, content_type: str) -> None:
+    def _select_section(self, key: str, ctype: str) -> None:
         self._selected_section = key
-        self._selected_content_type = content_type
+        self._selected_type = ctype
         agent = self._selected_agent
-
-        if content_type == "name":
-            self._load_name_panel()
-        elif content_type == "file":
-            self._load_file_panel(key, agent)
-        elif content_type == "model":
-            self._load_model_panel(agent)
-        elif content_type == "tools":
-            self._load_tools_panel(agent)
-
-    # ── Name panel ────────────────────────────────────────────────────────
-
-    def _load_name_panel(self) -> None:
-        try:
-            name = self._get_settings().agent_name
-        except Exception:
-            name = ""
-        self.query_one("#name-input", Input).value = name
-        self._show_content("content-name")
+        if ctype == "name":
+            self._load_name()
+        elif ctype == "file":
+            self._load_file(key, agent)
+        elif ctype == "model":
+            self._load_model(agent)
+        elif ctype == "tools":
+            self._load_tools(agent)
 
     # ── File panel ────────────────────────────────────────────────────────
 
-    def _load_file_panel(self, key: str, agent: str | None) -> None:
+    def _load_file(self, key: str, agent: str | None) -> None:
         if agent == "leader":
-            # key is like "soul_md" → "SOUL.md"
-            filename = key.upper().replace("_MD", ".MD").replace("_", ".")
-            # Handle special cases
-            _map = {k.lower().replace(".", "_"): k for k in _LEADER_PROMPT_FILES}
-            filename = _map.get(key, filename)
+            _map = {f.lower().replace(".", "_"): f for f in _LEADER_PROMPT_FILES}
+            filename = _map.get(key, key)
             path = self._workspace_dir() / filename
         else:
-            # Member prompt file
             path = self._members_dir() / f"{agent}.md"
 
         self._current_file = path
-        try:
-            content = path.read_text(encoding="utf-8") if path.exists() else ""
-        except Exception:
-            content = ""
+        content = path.read_text(encoding="utf-8") if path.exists() else ""
 
-        self.query_one("#file-editor", TextArea).load_text(content)
-        self.query_one("#file-label", Static).update(str(path.name))
-        self._show_content("content-file")
+        editor = self.query_one("#file-editor", TextArea)
+        empty_msg = self.query_one("#file-empty-msg", Static)
 
-    # ── Model panel ───────────────────────────────────────────────────────
+        if content.strip():
+            editor.load_text(content)
+            editor.display = True
+            empty_msg.display = False
+        else:
+            editor.display = False
+            empty_msg.update(
+                "This file is empty.\n\n"
+                "Start the server to let the agent populate it,\n"
+                "or type here — it will auto-save."
+            )
+            empty_msg.display = True
+            editor.load_text("")  # clear editor so auto-save doesn't write old content
 
-    def _load_model_panel(self, agent: str | None) -> None:
-        try:
-            s = self._get_settings()
-            if agent == "leader":
-                provider = s.model.provider
-                model_id = s.model.model_id
-            else:
-                # Try to find MemberConfig
-                member = self._get_member_config(agent or "")
-                provider = getattr(member, "model_provider", "") if member else ""
-                model_id = getattr(member, "model_id", "") if member else ""
-        except Exception:
-            provider = ""
-            model_id = ""
+        self._show("content-file")
 
-        self.query_one("#model-provider", Input).value = provider or ""
-        self.query_one("#model-id", Input).value = model_id or ""
-        # Hide inherit note for leader (their model is canonical)
-        self.query_one("#model-inherit-note").display = agent != "leader"
-        self._show_content("content-model")
-
-    def _get_member_config(self, slug: str):  # noqa: ANN202
-        try:
-            from vandelay.config.models import MemberConfig
-            s = self._get_settings()
-            for m in s.team.members:
-                if isinstance(m, MemberConfig) and m.name == slug:
-                    return m
-        except Exception:
-            pass
-        return None
-
-    # ── Tools panel ───────────────────────────────────────────────────────
-
-    def _load_tools_panel(self, agent: str | None) -> None:
-        try:
-            s = self._get_settings()
-            if agent == "leader":
-                tools = s.enabled_tools
-            else:
-                member = self._get_member_config(agent or "")
-                tools = getattr(member, "tools", s.enabled_tools) if member else s.enabled_tools
-        except Exception:
-            tools = []
-
-        body = (
-            "\n".join(f"[green]●[/green]  {t}" for t in tools)
-            if tools else "[dim]No tools enabled[/dim]"
-        )
-        self.query_one("#tools-list-body", Static).update(body)
-        self._show_content("content-tools")
-
-    # ── Button handlers ───────────────────────────────────────────────────
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        handlers = {
-            "file-save":   self._save_file,
-            "name-save":   self._save_name,
-            "model-save":  self._save_model,
-        }
-        handler = handlers.get(event.button.id or "")
-        if handler:
-            handler()
-
-    def _save_file(self) -> None:
+    def on_text_area_changed(self, event: TextArea.Changed) -> None:
+        """Auto-save after 1.5 s of inactivity."""
         if not self._current_file:
+            return
+        self._save_gen += 1
+        gen = self._save_gen
+        # Show the editor if the user started typing into the empty-file state
+        self.query_one("#file-editor", TextArea).display = True
+        self.query_one("#file-empty-msg", Static).display = False
+        self.set_timer(1.5, lambda: self._autosave(gen))
+
+    def _autosave(self, gen: int) -> None:
+        if gen != self._save_gen or not self._current_file:
             return
         try:
             content = self.query_one("#file-editor", TextArea).text
             self._current_file.parent.mkdir(parents=True, exist_ok=True)
             self._current_file.write_text(content, encoding="utf-8")
-            self.app.notify(f"Saved {self._current_file.name}", severity="information", timeout=3)
+            self.app.notify(f"Saved {self._current_file.name}", severity="information", timeout=2)
         except Exception as exc:
-            self.app.notify(f"Save failed: {exc}", severity="error")
+            self.app.notify(f"Auto-save failed: {exc}", severity="error")
+
+    # ── Name panel ────────────────────────────────────────────────────────
+
+    def _load_name(self) -> None:
+        try:
+            name = self._settings().agent_name
+        except Exception:
+            name = ""
+        self.query_one("#name-input", Input).value = name or ""
+        self._show("content-name")
+
+    # ── Model panel ───────────────────────────────────────────────────────
+
+    def _load_model(self, agent: str | None) -> None:
+        try:
+            s = self._settings()
+            if agent == "leader":
+                provider = s.model.provider
+                model_id = s.model.model_id
+            else:
+                mc = self._get_or_create_member_config(agent or "")
+                provider = getattr(mc, "model_provider", "") or s.model.provider
+                model_id = getattr(mc, "model_id", "") or ""
+        except Exception:
+            provider, model_id = "", ""
+
+        import contextlib
+
+        # Set provider select
+        psel = self.query_one("#provider-select", Select)
+        with contextlib.suppress(Exception):
+            psel.value = provider
+
+        # Update model select/input for this provider
+        self._update_model_options(provider, model_id)
+        self.query_one("#model-inherit-note").display = agent != "leader"
+        self._show("content-model")
+
+    def _update_model_options(self, provider: str, current: str = "") -> None:
+        models = _PROVIDER_MODELS.get(provider, [])
+        freeform = provider in _FREEFORM_PROVIDERS or not models
+
+        msel = self.query_one("#model-select", Select)
+        minput = self.query_one("#model-input", Input)
+
+        if freeform:
+            msel.display = False
+            minput.display = True
+            minput.value = current
+            # Try fetching ollama models
+            if provider == "ollama":
+                self.run_worker(self._fetch_ollama_models)
+        else:
+            msel.display = True
+            minput.display = False
+            opts = [(m, m) for m in models]
+            msel.set_options(opts)
+            if current in models:
+                import contextlib
+                with contextlib.suppress(Exception):
+                    msel.value = current
+
+    async def _fetch_ollama_models(self) -> None:
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                resp = await client.get("http://localhost:11434/api/tags")
+            models = [m["name"] for m in resp.json().get("models", [])]
+            if models:
+                self.app.notify(
+                    f"Ollama: {len(models)} model(s) found. Type to select.",
+                    severity="information", timeout=3,
+                )
+        except Exception:
+            pass  # Ollama not running locally — silently ignore
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        if event.select.id == "provider-select":
+            provider = str(event.value) if event.value is not None else ""
+            self._update_model_options(provider)
+
+    # ── Tools panel ───────────────────────────────────────────────────────
+
+    def _current_tools(self, agent: str | None) -> list[str]:
+        try:
+            s = self._settings()
+            if agent == "leader":
+                return list(s.enabled_tools)
+            mc = self._get_or_create_member_config(agent or "")
+            return list(getattr(mc, "tools", s.enabled_tools) if mc else s.enabled_tools)
+        except Exception:
+            return []
+
+    def _load_tools(self, agent: str | None) -> None:
+        tools = self._current_tools(agent)
+        self._render_tools(tools, agent)
+        self._refresh_tool_add_select(tools)
+        self._show("content-tools")
+
+    def _render_tools(self, tools: list[str], agent: str | None) -> None:
+        scroll = self.query_one("#tools-scroll", ScrollableContainer)
+        scroll.remove_children()
+        if not tools:
+            scroll.mount(Static("No tools enabled.", id="tools-empty"))
+            return
+        for tool in tools:
+            row = Horizontal(classes="tool-row")
+            row.compose = lambda t=tool, a=agent: self._tool_row_compose(t, a)  # type: ignore[method-assign]
+            scroll.mount(self._make_tool_row(tool, agent))
+
+    def _make_tool_row(self, tool: str, agent: str | None) -> Horizontal:
+        row = Horizontal(classes="tool-row")
+
+        async def _mount(r: Horizontal = row, t: str = tool, a: str | None = agent) -> None:
+            await r.mount(Static(t, classes="tool-name"))
+            btn = Button("Remove", classes="tool-remove", variant="error")
+            btn.id = f"remove-{t}"
+            await r.mount(btn)
+
+        self.call_after_refresh(lambda r=row, t=tool, a=agent: self.call_later(
+            lambda: None  # placeholder — use a simpler approach below
+        ))
+        return row
+
+    def _rebuild_tool_rows(self, agent: str | None) -> None:
+        """Clear and rebuild the tools scroll area."""
+        tools = self._current_tools(agent)
+        scroll = self.query_one("#tools-scroll", ScrollableContainer)
+        scroll.remove_children()
+        if not tools:
+            scroll.mount(Static("No tools enabled.", id="tools-empty"))
+        else:
+            for t in tools:
+                self._mount_tool_row(scroll, t)
+        self._refresh_tool_add_select(tools)
+
+    def _mount_tool_row(self, container: ScrollableContainer, tool: str) -> None:
+        row = Horizontal(classes="tool-row")
+        row.border_title = tool
+
+        async def _do() -> None:
+            await container.mount(row)
+            await row.mount(Static(tool, classes="tool-name"))
+            btn = Button("Remove", variant="error", classes="tool-remove")
+            btn.id = f"tool-remove-{tool}"
+            await row.mount(btn)
+
+        self.call_later(_do)
+
+    def _refresh_tool_add_select(self, current: list[str]) -> None:
+        all_tools = self._all_tool_names()
+        available = [(t, t) for t in all_tools if t not in current]
+        sel = self.query_one("#tool-add-select", Select)
+        if available:
+            sel.set_options(available)
+        else:
+            sel.set_options([("(all tools enabled)", "")])
+
+    def _save_tools(self, tools: list[str]) -> None:
+        agent = self._selected_agent
+        try:
+            s = self._settings()
+            if agent == "leader":
+                s.enabled_tools = tools
+                s.save()
+            else:
+                # Upgrade string member to MemberConfig with tool list
+                from vandelay.config.models import MemberConfig
+                slug = agent or ""
+                new_members = []
+                found = False
+                for m in s.team.members:
+                    name = m if isinstance(m, str) else m.name
+                    if name == slug:
+                        mc = m if isinstance(m, MemberConfig) else MemberConfig(name=slug)
+                        mc.tools = tools
+                        new_members.append(mc)
+                        found = True
+                    else:
+                        new_members.append(m)
+                if not found:
+                    new_members.append(MemberConfig(name=slug, tools=tools))
+                s.team.members = new_members
+                s.save()
+        except Exception as exc:
+            self.app.notify(f"Failed to save tools: {exc}", severity="error")
+
+    # ── Button handlers ───────────────────────────────────────────────────
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:  # noqa: PLR0912
+        bid = event.button.id or ""
+
+        if bid == "name-save":
+            self._save_name()
+        elif bid == "model-save":
+            self._save_model()
+        elif bid == "toggle-btn":
+            self._toggle_member()
+        elif bid == "tool-add-btn":
+            self._add_tool()
+        elif bid.startswith("tool-remove-"):
+            tool = bid[len("tool-remove-"):]
+            self._remove_tool(tool)
 
     def _save_name(self) -> None:
+        name = self.query_one("#name-input", Input).value.strip()
+        if not name:
+            self.app.notify("Name cannot be empty.", severity="warning")
+            return
         try:
-            name = self.query_one("#name-input", Input).value.strip()
-            if not name:
-                self.app.notify("Name cannot be empty.", severity="warning")
-                return
-            s = self._get_settings()
+            s = self._settings()
             s.agent_name = name
             s.save()
             self._populate_agent_list()
-            self.app.notify(f"Agent name saved: {name}", severity="information", timeout=3)
+            self.app.notify(f"Name saved: {name}", severity="information", timeout=3)
         except Exception as exc:
             self.app.notify(f"Save failed: {exc}", severity="error")
 
     def _save_model(self) -> None:
+        agent = self._selected_agent
         try:
-            provider = self.query_one("#model-provider", Input).value.strip()
-            model_id = self.query_one("#model-id", Input).value.strip()
-            s = self._get_settings()
+            s = self._settings()
+            psel = self.query_one("#provider-select", Select)
+            provider = str(psel.value) if psel.value is not None else ""
 
-            if self._selected_agent == "leader":
+            msel = self.query_one("#model-select", Select)
+            minput = self.query_one("#model-input", Input)
+            model_id = (
+                minput.value.strip()
+                if minput.display
+                else (str(msel.value) if msel.value else "")
+            )
+
+            if agent == "leader":
                 if provider:
                     s.model.provider = provider
                 if model_id:
@@ -502,12 +750,52 @@ class AgentsTab(Widget):
                 s.save()
                 self.app.notify("Model saved.", severity="information", timeout=3)
             else:
-                # Member model — stored in MemberConfig if present, otherwise note limitation
                 self.app.notify(
-                    "Per-member model override coming soon. "
-                    "Edit model in Config tab for now.",
-                    severity="warning",
-                    timeout=5,
+                    "Per-member model override coming soon.", severity="warning", timeout=4
                 )
         except Exception as exc:
             self.app.notify(f"Save failed: {exc}", severity="error")
+
+    def _toggle_member(self) -> None:
+        slug = self._selected_agent
+        if not slug or slug == "leader":
+            return
+        try:
+            s = self._settings()
+            enabled_list = list(s.team.members)
+            slugs = [m if isinstance(m, str) else m.name for m in enabled_list]
+            if slug in slugs:
+                # Disable: remove from team.members
+                s.team.members = [m for m in enabled_list
+                                   if (m if isinstance(m, str) else m.name) != slug]
+            else:
+                # Enable: add back
+                s.team.members = [*enabled_list, slug]
+            s.save()
+            self._populate_agent_list()
+            self._refresh_toggle_btn(slug)
+            state = "enabled" if slug not in slugs else "disabled"
+            self.app.notify(f"{slug} {state}.", severity="information", timeout=3)
+        except Exception as exc:
+            self.app.notify(f"Toggle failed: {exc}", severity="error")
+
+    def _add_tool(self) -> None:
+        sel = self.query_one("#tool-add-select", Select)
+        tool = str(sel.value) if sel.value else ""
+        if not tool:
+            return
+        agent = self._selected_agent
+        tools = self._current_tools(agent)
+        if tool in tools:
+            return
+        tools = [*tools, tool]
+        self._save_tools(tools)
+        self._rebuild_tool_rows(agent)
+        self.app.notify(f"Added tool: {tool}", severity="information", timeout=2)
+
+    def _remove_tool(self, tool: str) -> None:
+        agent = self._selected_agent
+        tools = [t for t in self._current_tools(agent) if t != tool]
+        self._save_tools(tools)
+        self._rebuild_tool_rows(agent)
+        self.app.notify(f"Removed tool: {tool}", severity="information", timeout=2)
