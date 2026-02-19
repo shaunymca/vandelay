@@ -8,9 +8,9 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, Label, Static
 
 _WORDMARK = """\
-╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦  ╔═╗╦ ╦
-╚╗╔╝╠═╣║║║ ║║║╣ ║  ╠═╣╚╦╝
- ╚╝ ╩ ╩╝╚╝═╩╝╚═╝╩═╝╩ ╩ ╩"""
+    ╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦  ╔═╗╦ ╦
+    ╚╗╔╝╠═╣║║║ ║║║╣ ║  ╠═╣╚╦╝
+    ╚╝ ╩ ╩╝╚╝═╩╝╚═╝╩═╝╩ ╩ ╩"""
 
 
 class FirstRunModal(ModalScreen[str]):

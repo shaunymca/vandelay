@@ -14,9 +14,9 @@ from textual.widget import Widget
 from textual.widgets import Button, Static
 
 WORDMARK = """\
-╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦  ╔═╗╦ ╦
-╚╗╔╝╠═╣║║║ ║║║╣ ║  ╠═╣╚╦╝
- ╚╝ ╩ ╩╝╚╝═╩╝╚═╝╩═╝╩ ╩ ╩"""
+    ╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦  ╔═╗╦ ╦
+    ╚╗╔╝╠═╣║║║ ║║║╣ ║  ╠═╣╚╦╝
+    ╚╝ ╩ ╩╝╚╝═╩╝╚═╝╩═╝╩ ╩ ╩"""
 
 TAGLINE = "The employee who doesn't exist."
 
@@ -59,14 +59,14 @@ class VandelayHeader(Widget):
             pass
 
     def compose(self) -> ComposeResult:
-        # Left: brand
+        # Left: brand + status dot
         with Vertical(id="header-brand"):
             yield Static(WORDMARK, id="wordmark")
             yield Static(TAGLINE, id="tagline")
-
-        # Right: status light + buttons
-        with Vertical(id="header-controls"):
             yield Static("", id="status-light")
+
+        # Right: server control buttons only
+        with Vertical(id="header-controls"):
             with Horizontal(id="btn-row"):
                 yield Button("Start",   id="btn-start",   variant="success")
                 yield Button("Restart", id="btn-restart", variant="warning")
@@ -76,6 +76,7 @@ class VandelayHeader(Widget):
         self._apply_state(self.server_state)
         self.set_interval(3, self._poll_server)
         self.call_after_refresh(self._poll_server)
+
 
     # ── Polling ───────────────────────────────────────────────────────────
 
