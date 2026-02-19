@@ -111,15 +111,15 @@ class AgentsTab(Widget):
         height: 3;
         background: #161b22;
         border-bottom: tall #30363d;
-        align: right middle;
+        align: left middle;
         padding: 0 2;
     }
     .save-top .panel-title {
         width: 1fr;
-        height: 1;
         color: #8b949e;
+        content-align: left middle;
     }
-    .save-top Button { min-width: 10; }
+    .save-top Button { min-width: 10; height: 3; }
 
     /* file panel */
     #content-file { height: 1fr; }
@@ -149,7 +149,7 @@ class AgentsTab(Widget):
     /* tools panel */
     #content-tools { height: 1fr; }
     #tools-add-row {
-        height: 3;
+        height: 4;
         background: #161b22;
         border-bottom: tall #30363d;
         padding: 0 2;
@@ -159,13 +159,13 @@ class AgentsTab(Widget):
     #tool-add-btn { min-width: 8; margin-left: 1; }
     #tools-scroll { height: 1fr; }
     .tool-row {
-        height: 3;
+        height: 4;
         border-bottom: solid #21262d;
         padding: 0 2;
         align: left middle;
     }
-    .tool-name { width: 1fr; color: #c9d1d9; }
-    .tool-remove { min-width: 8; }
+    .tool-name { width: 1fr; color: #c9d1d9; content-align: left middle; }
+    .tool-remove { min-width: 8; margin-right: 1; }
     #tools-empty {
         padding: 2 3;
         color: #8b949e;
@@ -603,35 +603,8 @@ class AgentsTab(Widget):
             return []
 
     def _load_tools(self, agent: str | None) -> None:
-        tools = self._current_tools(agent)
-        self._render_tools(tools, agent)
-        self._refresh_tool_add_select(tools)
+        self._rebuild_tool_rows(agent)
         self._show("content-tools")
-
-    def _render_tools(self, tools: list[str], agent: str | None) -> None:
-        scroll = self.query_one("#tools-scroll", ScrollableContainer)
-        scroll.remove_children()
-        if not tools:
-            scroll.mount(Static("No tools enabled.", id="tools-empty"))
-            return
-        for tool in tools:
-            row = Horizontal(classes="tool-row")
-            row.compose = lambda t=tool, a=agent: self._tool_row_compose(t, a)  # type: ignore[method-assign]
-            scroll.mount(self._make_tool_row(tool, agent))
-
-    def _make_tool_row(self, tool: str, agent: str | None) -> Horizontal:
-        row = Horizontal(classes="tool-row")
-
-        async def _mount(r: Horizontal = row, t: str = tool, a: str | None = agent) -> None:
-            await r.mount(Static(t, classes="tool-name"))
-            btn = Button("Remove", classes="tool-remove", variant="error")
-            btn.id = f"remove-{t}"
-            await r.mount(btn)
-
-        self.call_after_refresh(lambda r=row, t=tool, a=agent: self.call_later(
-            lambda: None  # placeholder — use a simpler approach below
-        ))
-        return row
 
     def _rebuild_tool_rows(self, agent: str | None) -> None:
         """Clear and rebuild the tools scroll area."""
@@ -647,14 +620,13 @@ class AgentsTab(Widget):
 
     def _mount_tool_row(self, container: ScrollableContainer, tool: str) -> None:
         row = Horizontal(classes="tool-row")
-        row.border_title = tool
 
         async def _do() -> None:
             await container.mount(row)
-            await row.mount(Static(tool, classes="tool-name"))
             btn = Button("Remove", variant="error", classes="tool-remove")
             btn.id = f"tool-remove-{tool}"
             await row.mount(btn)
+            await row.mount(Static(tool, classes="tool-name"))
 
         self.call_later(_do)
 
