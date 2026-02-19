@@ -1,4 +1,4 @@
-"""Daemon management — systemd (Linux) and launchd (macOS) service control."""
+"""Daemon management — systemd (Linux), launchd (macOS), PID file (Windows)."""
 
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ console = Console()
 _SYSTEMD_UNIT = Path.home() / ".config" / "systemd" / "user" / "vandelay.service"
 _LAUNCHD_PLIST = Path.home() / "Library" / "LaunchAgents" / "com.vandelay.agent.plist"
 _LOG_FILE = LOGS_DIR / "vandelay.log"
+_PID_FILE = Path.home() / ".vandelay" / "vandelay.pid"
 
 
 # --- Helpers ---
@@ -234,6 +235,116 @@ def _launchd_logs() -> None:
         subprocess.run(["tail", "-f", "-n", "50", str(_LOG_FILE)], check=False)
 
 
+# --- Windows (PID file) ---
+
+def _windows_start(exe: str) -> None:
+    """Start the server as a detached background process and save the PID."""
+    _ensure_log_dir()
+    _PID_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    pid = _windows_pid()
+    if pid and _pid_alive(pid):
+        console.print("[yellow]Server is already running.[/yellow]")
+        return
+
+    log = open(_LOG_FILE, "a", encoding="utf-8")  # noqa: SIM115
+    proc = subprocess.Popen(
+        [exe, "start", "--server"],
+        stdout=log,
+        stderr=log,
+        # DETACHED_PROCESS + CREATE_NEW_PROCESS_GROUP lets the child survive
+        # after the parent (this CLI invocation) exits.
+        creationflags=0x00000008 | 0x00000200,  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+        close_fds=True,
+    )
+    _PID_FILE.write_text(str(proc.pid), encoding="utf-8")
+    console.print(f"[green]Started[/green] vandelay server (PID {proc.pid}).")
+    console.print(f"[dim]Logs: {_LOG_FILE}[/dim]")
+
+
+def _windows_stop() -> None:
+    """Kill the tracked server process."""
+    pid = _windows_pid()
+    if pid and _pid_alive(pid):
+        try:
+            subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True, check=False)
+            console.print(f"[green]Stopped[/green] vandelay server (PID {pid}).")
+        except Exception as exc:
+            console.print(f"[red]Failed to stop PID {pid}:[/red] {exc}")
+    else:
+        # PID file stale or missing — fall back to port kill
+        console.print("[dim]No tracked PID; attempting port kill on 8000…[/dim]")
+        _windows_kill_port()
+    if _PID_FILE.exists():
+        _PID_FILE.unlink(missing_ok=True)
+
+
+def _windows_kill_port() -> None:
+    """Kill whichever process is listening on the configured port."""
+    try:
+        from vandelay.config.settings import Settings, get_settings
+
+        port = get_settings().server.port if Settings.config_exists() else 8000
+    except Exception:
+        port = 8000
+
+    result = subprocess.run(["netstat", "-ano"], capture_output=True, text=True, timeout=5)
+    for line in result.stdout.splitlines():
+        if f":{port}" in line and "LISTENING" in line:
+            pid = line.split()[-1]
+            subprocess.run(["taskkill", "/PID", pid, "/F"], capture_output=True, check=False)
+            console.print(f"[green]Killed[/green] process on port {port} (PID {pid}).")
+            return
+    console.print(f"[dim]Nothing listening on port {port}.[/dim]")
+
+
+def _windows_restart(exe: str) -> None:
+    _windows_stop()
+    _windows_start(exe)
+
+
+def _windows_status() -> None:
+    pid = _windows_pid()
+    if pid and _pid_alive(pid):
+        console.print(f"[green]Running[/green] (PID {pid})")
+        console.print(f"[dim]Logs: {_LOG_FILE}[/dim]")
+    else:
+        console.print("[red]Not Running[/red]")
+        if _PID_FILE.exists():
+            console.print("[dim]Stale PID file removed.[/dim]")
+            _PID_FILE.unlink(missing_ok=True)
+
+
+def _windows_logs() -> None:
+    import contextlib
+
+    if not _LOG_FILE.exists():
+        console.print(f"[dim]No log file at {_LOG_FILE}[/dim]")
+        return
+    with contextlib.suppress(KeyboardInterrupt):
+        subprocess.run(
+            ["powershell", "-Command", f"Get-Content -Wait -Tail 50 '{_LOG_FILE}'"],
+            check=False,
+        )
+
+
+def _windows_pid() -> int | None:
+    """Read the saved PID, or None if the file is missing/invalid."""
+    try:
+        return int(_PID_FILE.read_text(encoding="utf-8").strip())
+    except Exception:
+        return None
+
+
+def _pid_alive(pid: int) -> bool:
+    """Return True if a process with this PID is currently running."""
+    result = subprocess.run(
+        ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+        capture_output=True, text=True, check=False,
+    )
+    return str(pid) in result.stdout
+
+
 # --- Dispatch ---
 
 def _unsupported() -> None:
@@ -267,11 +378,12 @@ def install_daemon_service() -> bool:
 
 def is_daemon_supported() -> bool:
     """Return True if the current platform supports daemon installation."""
-    return _platform() in ("linux", "darwin")
+    # Windows uses a PID-file approach, which is always 'supported'.
+    return True
 
 
 def is_daemon_running() -> bool:
-    """Return True if the daemon service is currently active."""
+    """Return True if the server (daemon or tracked process) is currently active."""
     plat = _platform()
     if plat == "linux":
         result = _run(["systemctl", "--user", "is-active", "vandelay"], check=False)
@@ -279,7 +391,10 @@ def is_daemon_running() -> bool:
     elif plat == "darwin":
         result = _run(["launchctl", "list"], check=False)
         return any("vandelay" in line.lower() for line in result.stdout.splitlines())
-    return False
+    else:
+        # Windows: check PID file
+        pid = _windows_pid()
+        return pid is not None and _pid_alive(pid)
 
 
 def restart_daemon() -> bool:
@@ -292,9 +407,11 @@ def restart_daemon() -> bool:
         elif plat == "darwin":
             _launchd_restart()
             return True
+        else:
+            _windows_restart(_find_vandelay_executable())
+            return True
     except Exception:
         return False
-    return False
 
 
 # --- Commands ---
@@ -310,7 +427,11 @@ def install():
     elif plat == "darwin":
         _launchd_install(exe)
     else:
-        _unsupported()
+        console.print(
+            "[yellow]Windows does not support systemd/launchd.[/yellow]\n"
+            "Use [bold]vandelay daemon start[/bold] to run as a background process,\n"
+            "or set up a Windows service manually with NSSM or Task Scheduler."
+        )
 
 
 @app.command()
@@ -323,13 +444,17 @@ def uninstall():
     elif plat == "darwin":
         _launchd_uninstall()
     else:
-        _unsupported()
+        console.print(
+            "[yellow]No system service to uninstall on Windows.[/yellow]\n"
+            "Use [bold]vandelay daemon stop[/bold] to stop the running server."
+        )
 
 
 @app.command()
 def start():
     """Start the Vandelay service."""
     plat = _platform()
+    exe = _find_vandelay_executable()
 
     if plat == "linux":
         if not _SYSTEMD_UNIT.exists():
@@ -342,7 +467,7 @@ def start():
     elif plat == "darwin":
         _launchd_start()
     else:
-        _unsupported()
+        _windows_start(exe)
 
 
 @app.command()
@@ -355,20 +480,21 @@ def stop():
     elif plat == "darwin":
         _launchd_stop()
     else:
-        _unsupported()
+        _windows_stop()
 
 
 @app.command()
 def restart():
     """Restart the Vandelay service."""
     plat = _platform()
+    exe = _find_vandelay_executable()
 
     if plat == "linux":
         _systemd_restart()
     elif plat == "darwin":
         _launchd_restart()
     else:
-        _unsupported()
+        _windows_restart(exe)
 
 
 @app.command()
@@ -381,7 +507,7 @@ def status():
     elif plat == "darwin":
         _launchd_status()
     else:
-        _unsupported()
+        _windows_status()
 
 
 @app.command()
@@ -394,4 +520,4 @@ def logs():
     elif plat == "darwin":
         _launchd_logs()
     else:
-        _unsupported()
+        _windows_logs()
