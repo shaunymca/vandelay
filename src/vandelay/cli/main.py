@@ -17,7 +17,7 @@ from vandelay.cli.tools_commands import app as tools_app
 app = typer.Typer(
     name="vandelay",
     help="Always-on AI assistant powered by Agno.",
-    no_args_is_help=True,
+    no_args_is_help=False,
     rich_markup_mode="rich",
 )
 app.add_typer(tools_app, name="tools")
@@ -33,14 +33,20 @@ _server_handle: dict = {}
 
 @app.callback(invoke_without_command=True)
 def version_callback(
+    ctx: typer.Context,
     version: bool = typer.Option(False, "--version", "-v", help="Show version"),
-):
+) -> None:
     if version:
         from vandelay.cli.banner import print_banner
 
         print_banner(console, compact=True)
         console.print(f"  [dim]v{__version__}[/dim]")
         raise typer.Exit()
+
+    if ctx.invoked_subcommand is None:
+        from vandelay.tui.app import run_tui
+
+        run_tui()
 
 
 @app.command()

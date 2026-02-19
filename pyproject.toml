@@ -35,6 +35,7 @@ dependencies = [
     "opentelemetry-sdk>=1.39.1",
     "openinference-instrumentation-agno>=0.1.28",
     "notion-client>=3.0.0",
+    "textual>=0.80.0",
 ]
 
 [project.optional-dependencies]

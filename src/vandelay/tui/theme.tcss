@@ -1,0 +1,187 @@
+/* Vandelay dark theme — matches docs palette */
+
+/* ── Palette ─────────────────────────────────────── */
+$bg:        #0d1117;
+$surface:   #161b22;
+$border:    #30363d;
+$accent:    #58a6ff;
+$success:   #3fb950;
+$warning:   #d29922;
+$danger:    #f85149;
+$text:      #c9d1d9;
+$dim:       #8b949e;
+
+/* ── Base ────────────────────────────────────────── */
+Screen {
+    background: $bg;
+    color: $text;
+    layers: base overlay;
+}
+
+/* ── Header ──────────────────────────────────────── */
+VandelayHeader {
+    height: 6;
+    layout: horizontal;
+    background: $surface;
+    border-bottom: tall $border;
+}
+
+#header-left {
+    width: 1fr;
+    height: 100%;
+    layout: vertical;
+    padding: 1 2;
+    align: left top;
+}
+
+#status-line {
+    height: 1;
+    color: $text;
+}
+
+#btn-row {
+    height: 3;
+    layout: horizontal;
+    padding: 0;
+    margin-top: 1;
+    align: left middle;
+}
+
+#btn-row Button {
+    margin-right: 1;
+    min-width: 12;
+    height: 3;
+}
+
+#header-brand {
+    width: 38;
+    height: 100%;
+    layout: vertical;
+    align: right top;
+    padding: 1 2 1 0;
+    text-align: right;
+}
+
+#wordmark {
+    color: $danger;
+    text-style: bold;
+    text-align: right;
+    height: 3;
+}
+
+#tagline {
+    color: $dim;
+    text-style: italic;
+    text-align: right;
+    height: 1;
+    margin-top: 1;
+}
+
+/* ── Tabs ────────────────────────────────────────── */
+TabbedContent {
+    height: 1fr;
+}
+
+TabbedContent ContentSwitcher {
+    height: 1fr;
+}
+
+TabPane {
+    height: 1fr;
+    padding: 0;
+}
+
+Tabs {
+    background: $surface;
+    border-bottom: tall $border;
+}
+
+Tab {
+    color: $dim;
+}
+
+Tab.-active {
+    color: $accent;
+    text-style: bold;
+}
+
+Tab:hover {
+    color: $text;
+}
+
+/* ── Placeholder tabs ────────────────────────────── */
+.placeholder-outer {
+    height: 1fr;
+    align: center middle;
+}
+
+.placeholder-icon {
+    color: $dim;
+    text-align: center;
+    width: 100%;
+}
+
+.placeholder-title {
+    text-style: bold;
+    color: $accent;
+    text-align: center;
+    width: 100%;
+    margin-top: 1;
+}
+
+.placeholder-desc {
+    color: $dim;
+    text-align: center;
+    width: 100%;
+    margin-top: 1;
+}
+
+/* ── First-run modal ─────────────────────────────── */
+FirstRunModal {
+    align: center middle;
+}
+
+#modal-container {
+    background: $surface;
+    border: tall $accent;
+    padding: 2 4;
+    width: 62;
+    height: auto;
+    layout: vertical;
+    align: center middle;
+}
+
+#modal-wordmark {
+    color: $danger;
+    text-style: bold;
+    text-align: center;
+    height: 3;
+    width: 100%;
+}
+
+#modal-tagline {
+    color: $dim;
+    text-style: italic;
+    text-align: center;
+    width: 100%;
+    margin-bottom: 1;
+}
+
+#modal-message {
+    text-align: center;
+    width: 100%;
+    margin-bottom: 2;
+}
+
+#modal-buttons {
+    layout: horizontal;
+    align: center middle;
+    height: auto;
+    width: 100%;
+    margin-top: 1;
+}
+
+#modal-buttons Button {
+    margin: 0 1;
+    min-width: 22;
+}
