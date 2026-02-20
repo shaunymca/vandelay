@@ -51,26 +51,12 @@ MODEL_PROVIDERS = {
     "openai": {
         "name": "OpenAI (GPT)",
         "env_key": "OPENAI_API_KEY",
-        "token_env_key": None,  # Codex OAuth reads ~/.codex/auth.json directly
+        "token_env_key": None,
         "default_model": "gpt-4o",
         "token_label": "ChatGPT Plus/Pro subscription (Codex OAuth)",
-        "token_help": (
-            "Uses your ChatGPT Plus/Pro subscription via Codex OAuth. "
-            "Run `npm install -g @openai/codex && codex login` first, "
-            "then select this option."
-        ),
+        "token_help": "Run `npm install -g @openai/codex && codex login` first.",
         "api_key_label": "OpenAI API key",
         "api_key_help": "Get your API key from platform.openai.com/api-keys",
-    },
-    "openai-codex": {
-        "name": "ChatGPT Plus/Pro (Codex OAuth)",
-        "env_key": None,
-        "token_env_key": None,
-        "default_model": "gpt-5.1-codex-mini",
-        "token_label": None,
-        "token_help": None,
-        "api_key_label": None,
-        "api_key_help": "Run `npm install -g @openai/codex && codex login` first.",
     },
     "google": {
         "name": "Google (Gemini)",

@@ -149,12 +149,12 @@ def _get_model_from_config(provider: str, model_id: str, auth_method: str = "api
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         return Claude(id=model_id, api_key=api_key) if api_key else Claude(id=model_id)
 
-    if provider == "openai-codex" or (provider == "openai" and auth_method == "codex"):
-        from vandelay.models.openai_codex import CodexModel
-
-        return CodexModel(id=model_id)
-
     if provider == "openai":
+        if auth_method == "codex":
+            from vandelay.models.openai_codex import CodexModel
+
+            return CodexModel(id=model_id)
+
         from agno.models.openai import OpenAIChat
 
         return OpenAIChat(id=model_id)

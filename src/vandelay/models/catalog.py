@@ -47,20 +47,16 @@ _PROVIDERS: dict[str, ProviderInfo] = {
         env_key="OPENAI_API_KEY",
         api_key_help="Get one at: platform.openai.com/api-keys",
         models=[
+            # API key models
             ModelOption("gpt-4o", "GPT-4o", "recommended"),
             ModelOption("gpt-4.1", "GPT-4.1", "flagship"),
             ModelOption("gpt-4o-mini", "GPT-4o Mini", "fast"),
             ModelOption("o3-mini", "o3-mini (reasoning)", "flagship"),
-        ],
-    ),
-    "openai-codex": ProviderInfo(
-        name="ChatGPT Plus/Pro (Codex OAuth)",
-        env_key=None,
-        api_key_help="Run `npm install -g @openai/codex && codex login` first.",
-        models=[
-            ModelOption("gpt-5.1-codex-mini", "GPT-5.1 Codex Mini", "recommended"),
-            ModelOption("gpt-5.2-codex", "GPT-5.2 Codex", "flagship"),
-            ModelOption("gpt-5.1", "GPT-5.1", "fast"),
+            # Codex OAuth models (shown only when auth_method == "codex")
+            ModelOption("gpt-5.1-codex-mini", "GPT-5.1 Codex Mini", "codex"),
+            ModelOption("gpt-5.2-codex", "GPT-5.2 Codex", "codex"),
+            ModelOption("gpt-5.1", "GPT-5.1", "codex"),
+            ModelOption("gpt-5.2", "GPT-5.2", "codex"),
         ],
     ),
     "google": ProviderInfo(
@@ -170,10 +166,21 @@ def get_provider(key: str) -> ProviderInfo | None:
     return _PROVIDERS.get(key)
 
 
+def get_codex_model_choices() -> list[ModelOption]:
+    """Return Codex OAuth models (ChatGPT Plus/Pro subscription)."""
+    info = _PROVIDERS.get("openai")
+    if not info:
+        return []
+    return [m for m in info.models if m.tier == "codex"]
+
+
 def get_model_choices(provider: str) -> list[ModelOption]:
-    """Return curated model list for a provider."""
+    """Return curated model list for a provider (excludes Codex OAuth models)."""
     info = _PROVIDERS.get(provider)
-    return list(info.models) if info else []
+    if not info:
+        return []
+    # Exclude codex-tier models from the regular list (use get_codex_model_choices())
+    return [m for m in info.models if m.tier != "codex"]
 
 
 # ---------------------------------------------------------------------------
@@ -191,11 +198,6 @@ _API_ENDPOINTS: dict[str, dict] = {
         "parse": "_parse_anthropic",
     },
     "openai": {
-        "url": "https://api.openai.com/v1/models",
-        "headers": lambda key: {"Authorization": f"Bearer {key}"},
-        "parse": "_parse_openai",
-    },
-    "openai-codex": {
         "url": "https://api.openai.com/v1/models",
         "headers": lambda key: {"Authorization": f"Bearer {key}"},
         "parse": "_parse_openai",
@@ -243,7 +245,6 @@ _API_ENDPOINTS: dict[str, dict] = {
 # Model ID patterns to filter for chat-capable models per provider
 _CHAT_MODEL_PATTERNS: dict[str, list[str]] = {
     "openai": ["gpt-4", "gpt-3.5", "o1", "o3", "o4"],
-    "openai-codex": ["codex", "gpt-4", "gpt-5", "o1", "o3", "o4"],
 }
 
 
