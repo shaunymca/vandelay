@@ -101,10 +101,10 @@ def _configure_auth(provider: str) -> str:
     # Build auth method choices
     choices = []
 
-    if token_env_key:
+    if info.get("token_label"):
         choices.append(questionary.Choice(
-            title=f"{info['token_label']} [dim]({info['token_help']})[/dim]",
-            value="token",
+            title=f"{info['token_label']}",
+            value="codex" if not token_env_key else "token",
         ))
 
     if env_key:
@@ -122,6 +122,17 @@ def _configure_auth(provider: str) -> str:
 
     if auth_method is None or auth_method == "back":
         raise KeyboardInterrupt
+
+    if auth_method == "codex":
+        from pathlib import Path
+        codex_auth = Path.home() / ".codex" / "auth.json"
+        if codex_auth.exists():
+            console.print(f"  [green]✓[/green] Found credentials at {codex_auth}")
+            console.print("  [dim]Vandelay will read and auto-refresh this token at runtime.[/dim]")
+        else:
+            console.print(f"  [yellow]⚠[/yellow] {codex_auth} not found.")
+            console.print(f"  [dim]{info['token_help']}[/dim]")
+        return "codex"
 
     if auth_method == "token":
         console.print(f"  [dim]{info['token_help']}[/dim]")
