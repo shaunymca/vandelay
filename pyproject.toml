@@ -38,6 +38,7 @@ dependencies = [
     "textual>=0.80.0",
     "fastembed>=0.7.4",
     "chromadb>=1.5.0",
+    "openai>=2.18.0",
 ]
 
 [project.optional-dependencies]

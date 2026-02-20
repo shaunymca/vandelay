@@ -807,6 +807,8 @@ def run_config_menu(settings: Settings, exit_label: str | None = None) -> Settin
         elif section == "auth":
             auth_method = _configure_auth(settings.model.provider)
             settings.model.auth_method = auth_method
+            if auth_method == "codex":
+                settings.model.provider = "openai-codex"
 
         elif section == "safety":
             mode = _select_safety_mode()

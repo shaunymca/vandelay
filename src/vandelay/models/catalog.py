@@ -53,6 +53,16 @@ _PROVIDERS: dict[str, ProviderInfo] = {
             ModelOption("o3-mini", "o3-mini (reasoning)", "flagship"),
         ],
     ),
+    "openai-codex": ProviderInfo(
+        name="ChatGPT Plus/Pro (Codex OAuth)",
+        env_key=None,
+        api_key_help="Run `npm install -g @openai/codex && codex login` first.",
+        models=[
+            ModelOption("codex-mini-latest", "Codex Mini (latest)", "recommended"),
+            ModelOption("gpt-4.1", "GPT-4.1", "flagship"),
+            ModelOption("gpt-4o", "GPT-4o", "fast"),
+        ],
+    ),
     "google": ProviderInfo(
         name="Google (Gemini)",
         env_key="GOOGLE_API_KEY",
@@ -185,6 +195,11 @@ _API_ENDPOINTS: dict[str, dict] = {
         "headers": lambda key: {"Authorization": f"Bearer {key}"},
         "parse": "_parse_openai",
     },
+    "openai-codex": {
+        "url": "https://api.openai.com/v1/models",
+        "headers": lambda key: {"Authorization": f"Bearer {key}"},
+        "parse": "_parse_openai",
+    },
     "google": {
         "url_fn": lambda key: (
             f"https://generativelanguage.googleapis.com/v1beta/models?key={key}"
@@ -228,6 +243,7 @@ _API_ENDPOINTS: dict[str, dict] = {
 # Model ID patterns to filter for chat-capable models per provider
 _CHAT_MODEL_PATTERNS: dict[str, list[str]] = {
     "openai": ["gpt-4", "gpt-3.5", "o1", "o3", "o4"],
+    "openai-codex": ["codex", "gpt-4", "gpt-5", "o1", "o3", "o4"],
 }
 
 

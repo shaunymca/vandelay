@@ -62,6 +62,16 @@ MODEL_PROVIDERS = {
         "api_key_label": "OpenAI API key",
         "api_key_help": "Get your API key from platform.openai.com/api-keys",
     },
+    "openai-codex": {
+        "name": "ChatGPT Plus/Pro (Codex OAuth)",
+        "env_key": None,
+        "token_env_key": None,
+        "default_model": "codex-mini-latest",
+        "token_label": None,
+        "token_help": None,
+        "api_key_label": None,
+        "api_key_help": "Run `npm install -g @openai/codex && codex login` first.",
+    },
     "google": {
         "name": "Google (Gemini)",
         "env_key": "GOOGLE_API_KEY",
