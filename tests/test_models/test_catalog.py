@@ -19,10 +19,10 @@ from vandelay.models.catalog import (
 
 
 class TestProviderCatalog:
-    def test_all_10_providers_present(self):
+    def test_all_providers_present(self):
         providers = get_providers()
         expected = {
-            "anthropic", "openai", "google", "groq", "deepseek",
+            "anthropic", "openai", "openai-codex", "google", "groq", "deepseek",
             "mistral", "together", "xai", "openrouter", "ollama",
         }
         assert set(providers.keys()) == expected
@@ -42,8 +42,10 @@ class TestProviderCatalog:
         assert info.env_key is None
 
     def test_non_ollama_providers_have_env_key(self):
+        # Providers that use OAuth/local credentials instead of an API key env var
+        oauth_providers = {"ollama", "openai-codex"}
         for key, info in get_providers().items():
-            if key != "ollama":
+            if key not in oauth_providers:
                 assert info.env_key is not None, f"{key} should have an env_key"
 
     def test_get_model_choices_returns_list(self):

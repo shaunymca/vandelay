@@ -66,7 +66,7 @@ MODEL_PROVIDERS = {
         "name": "ChatGPT Plus/Pro (Codex OAuth)",
         "env_key": None,
         "token_env_key": None,
-        "default_model": "codex-mini-latest",
+        "default_model": "gpt-5.1-codex-mini",
         "token_label": None,
         "token_help": None,
         "api_key_label": None,

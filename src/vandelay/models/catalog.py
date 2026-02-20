@@ -58,9 +58,9 @@ _PROVIDERS: dict[str, ProviderInfo] = {
         env_key=None,
         api_key_help="Run `npm install -g @openai/codex && codex login` first.",
         models=[
-            ModelOption("codex-mini-latest", "Codex Mini (latest)", "recommended"),
-            ModelOption("gpt-4.1", "GPT-4.1", "flagship"),
-            ModelOption("gpt-4o", "GPT-4o", "fast"),
+            ModelOption("gpt-5.1-codex-mini", "GPT-5.1 Codex Mini", "recommended"),
+            ModelOption("gpt-5.2-codex", "GPT-5.2 Codex", "flagship"),
+            ModelOption("gpt-5.1", "GPT-5.1", "fast"),
         ],
     ),
     "google": ProviderInfo(
