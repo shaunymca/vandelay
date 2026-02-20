@@ -233,6 +233,8 @@ def _events_to_model_response(events: list[dict]) -> ModelResponse:
     text_parts: list[str] = []
     # call_id → {"id": ..., "type": "function", "function": {"name": ..., "arguments": ...}}
     tool_calls: dict[str, dict] = {}
+    # item_id (fc_...) → call_id (call_...) — delta events reference item_id, not call_id
+    item_id_to_call_id: dict[str, str] = {}
 
     for event in events:
         etype = event.get("type", "")
@@ -244,6 +246,7 @@ def _events_to_model_response(events: list[dict]) -> ModelResponse:
             item = event.get("item", {})
             if item.get("type") == "function_call":
                 call_id = item.get("call_id", "")
+                item_id = item.get("id", "")
                 tool_calls[call_id] = {
                     "id": call_id,
                     "type": "function",
@@ -252,9 +255,13 @@ def _events_to_model_response(events: list[dict]) -> ModelResponse:
                         "arguments": "",
                     },
                 }
+                if item_id:
+                    item_id_to_call_id[item_id] = call_id
 
         elif etype == "response.function_call_arguments.delta":
-            call_id = event.get("call_id", "")
+            # Delta events use item_id (fc_...), not call_id (call_...)
+            item_id = event.get("item_id", "")
+            call_id = item_id_to_call_id.get(item_id, event.get("call_id", ""))
             if call_id in tool_calls:
                 tool_calls[call_id]["function"]["arguments"] += event.get("delta", "")
 
@@ -436,6 +443,8 @@ class CodexModel(Model):
 
         # Active tool calls being streamed: call_id → dict
         active_tools: dict[str, dict] = {}
+        # item_id (fc_...) → call_id (call_...) for delta accumulation
+        item_id_map: dict[str, str] = {}
 
         with urllib.request.urlopen(req, timeout=120) as resp:
             buffer = b""
@@ -458,10 +467,20 @@ class CodexModel(Model):
                         if delta.tool_calls:
                             for tc in delta.tool_calls:
                                 cid = tc.get("id", "")
+                                item_id = tc.pop("_item_id", "")
                                 if "_new_call" in tc:
+                                    tc.pop("_new_call")
                                     active_tools[cid] = tc
-                                elif cid in active_tools:
-                                    active_tools[cid]["function"]["arguments"] += tc["function"]["arguments"]
+                                    if item_id:
+                                        item_id_map[item_id] = cid
+                                else:
+                                    # Resolve call_id via item_id if direct lookup misses
+                                    if not cid and item_id:
+                                        cid = item_id_map.get(item_id, "")
+                                    if cid in active_tools:
+                                        active_tools[cid]["function"]["arguments"] += (
+                                            tc["function"]["arguments"]
+                                        )
                         if delta.content is not None:
                             yield delta
 
@@ -493,6 +512,8 @@ class CodexModel(Model):
 
         url = f"{self.base_url}/codex/responses"
         active_tools: dict[str, dict] = {}
+        # item_id (fc_...) → call_id (call_...) for delta accumulation
+        item_id_map: dict[str, str] = {}
 
         async with httpx.AsyncClient(timeout=120) as client:
             async with client.stream(
@@ -518,10 +539,19 @@ class CodexModel(Model):
                             if delta.tool_calls:
                                 for tc in delta.tool_calls:
                                     cid = tc.get("id", "")
+                                    item_id = tc.pop("_item_id", "")
                                     if "_new_call" in tc:
+                                        tc.pop("_new_call")
                                         active_tools[cid] = tc
-                                    elif cid in active_tools:
-                                        active_tools[cid]["function"]["arguments"] += tc["function"]["arguments"]
+                                        if item_id:
+                                            item_id_map[item_id] = cid
+                                    else:
+                                        if not cid and item_id:
+                                            cid = item_id_map.get(item_id, "")
+                                        if cid in active_tools:
+                                            active_tools[cid]["function"]["arguments"] += (
+                                                tc["function"]["arguments"]
+                                            )
                             if delta.content is not None:
                                 yield delta
 
@@ -553,17 +583,21 @@ class CodexModel(Model):
             item = response.get("item", {})
             if item.get("type") == "function_call":
                 call_id = item.get("call_id", "")
+                item_id = item.get("id", "")
                 delta.tool_calls = [{
                     "id": call_id,
+                    "_item_id": item_id,  # needed so streaming loop can build item_id_map
                     "type": "function",
                     "function": {"name": item.get("name", ""), "arguments": ""},
                     "_new_call": True,  # marker so invoke_stream knows it's a new call
                 }]
 
         elif etype == "response.function_call_arguments.delta":
-            call_id = response.get("call_id", "")
+            # Delta events carry item_id (fc_...), not call_id — pass both so the
+            # streaming loops can resolve the correct tool call entry.
             delta.tool_calls = [{
-                "id": call_id,
+                "id": response.get("call_id", ""),
+                "_item_id": response.get("item_id", ""),
                 "type": "function",
                 "function": {"name": "", "arguments": response.get("delta", "")},
             }]
