@@ -16,6 +16,7 @@ class ChatTab(Widget):
             yield Static("💬", classes="placeholder-icon")
             yield Label("Chat", classes="placeholder-title")
             yield Label(
-                "Real-time chat with your agent.\nStreaming responses, tool call indicators, /new to reset session.",
+                "Real-time chat with your agent.\n"
+                "Streaming responses, tool call indicators, /new to reset session.",
                 classes="placeholder-desc",
             )
