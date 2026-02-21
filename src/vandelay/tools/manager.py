@@ -493,7 +493,7 @@ class ToolManager:
                     sys.stdout, sys.stderr = old_stdout, old_stderr
             except Exception as e:
                 # Skip tools that can't be loaded (missing deps, missing API keys, etc.)
-                logger.debug("Skipping tool %s: %s", tool_name, e)
+                logger.warning("Skipping tool %s: %s", tool_name, e)
 
         return instances
 
