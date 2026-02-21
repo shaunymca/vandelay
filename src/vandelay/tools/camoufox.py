@@ -16,15 +16,15 @@ class CamoufoxTools(Toolkit):
     """Browser automation via Camoufox (anti-detect Firefox + Playwright).
 
     Camoufox is an open-source anti-detect browser built on Firefox.
-    This toolkit manages browser pages directly via the Playwright API —
-    no subprocess or REST server needed.
+    Uses the synchronous Camoufox API so functions are available in both
+    sync and async agent contexts.
     """
 
     def __init__(self, headless: bool = True) -> None:
         super().__init__(name="camoufox")
         self._headless = headless
-        self._browser = None  # lazy-started AsyncCamoufox context
-        self._context = None  # browser context from __aenter__
+        self._browser = None  # Camoufox sync context manager
+        self._context = None  # browser context
         self._pages: dict[str, object] = {}  # tab_id → Page
         self._counter = 0
         self.register(self.open_tab)
@@ -38,21 +38,21 @@ class CamoufoxTools(Toolkit):
         self.register(self.close_tab)
         self.register(self.list_tabs)
 
-    async def _ensure_browser(self):
+    def _ensure_browser(self) -> None:
         """Lazy-start the Camoufox browser on first use."""
         if self._context is not None:
             return
 
-        from camoufox.async_api import AsyncCamoufox
+        from camoufox.sync_api import Camoufox
 
-        self._browser = AsyncCamoufox(headless=self._headless)
-        self._context = await self._browser.__aenter__()
+        self._browser = Camoufox(headless=self._headless)
+        self._context = self._browser.__enter__()
 
     def _next_tab_id(self) -> str:
         self._counter += 1
         return f"tab{self._counter}"
 
-    async def open_tab(self, url: str) -> str:
+    def open_tab(self, url: str) -> str:
         """Open a new browser tab and navigate to the given URL.
 
         Args:
@@ -61,27 +61,26 @@ class CamoufoxTools(Toolkit):
         Returns:
             Tab ID and a text summary of the page content.
         """
-        await self._ensure_browser()
-        page = await self._context.new_page()
+        self._ensure_browser()
+        page = self._context.new_page()
         tab_id = self._next_tab_id()
         self._pages[tab_id] = page
 
         try:
-            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            page.goto(url, wait_until="domcontentloaded", timeout=30000)
         except Exception as e:
             return f"Tab {tab_id} opened but navigation failed: {e}"
 
-        title = await page.title()
-        # Get a compact text summary
+        title = page.title()
         try:
-            text = await page.inner_text("body")
+            text = page.inner_text("body")
             text = text[:3000].strip()
         except Exception:
             text = "(could not extract page text)"
 
         return f"Tab {tab_id} opened: {title}\n\n{text}"
 
-    async def navigate(self, tab_id: str, url: str) -> str:
+    def navigate(self, tab_id: str, url: str) -> str:
         """Navigate an existing tab to a new URL.
 
         Args:
@@ -93,14 +92,14 @@ class CamoufoxTools(Toolkit):
             return f"Tab {tab_id} not found. Use open_tab() first."
 
         try:
-            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            page.goto(url, wait_until="domcontentloaded", timeout=30000)
         except Exception as e:
             return f"Navigation failed: {e}"
 
-        title = await page.title()
+        title = page.title()
         return f"Navigated {tab_id} to: {title} ({url})"
 
-    async def get_page_content(self, tab_id: str) -> str:
+    def get_page_content(self, tab_id: str) -> str:
         """Get the text content of a tab's page.
 
         Args:
@@ -111,20 +110,19 @@ class CamoufoxTools(Toolkit):
             return f"Tab {tab_id} not found."
 
         try:
-            snapshot = await page.accessibility.snapshot()
+            snapshot = page.accessibility.snapshot()
             if snapshot:
                 return _format_a11y_tree(snapshot)
         except Exception:
             pass
 
-        # Fallback to inner_text
         try:
-            text = await page.inner_text("body")
+            text = page.inner_text("body")
             return text[:5000].strip()
         except Exception as e:
             return f"Failed to get page content: {e}"
 
-    async def click(self, tab_id: str, selector: str) -> str:
+    def click(self, tab_id: str, selector: str) -> str:
         """Click an element by CSS selector or text.
 
         Args:
@@ -136,15 +134,15 @@ class CamoufoxTools(Toolkit):
             return f"Tab {tab_id} not found."
 
         try:
-            await page.click(selector, timeout=10000)
-            await page.wait_for_load_state("domcontentloaded", timeout=5000)
+            page.click(selector, timeout=10000)
+            page.wait_for_load_state("domcontentloaded", timeout=5000)
         except Exception as e:
             return f"Click failed: {e}"
 
-        title = await page.title()
+        title = page.title()
         return f"Clicked '{selector}' on {tab_id}. Page: {title}"
 
-    async def type_text(self, tab_id: str, selector: str, text: str) -> str:
+    def type_text(self, tab_id: str, selector: str, text: str) -> str:
         """Type text into an input element.
 
         Args:
@@ -157,17 +155,19 @@ class CamoufoxTools(Toolkit):
             return f"Tab {tab_id} not found."
 
         try:
-            await page.fill(selector, text, timeout=10000)
+            page.fill(selector, text, timeout=10000)
         except Exception as e:
             return f"Type failed: {e}"
 
         return f"Typed '{text}' into '{selector}' on {tab_id}."
 
-    async def screenshot(self, tab_id: str) -> str:
-        """Take a screenshot of a tab and save it to a temp file.
+    def screenshot(self, tab_id: str, path: str | None = None) -> str:
+        """Take a screenshot of a tab and save it to a file.
 
         Args:
             tab_id: The tab identifier.
+            path: Optional file path to save the screenshot. If not provided,
+                  saves to a temp file.
 
         Returns:
             Path to the saved screenshot PNG file.
@@ -177,13 +177,17 @@ class CamoufoxTools(Toolkit):
             return f"Tab {tab_id} not found."
 
         try:
-            path = Path(tempfile.mktemp(suffix=".png", prefix="camoufox_"))
-            await page.screenshot(path=str(path), full_page=False)
-            return f"Screenshot saved to: {path}"
+            if path:
+                save_path = Path(path)
+                save_path.parent.mkdir(parents=True, exist_ok=True)
+            else:
+                save_path = Path(tempfile.mktemp(suffix=".png", prefix="camoufox_"))
+            page.screenshot(path=str(save_path), full_page=False)
+            return f"Screenshot saved to: {save_path}"
         except Exception as e:
             return f"Screenshot failed: {e}"
 
-    async def scroll(self, tab_id: str, direction: str = "down") -> str:
+    def scroll(self, tab_id: str, direction: str = "down") -> str:
         """Scroll the page in a given direction.
 
         Args:
@@ -203,13 +207,13 @@ class CamoufoxTools(Toolkit):
         js = scroll_map.get(direction, scroll_map["down"])
 
         try:
-            await page.evaluate(js)
+            page.evaluate(js)
         except Exception as e:
             return f"Scroll failed: {e}"
 
         return f"Scrolled {direction} on {tab_id}."
 
-    async def get_links(self, tab_id: str) -> str:
+    def get_links(self, tab_id: str) -> str:
         """Get all links on the current page.
 
         Args:
@@ -220,7 +224,7 @@ class CamoufoxTools(Toolkit):
             return f"Tab {tab_id} not found."
 
         try:
-            links = await page.eval_on_selector_all(
+            links = page.eval_on_selector_all(
                 "a[href]",
                 "els => els.map(el => ({text: el.innerText.trim(), href: el.href}))",
             )
@@ -230,11 +234,11 @@ class CamoufoxTools(Toolkit):
                 f"- {link['text']} → {link['href']}"
                 for link in links if link.get("href")
             ]
-            return "\n".join(lines[:100])  # Cap at 100 links
+            return "\n".join(lines[:100])
         except Exception as e:
             return f"Failed to get links: {e}"
 
-    async def close_tab(self, tab_id: str) -> str:
+    def close_tab(self, tab_id: str) -> str:
         """Close a browser tab.
 
         Args:
@@ -245,11 +249,11 @@ class CamoufoxTools(Toolkit):
             return f"Tab {tab_id} not found."
 
         with contextlib.suppress(Exception):
-            await page.close()
+            page.close()
 
         return f"Tab {tab_id} closed."
 
-    async def list_tabs(self) -> str:
+    def list_tabs(self) -> str:
         """List all open browser tabs with their URLs."""
         if not self._pages:
             return "No open tabs."
@@ -263,18 +267,16 @@ class CamoufoxTools(Toolkit):
             lines.append(f"- {tid}: {url}")
         return "\n".join(lines)
 
-    async def close(self) -> None:
+    def close(self) -> None:
         """Shut down the browser. Called during server shutdown."""
-        # Close all pages
         for page in list(self._pages.values()):
             with contextlib.suppress(Exception):
-                await page.close()
+                page.close()
         self._pages.clear()
 
-        # Close browser context
         if self._browser is not None:
             with contextlib.suppress(Exception):
-                await self._browser.__aexit__(None, None, None)
+                self._browser.__exit__(None, None, None)
             self._browser = None
             self._context = None
 
