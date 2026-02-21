@@ -103,5 +103,6 @@ nav:
       - daemon: cli/daemon.md
   - Configuration: configuration/index.md
   - Tutorials:
+      - Overview: tutorials/index.md
       - Building a Toolkit: tutorials/building-a-toolkit.md
   - Changelog: changelog.md
