@@ -42,6 +42,18 @@ class ToolRequestTools(Toolkit):
         registry = ToolRegistry()
         entry = registry.get(tool_name)
 
+        # Check if this member already has the tool assigned
+        for m in self._settings.team.members:
+            name = m if isinstance(m, str) else m.name
+            if name == self._member_name:
+                member_tools = [] if isinstance(m, str) else list(m.tools)
+                if tool_name in member_tools and tool_name in self._settings.enabled_tools:
+                    return (
+                        f"'{tool_name}' is already in your toolkit — use its functions directly. "
+                        f"Do not request it again."
+                    )
+                break
+
         if entry is None:
             status = "not_found"
         elif tool_name in self._settings.enabled_tools:

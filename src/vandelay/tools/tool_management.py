@@ -221,7 +221,13 @@ class ToolManagementTools(Toolkit):
             members[member_idx] = member
 
         if tool_name in member.tools:
-            return f"Member '{member_name}' already has tool '{tool_name}'."
+            # Tool already assigned in config — force a reload anyway in case
+            # the running agent session is stale and doesn't have the tool yet.
+            self._reload_callback()
+            return (
+                f"Member '{member_name}' already has tool '{tool_name}' in config. "
+                f"Team reloaded to ensure the live session reflects current assignments."
+            )
 
         member.tools.append(tool_name)
         self._settings.save()

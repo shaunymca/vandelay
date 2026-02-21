@@ -53,6 +53,7 @@ _PROVIDERS: dict[str, ProviderInfo] = {
             ModelOption("gpt-4o-mini", "GPT-4o Mini", "fast"),
             ModelOption("o3-mini", "o3-mini (reasoning)", "flagship"),
             # Codex OAuth models (shown only when auth_method == "codex")
+            ModelOption("gpt-5.3-codex", "GPT-5.3 Codex", "codex"),
             ModelOption("gpt-5.1-codex-mini", "GPT-5.1 Codex Mini", "codex"),
             ModelOption("gpt-5.2-codex", "GPT-5.2 Codex", "codex"),
             ModelOption("gpt-5.1", "GPT-5.1", "codex"),
