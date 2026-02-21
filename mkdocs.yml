@@ -102,4 +102,6 @@ nav:
       - memory: cli/memory.md
       - daemon: cli/daemon.md
   - Configuration: configuration/index.md
+  - Tutorials:
+      - Building a Toolkit: tutorials/building-a-toolkit.md
   - Changelog: changelog.md

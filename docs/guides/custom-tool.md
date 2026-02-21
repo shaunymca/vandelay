@@ -266,5 +266,6 @@ tool is to add it to the manager directly.
 
 ## Next Steps
 
+- [Building a Toolkit](../tutorials/building-a-toolkit.md) — full end-to-end walkthrough using CamoufoxTools
 - [Built-in Tools](../tools/built-in.md) — examples from Vandelay itself
 - [Tool Catalog](../tools/index.md) — 117 tools from Agno's ecosystem
