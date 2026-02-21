@@ -102,3 +102,4 @@ nav:
       - memory: cli/memory.md
       - daemon: cli/daemon.md
   - Configuration: configuration/index.md
+  - Changelog: changelog.md
