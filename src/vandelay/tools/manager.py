@@ -481,6 +481,19 @@ class ToolManager:
                         instances.append(custom_cls())
                     continue
 
+                # Auto-install deps for non-builtin tools that are enabled
+                # but whose packages aren't yet installed (e.g. after a fresh
+                # deploy or a manual config edit that bypassed enable_tool).
+                if not entry.is_builtin and not self._check_installed(entry):
+                    result = self.install_deps(tool_name)
+                    if not result.success:
+                        logger.warning(
+                            "Skipping tool %s: deps could not be installed: %s",
+                            tool_name, result.message,
+                        )
+                        continue
+                    logger.info("Auto-installed deps for tool '%s'", tool_name)
+
                 mod = importlib.import_module(entry.module_path)
                 cls = getattr(mod, entry.class_name)
 
