@@ -57,20 +57,27 @@ class TelegramAdapter(ChannelAdapter):
 
     async def start(self) -> None:
         """Start the Telegram adapter — polling or webhook mode."""
-        # Fetch bot info
-        try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(f"{TELEGRAM_API}/bot{self.bot_token}/getMe")
-                data = resp.json()
-                if data.get("ok"):
-                    self._bot_username = data["result"].get("username")
-                    logger.info("Telegram bot: @%s", self._bot_username)
-                else:
-                    logger.error("Telegram getMe failed: %s", data)
-                    return
-        except Exception as exc:
-            logger.error("Could not connect to Telegram: %s", exc)
-            return
+        # Fetch bot info — non-fatal: a network blip at startup should not prevent polling.
+        # We retry up to 3 times with a short delay before giving up on the username.
+        for attempt in range(3):
+            try:
+                async with httpx.AsyncClient() as client:
+                    resp = await client.get(f"{TELEGRAM_API}/bot{self.bot_token}/getMe")
+                    data = resp.json()
+                    if data.get("ok"):
+                        self._bot_username = data["result"].get("username")
+                        logger.info("Telegram bot: @%s", self._bot_username)
+                        break
+                    else:
+                        logger.warning("Telegram getMe failed (attempt %d): %s", attempt + 1, data)
+            except Exception as exc:
+                logger.warning("Could not connect to Telegram (attempt %d): %s", attempt + 1, exc)
+            if attempt < 2:
+                await asyncio.sleep(3)
+        else:
+            # All retries exhausted — log but continue anyway so polling starts.
+            # An invalid token would also hit this path; we'll see errors in _poll_loop.
+            logger.error("Telegram getMe failed after 3 attempts — starting polling anyway")
 
         if self.webhook_url:
             # Webhook mode — Telegram pushes updates to us
