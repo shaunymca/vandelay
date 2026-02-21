@@ -26,6 +26,8 @@ def _google_all_scopes() -> list[str]:
     """All OAuth scopes needed across Google tools."""
     return [
         "https://www.googleapis.com/auth/gmail.modify",
+        "https://www.googleapis.com/auth/gmail.compose",
+        "https://www.googleapis.com/auth/gmail.send",
         "https://www.googleapis.com/auth/calendar",
         "https://www.googleapis.com/auth/drive",
         "https://www.googleapis.com/auth/spreadsheets",
@@ -426,7 +428,7 @@ class ToolManager:
                 # re-runs OAuth.
                 _goauth = {
                     "gmail": {"token_path": None, "port": 0},
-                    "google_drive": {"token_path": None, "auth_port": 0},
+                    "google_drive": {"token_path": None, "auth_port": 8765},
                     "googlecalendar": {"token_path": None, "oauth_port": 0},
                     "googlesheets": {"token_path": None, "oauth_port": 0},
                 }

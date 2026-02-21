@@ -200,6 +200,8 @@ _GOOGLE_TOKEN_FILE = "google_token.json"
 # All scopes needed across Google tools (broadest per API — no redundant readonly)
 _GOOGLE_SCOPES = [
     "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.compose",
+    "https://www.googleapis.com/auth/gmail.send",
     "https://www.googleapis.com/auth/calendar",
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/spreadsheets",
