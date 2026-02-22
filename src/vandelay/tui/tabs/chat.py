@@ -7,7 +7,7 @@ import json
 import logging
 
 from textual.app import ComposeResult
-from textual.containers import Horizontal, VerticalScroll
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.message import Message
 from textual.widget import Widget
 from textual.widgets import Button, Input, Static
@@ -17,34 +17,32 @@ logger = logging.getLogger("vandelay.tui.chat")
 _RECONNECT_DELAY = 3.0
 
 
-class ChatTab(Widget):
-    """Real-time chat with the agent — connects to /ws/terminal."""
+class ChatTab(Vertical):
+    """Real-time chat with the agent — connects to /ws/terminal.
+
+    Extends Vertical so Textual's layout engine correctly distributes
+    1fr height to the scroll log between two fixed-height bars.
+    """
 
     DEFAULT_CSS = """
     ChatTab {
         height: 1fr;
-        layout: vertical;
     }
 
     #chat-status-bar {
         height: 1;
-        min-height: 1;
-        max-height: 1;
         background: #161b22;
         padding: 0 2;
     }
 
-    /* Shrinkable scroll region — takes all space between bars */
+    /* Takes all space between status bar (1) and input bar (3) */
     #chat-log {
         height: 1fr;
-        min-height: 0;
         padding: 1 2;
     }
 
     #input-bar {
         height: 3;
-        min-height: 3;
-        max-height: 3;
         padding: 1 2;
         background: #161b22;
         border-top: solid #30363d;
