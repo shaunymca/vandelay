@@ -21,18 +21,30 @@ class ChatTab(Widget):
     """Real-time chat with the agent — connects to /ws/terminal."""
 
     DEFAULT_CSS = """
-    ChatTab { height: 1fr; }
+    ChatTab {
+        height: 1fr;
+        layout: vertical;
+    }
 
-    /* Status bar pinned to top, input bar pinned to bottom */
     #chat-status-bar {
-        dock: top;
         height: 1;
+        min-height: 1;
+        max-height: 1;
         background: #161b22;
         padding: 0 2;
     }
+
+    /* Shrinkable scroll region — takes all space between bars */
+    #chat-log {
+        height: 1fr;
+        min-height: 0;
+        padding: 1 2;
+    }
+
     #input-bar {
-        dock: bottom;
         height: 3;
+        min-height: 3;
+        max-height: 3;
         padding: 1 2;
         background: #161b22;
         border-top: solid #30363d;
@@ -46,13 +58,6 @@ class ChatTab(Widget):
         border: none;
         color: #58a6ff;
         text-style: bold;
-        dock: right;
-    }
-
-    /* Chat log fills everything between the two docked bars */
-    #chat-log {
-        height: 1fr;
-        padding: 1 2;
     }
 
     .msg-you {
