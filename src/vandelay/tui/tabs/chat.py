@@ -7,7 +7,7 @@ import json
 import logging
 
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.containers import Horizontal, VerticalScroll
 from textual.message import Message
 from textual.widget import Widget
 from textual.widgets import Button, Input, Static
@@ -23,13 +23,21 @@ class ChatTab(Widget):
     DEFAULT_CSS = """
     ChatTab { height: 1fr; }
 
-    #chat-outer { height: 1fr; }
-
+    /* Status bar pinned to top, input bar pinned to bottom */
     #chat-status-bar {
+        dock: top;
         height: 1;
         background: #161b22;
         padding: 0 2;
     }
+    #input-bar {
+        dock: bottom;
+        height: 3;
+        padding: 1 2;
+        background: #161b22;
+        border-top: solid #30363d;
+    }
+
     #chat-conn-dot { width: 2; }
     #chat-session-label { width: 1fr; color: #8b949e; }
     #chat-new-btn {
@@ -41,6 +49,7 @@ class ChatTab(Widget):
         dock: right;
     }
 
+    /* Chat log fills everything between the two docked bars */
     #chat-log {
         height: 1fr;
         padding: 1 2;
@@ -56,12 +65,6 @@ class ChatTab(Widget):
     .msg-error { color: #f85149; margin-left: 2; }
     .msg-system { color: #8b949e; text-style: italic; margin-top: 1; }
 
-    #input-bar {
-        height: 3;
-        padding: 1 2;
-        background: #161b22;
-        border-top: solid #30363d;
-    }
     #chat-input { width: 1fr; }
     #send-btn {
         width: 8; height: 1; margin-left: 1;
@@ -150,22 +153,22 @@ class ChatTab(Widget):
     # ------------------------------------------------------------------
 
     def compose(self) -> ComposeResult:
-        with Vertical(id="chat-outer"):
-            with Horizontal(id="chat-status-bar"):
-                yield Static("○", id="chat-conn-dot")
-                yield Static("Connecting…", id="chat-session-label")
-                yield Button("/new", id="chat-new-btn")
-            with VerticalScroll(id="chat-log"):
-                yield Static(
-                    "[dim]Waiting for server…[/dim]",
-                    id="chat-placeholder",
-                )
-            with Horizontal(id="input-bar"):
-                yield Input(
-                    placeholder="Message… (Enter to send,  /new to reset)",
-                    id="chat-input",
-                )
-                yield Button("Send", id="send-btn")
+        # Status bar docked top, input bar docked bottom, log fills middle
+        with Horizontal(id="chat-status-bar"):
+            yield Static("○", id="chat-conn-dot")
+            yield Static("Connecting…", id="chat-session-label")
+            yield Button("/new", id="chat-new-btn")
+        with VerticalScroll(id="chat-log"):
+            yield Static(
+                "[dim]Waiting for server…[/dim]",
+                id="chat-placeholder",
+            )
+        with Horizontal(id="input-bar"):
+            yield Input(
+                placeholder="Message… (Enter to send,  /new to reset)",
+                id="chat-input",
+            )
+            yield Button("Send", id="send-btn")
 
     def on_mount(self) -> None:
         self._start_ws()
