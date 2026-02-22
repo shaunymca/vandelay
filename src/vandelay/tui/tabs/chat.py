@@ -7,72 +7,36 @@ import json
 import logging
 
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.containers import VerticalScroll
 from textual.message import Message
 from textual.widget import Widget
 from textual.widgets import Button, Input, Static
+
+
+class _HRow(Widget):
+    """Horizontal row that fills its grid cell.
+
+    Horizontal.DEFAULT_CSS has `height: auto` which causes it to render as
+    height=0 inside a grid cell (it ignores the allocated region height).
+    Widget has no such default, so the grid's row height is honoured.
+    """
+
+    DEFAULT_CSS = "_HRow { layout: horizontal; overflow: hidden hidden; }"
 
 logger = logging.getLogger("vandelay.tui.chat")
 
 _RECONNECT_DELAY = 3.0
 
 
-class ChatTab(Vertical):
+class ChatTab(Widget):
     """Real-time chat with the agent — connects to /ws/terminal.
 
-    Extends Vertical so Textual's layout engine correctly distributes
-    1fr height to the scroll log between two fixed-height bars.
+    Uses CSS grid layout (grid-rows: 1 1fr 3) so the log fills the
+    available space between the fixed status bar and input bar reliably.
     """
 
     DEFAULT_CSS = """
-    ChatTab {
-        height: 1fr;
-    }
-
-    #chat-status-bar {
-        height: 1;
-        background: #161b22;
-        padding: 0 2;
-    }
-
-    /* Takes all space between status bar (1) and input bar (3) */
-    #chat-log {
-        height: 1fr;
-        padding: 1 2;
-    }
-
-    #input-bar {
-        height: 3;
-        padding: 1 2;
-        background: #161b22;
-        border-top: solid #30363d;
-    }
-
-    #chat-conn-dot { width: 2; }
-    #chat-session-label { width: 1fr; color: #8b949e; }
-    #chat-new-btn {
-        width: 7; height: 1;
-        background: transparent;
-        border: none;
-        color: #58a6ff;
-        text-style: bold;
-    }
-
-    .msg-you {
-        color: #58a6ff;
-        text-style: bold;
-        margin-top: 1;
-    }
-    .msg-agent { color: #c9d1d9; margin-left: 2; }
-    .msg-tool  { color: #8b949e; text-style: italic; margin-left: 2; }
-    .msg-error { color: #f85149; margin-left: 2; }
-    .msg-system { color: #8b949e; text-style: italic; margin-top: 1; }
-
-    #chat-input { width: 1fr; }
-    #send-btn {
-        width: 8; height: 1; margin-left: 1;
-        background: #238636; color: #ffffff; border: none;
-    }
+    ChatTab { height: 1fr; }
     """
 
     # ------------------------------------------------------------------
@@ -156,8 +120,8 @@ class ChatTab(Vertical):
     # ------------------------------------------------------------------
 
     def compose(self) -> ComposeResult:
-        # Status bar docked top, input bar docked bottom, log fills middle
-        with Horizontal(id="chat-status-bar"):
+        # Grid rows: auto/1 (status bar) | 1fr (log) | auto/3 (input bar)
+        with _HRow(id="chat-status-bar"):
             yield Static("○", id="chat-conn-dot")
             yield Static("Connecting…", id="chat-session-label")
             yield Button("/new", id="chat-new-btn")
@@ -166,7 +130,7 @@ class ChatTab(Vertical):
                 "[dim]Waiting for server…[/dim]",
                 id="chat-placeholder",
             )
-        with Horizontal(id="input-bar"):
+        with _HRow(id="input-bar"):
             yield Input(
                 placeholder="Message… (Enter to send,  /new to reset)",
                 id="chat-input",

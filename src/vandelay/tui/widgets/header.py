@@ -10,6 +10,7 @@ from typing import Literal
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
+from textual.widget import Widget
 from textual.widgets import Button, Static
 
 WORDMARK = """\
@@ -34,15 +35,18 @@ _LABEL: dict[str, str] = {
 }
 
 
-class VandelayHeader(Horizontal):
+class VandelayHeader(Widget):
     """Left: ASCII art + tagline + status dot. Right: server control buttons.
 
-    Extends Horizontal directly so the widget itself provides horizontal layout
-    without needing a nested container — avoids Textual 8 layout quirks.
+    Extends Widget (not Horizontal) so height: 9 is not overridden by
+    Horizontal.DEFAULT_CSS height: auto, which would cause TabbedContent's
+    1fr to get the full screen height instead of screen - header.
     """
 
     DEFAULT_CSS = """
     VandelayHeader {
+        layout: horizontal;
+        dock: top;
         background: #161b22;
         border-bottom: tall #30363d;
         height: 9;

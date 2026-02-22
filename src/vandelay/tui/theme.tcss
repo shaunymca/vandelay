@@ -25,11 +25,10 @@ TabbedContent {
     height: 1fr;
 }
 
-/* Do NOT set ContentSwitcher height — Textual manages it internally.
-   Setting height:1fr here caused it to claim the full TabbedContent
-   height, overlapping with the Tabs bar and overflowing the screen. */
+/* Do NOT override ContentSwitcher — Textual manages it internally. */
 
 TabPane {
+    height: 1fr;
     padding: 0;
 }
 
@@ -50,6 +49,55 @@ Tab.-active {
 Tab:hover {
     color: $text;
 }
+
+/* ── Chat tab ────────────────────────────────────── */
+ChatTab {
+    height: 1fr;
+}
+
+#chat-status-bar {
+    dock: top;
+    height: 1;
+    background: $surface;
+    padding: 0 2;
+}
+
+#chat-log {
+    padding: 1 2;
+}
+
+#input-bar {
+    dock: bottom;
+    height: 3;
+    padding: 0 1;
+    background: $surface;
+}
+
+#chat-input { width: 1fr; }
+
+#send-btn {
+    width: 12;
+    background: #238636;
+    color: #ffffff;
+    border: none;
+    margin-left: 1;
+}
+
+#chat-conn-dot { width: 2; }
+#chat-session-label { width: 1fr; color: $dim; }
+#chat-new-btn {
+    width: 7;
+    background: transparent;
+    border: none;
+    color: $accent;
+    text-style: bold;
+}
+
+.msg-you   { color: $accent; text-style: bold; margin-top: 1; }
+.msg-agent { color: $text;   margin-left: 2; }
+.msg-tool  { color: $dim;    text-style: italic; margin-left: 2; }
+.msg-error { color: $danger; margin-left: 2; }
+.msg-system { color: $dim;   text-style: italic; margin-top: 1; }
 
 /* ── Placeholder tabs ────────────────────────────── */
 .placeholder-outer {
