@@ -29,4 +29,14 @@ class FirstRunModal(ModalScreen[str]):
                 yield Button(" I know what I'm doing ", id="btn-skip", variant="default")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        self.dismiss(event.button.id.removeprefix("btn-"))
+        if event.button.id == "btn-onboard":
+            from vandelay.tui.screens.onboarding import OnboardingScreen
+
+            self.app.push_screen(OnboardingScreen(), callback=self._on_onboarding_done)
+        elif event.button.id == "btn-skip":
+            self.dismiss("skip")
+
+    def _on_onboarding_done(self, _result: None) -> None:
+        """Called when OnboardingScreen finishes. Must return None so Textual
+        doesn't try to await the AwaitComplete returned by dismiss()."""
+        self.dismiss("done")

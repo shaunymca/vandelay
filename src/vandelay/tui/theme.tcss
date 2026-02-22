@@ -178,3 +178,157 @@ FirstRunModal {
     margin: 0 1;
     min-width: 22;
 }
+
+/* ── Scheduler tab ───────────────────────────────── */
+SchedulerTab { height: 1fr; }
+
+#sched-toolbar {
+    dock: top;
+    height: 3;
+    padding: 0 1;
+    background: $surface;
+}
+
+#sched-toolbar Button {
+    height: 3;
+    min-width: 18;
+    margin-right: 1;
+}
+
+#task-toolbar {
+    dock: top;
+    height: 3;
+    padding: 0 1;
+    background: $surface;
+}
+
+#task-toolbar Button {
+    height: 3;
+    min-width: 18;
+    margin-right: 1;
+}
+
+#cron-table { height: 1fr; }
+#task-table { height: 1fr; }
+
+/* ── Cron job modal ──────────────────────────────── */
+CronJobModal { align: center middle; }
+
+#cron-modal-container {
+    background: $surface;
+    border: tall $accent;
+    padding: 2 4;
+    width: 60;
+    height: auto;
+    layout: vertical;
+}
+
+#cron-modal-title {
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+    text-align: center;
+    width: 100%;
+}
+
+.cron-field-label { color: $text; margin-top: 1; }
+.cron-hint { color: $dim; margin-bottom: 1; }
+#cron-tz { width: 100%; }
+
+#cron-error { color: $danger; height: auto; }
+
+#cron-modal-buttons {
+    layout: horizontal;
+    align: center middle;
+    height: auto;
+    width: 100%;
+    margin-top: 2;
+}
+
+#cron-modal-buttons Button { margin: 0 1; min-width: 14; }
+
+/* ── Task edit modal ─────────────────────────────── */
+TaskEditModal { align: center middle; }
+
+#task-modal-container {
+    background: $surface;
+    border: tall $accent;
+    padding: 2 4;
+    width: 80;
+    height: 36;
+    layout: vertical;
+}
+
+#task-modal-title {
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+}
+
+#task-json { height: 1fr; }
+
+#task-error { color: $danger; height: auto; }
+
+#task-modal-buttons {
+    layout: horizontal;
+    align: right middle;
+    height: auto;
+    width: 100%;
+    margin-top: 1;
+}
+
+#task-modal-buttons Button { margin-left: 1; min-width: 14; }
+
+/* ── Onboarding wizard ───────────────────────────── */
+OnboardingScreen {
+    align: center middle;
+    background: rgba(0,0,0,0.5);
+}
+
+#onboard-container {
+    background: $surface;
+    border: tall $accent;
+    padding: 2 4;
+    width: 64;
+    height: 30;
+    layout: vertical;
+}
+
+#onboard-titlebar { height: 1; margin-bottom: 1; }
+
+#onboard-title {
+    color: $danger;
+    text-style: bold;
+    width: 1fr;
+}
+
+#btn-close-onboard {
+    width: 3;
+    height: 1;
+    min-width: 3;
+    background: transparent;
+    border: none;
+    color: $dim;
+    padding: 0;
+}
+
+#btn-close-onboard:hover { color: $danger; }
+
+#onboard-step-label { color: $dim; height: 1; margin-bottom: 1; }
+
+#onboard-switcher { height: 1fr; margin-top: 1; }
+
+.onboard-step { height: 100%; }
+.onboard-q { text-style: bold; margin-bottom: 1; }
+.onboard-hint { color: $dim; }
+
+#onboard-error { color: $danger; height: 1; }
+
+#onboard-nav {
+    layout: horizontal;
+    height: 3;
+    margin-top: 1;
+    align: right middle;
+}
+
+#onboard-nav Button { margin-left: 1; min-width: 14; }
