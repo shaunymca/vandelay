@@ -10,7 +10,6 @@ from typing import Literal
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
-from textual.widget import Widget
 from textual.widgets import Button, Static
 
 WORDMARK = """\

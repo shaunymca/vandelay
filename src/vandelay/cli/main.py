@@ -369,9 +369,23 @@ async def _stop_background_server() -> None:
     _server_handle.clear()
 
 
+def _configure_logging() -> None:
+    """Set up root logger with timestamps for daemon/server mode."""
+    import logging
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        force=True,
+    )
+
+
 def _start_server_foreground(settings) -> None:
     """Launch the FastAPI server in the foreground (headless/daemon mode)."""
     import uvicorn
+
+    _configure_logging()
 
     from vandelay.cli.banner import print_banner
 

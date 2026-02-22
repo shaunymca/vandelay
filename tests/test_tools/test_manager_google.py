@@ -144,12 +144,24 @@ class TestGoogleConfigInSettings:
 class TestGoogleAllScopes:
     """Verify the unified scope list."""
 
-    def test_contains_all_four_scopes(self):
+    def test_contains_all_scopes(self):
         scopes = _google_all_scopes()
         assert "https://www.googleapis.com/auth/gmail.modify" in scopes
         assert "https://www.googleapis.com/auth/calendar" in scopes
         assert "https://www.googleapis.com/auth/drive" in scopes
         assert "https://www.googleapis.com/auth/spreadsheets" in scopes
+
+    def test_contains_gmail_compose(self):
+        """Agno GmailTools explicitly checks for gmail.compose in the scopes list.
+        gmail.modify is a superset but Agno does a string membership check, so
+        gmail.compose must be present or GmailTools raises at instantiation."""
+        scopes = _google_all_scopes()
+        assert "https://www.googleapis.com/auth/gmail.compose" in scopes
+
+    def test_contains_gmail_send(self):
+        """gmail.send required alongside gmail.compose for full send capability."""
+        scopes = _google_all_scopes()
+        assert "https://www.googleapis.com/auth/gmail.send" in scopes
 
     def test_returns_list(self):
         assert isinstance(_google_all_scopes(), list)
@@ -284,3 +296,77 @@ class TestInjectGoogleCreds:
                 )
 
         get_settings.cache_clear()
+
+
+class TestGoogleDriveAuthPort:
+    """Verify google_drive is wired with a non-zero auth_port.
+
+    Agno's GoogleDriveTools raises ValueError if auth_port evaluates to falsy:
+        self.auth_port = int(getenv("GOOGLE_AUTH_PORT", str(auth_port)))
+        if not self.auth_port:
+            raise ValueError("GOOGLE_AUTH_PORT is not set")
+    We pass auth_port=8765 so the constructor doesn't raise even without
+    the env var set. The actual OAuth flow is never reached because we
+    inject credentials directly via _inject_google_creds.
+    """
+
+    def test_google_drive_auth_port_is_nonzero(self, tmp_manager: ToolManager):
+        """ToolManager must pass a non-zero auth_port to GoogleDriveTools."""
+        import importlib
+
+        entry = tmp_manager.registry.get("google_drive")
+        if entry is None:
+            pytest.skip("google_drive not in registry")
+
+        mock_cls = MagicMock()
+        mock_module = MagicMock()
+        setattr(mock_module, entry.class_name, mock_cls)
+
+        real_import = importlib.import_module
+
+        def selective_import(name, *args, **kwargs):
+            if name == entry.module_path:
+                return mock_module
+            return real_import(name, *args, **kwargs)
+
+        with (
+            patch("importlib.import_module", side_effect=selective_import),
+            patch("vandelay.tools.manager._inject_google_creds"),
+        ):
+            tmp_manager.instantiate_tools(["google_drive"])
+
+        mock_cls.assert_called_once()
+        call_kwargs = mock_cls.call_args[1]
+        auth_port = call_kwargs.get("auth_port", 0)
+        assert auth_port != 0, (
+            "auth_port=0 causes Agno to raise ValueError('GOOGLE_AUTH_PORT is not set'). "
+            f"Got auth_port={auth_port!r}"
+        )
+
+    def test_google_drive_auth_port_value(self, tmp_manager: ToolManager):
+        """auth_port should be 8765 (our chosen non-zero sentinel)."""
+        import importlib
+
+        entry = tmp_manager.registry.get("google_drive")
+        if entry is None:
+            pytest.skip("google_drive not in registry")
+
+        mock_cls = MagicMock()
+        mock_module = MagicMock()
+        setattr(mock_module, entry.class_name, mock_cls)
+
+        real_import = importlib.import_module
+
+        def selective_import(name, *args, **kwargs):
+            if name == entry.module_path:
+                return mock_module
+            return real_import(name, *args, **kwargs)
+
+        with (
+            patch("importlib.import_module", side_effect=selective_import),
+            patch("vandelay.tools.manager._inject_google_creds"),
+        ):
+            tmp_manager.instantiate_tools(["google_drive"])
+
+        call_kwargs = mock_cls.call_args[1]
+        assert call_kwargs.get("auth_port") == 8765

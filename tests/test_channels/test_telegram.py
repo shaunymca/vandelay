@@ -197,6 +197,100 @@ class TestHandleUpdate:
         assert "Error: Something broke" in str(send_calls[0])
 
 
+class TestStart:
+    """Regression tests for start() — polling must begin even if getMe fails."""
+
+    @pytest.mark.asyncio
+    async def test_start_polling_when_getme_fails_network(self, adapter):
+        """Bug: if getMe raises a network error, polling was never started.
+        Fix: start polling regardless; getMe failure is non-fatal."""
+        with patch("vandelay.channels.telegram.httpx.AsyncClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            # Simulate network failure on getMe and deleteWebhook
+            mock_client.get = AsyncMock(side_effect=Exception("Connection refused"))
+            mock_client.post = AsyncMock(side_effect=Exception("Connection refused"))
+
+            await adapter.start()
+
+        # Polling task should be created even though getMe failed
+        assert adapter._polling_task is not None
+        assert adapter.mode in ("polling", "stopped")  # task may have exited due to errors
+        adapter._polling_task.cancel()
+
+    @pytest.mark.asyncio
+    async def test_start_polling_when_getme_returns_not_ok(self, adapter):
+        """Bug: if getMe returns ok=false, start() returned early without starting polling."""
+        import httpx as _httpx
+
+        with patch("vandelay.channels.telegram.httpx.AsyncClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            bad_response = MagicMock()
+            bad_response.json.return_value = {"ok": False, "description": "Unauthorized"}
+            mock_client.get = AsyncMock(return_value=bad_response)
+
+            ok_response = MagicMock()
+            ok_response.json.return_value = {"ok": True}
+            mock_client.post = AsyncMock(return_value=ok_response)
+
+            await adapter.start()
+
+        # Polling should still start; bot_username will be None
+        assert adapter._polling_task is not None
+        assert adapter._bot_username is None
+        adapter._polling_task.cancel()
+
+    @pytest.mark.asyncio
+    async def test_start_polling_success(self, adapter):
+        """Happy path: getMe succeeds, polling starts, mode is polling."""
+        import httpx as _httpx
+
+        with patch("vandelay.channels.telegram.httpx.AsyncClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            me_response = MagicMock()
+            me_response.json.return_value = {"ok": True, "result": {"username": "mybot"}}
+            mock_client.get = AsyncMock(return_value=me_response)
+
+            webhook_response = MagicMock()
+            webhook_response.json.return_value = {"ok": True}
+            mock_client.post = AsyncMock(return_value=webhook_response)
+
+            await adapter.start()
+
+        assert adapter._bot_username == "mybot"
+        assert adapter._polling_task is not None
+        assert adapter.mode == "polling"
+        adapter._polling_task.cancel()
+
+    @pytest.mark.asyncio
+    async def test_bot_username_after_successful_getme(self, adapter):
+        """bot_username property should be set when getMe succeeds."""
+        with patch("vandelay.channels.telegram.httpx.AsyncClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            me_response = MagicMock()
+            me_response.json.return_value = {"ok": True, "result": {"username": "vandelay_bot"}}
+            mock_client.get = AsyncMock(return_value=me_response)
+
+            webhook_response = MagicMock()
+            webhook_response.json.return_value = {"ok": True}
+            mock_client.post = AsyncMock(return_value=webhook_response)
+
+            await adapter.start()
+
+        assert adapter.bot_username == "vandelay_bot"
+        adapter._polling_task.cancel()
+
+
 class TestMode:
     def test_default_mode_is_stopped(self, adapter):
         assert adapter.mode == "stopped"

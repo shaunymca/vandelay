@@ -51,13 +51,10 @@ MODEL_PROVIDERS = {
     "openai": {
         "name": "OpenAI (GPT)",
         "env_key": "OPENAI_API_KEY",
-        "token_env_key": "OPENAI_AUTH_TOKEN",
+        "token_env_key": None,
         "default_model": "gpt-4o",
-        "token_label": "OpenAI token (paste session token)",
-        "token_help": (
-            "Use the API key from your ChatGPT Plus/Pro subscription"
-            " at platform.openai.com/api-keys"
-        ),
+        "token_label": "ChatGPT Plus/Pro subscription (Codex OAuth)",
+        "token_help": "Run `npm install -g @openai/codex && codex login` first.",
         "api_key_label": "OpenAI API key",
         "api_key_help": "Get your API key from platform.openai.com/api-keys",
     },

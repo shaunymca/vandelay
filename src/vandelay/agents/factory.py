@@ -33,6 +33,79 @@ _PRESET_ROLE_MAP: dict[str, str] = {
 }
 
 
+def _get_codex_token() -> str | None:
+    """Read the ChatGPT Plus/Pro access token from ~/.codex/auth.json.
+
+    Auto-refreshes using the stored refresh_token if the access token has
+    expired or is within 60 seconds of expiring.
+    """
+    import base64
+    import json
+    import time
+    import urllib.parse
+    import urllib.request
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    codex_auth = Path.home() / ".codex" / "auth.json"
+    if not codex_auth.exists():
+        logger.warning("~/.codex/auth.json not found — run `codex login` first")
+        return None
+
+    try:
+        data = json.loads(codex_auth.read_text(encoding="utf-8"))
+        tokens = data.get("tokens", {})
+        access_token = tokens.get("access_token")
+        if not access_token:
+            return None
+
+        # Decode JWT exp claim (no signature verification needed here)
+        payload = access_token.split(".")[1]
+        payload += "=" * (4 - len(payload) % 4)
+        claims = json.loads(base64.urlsafe_b64decode(payload))
+        exp = claims.get("exp", 0)
+
+        if exp > time.time() + 60:
+            return access_token
+
+        # Token expired or expiring soon — refresh it
+        refresh_token = tokens.get("refresh_token")
+        client_id = claims.get("client_id", "app_EMoamEEZ73f0CkXaXp7hrann")
+        if not refresh_token:
+            logger.warning("Codex access token expired and no refresh_token available")
+            return access_token  # try anyway
+
+        body = urllib.parse.urlencode({
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "client_id": client_id,
+        }).encode()
+        req = urllib.request.Request(
+            "https://auth.openai.com/oauth/token",
+            data=body,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            result = json.loads(resp.read())
+
+        if "access_token" not in result:
+            logger.warning("Codex token refresh returned no access_token")
+            return access_token
+
+        data["tokens"]["access_token"] = result["access_token"]
+        if "refresh_token" in result:
+            data["tokens"]["refresh_token"] = result["refresh_token"]
+        data["last_refresh"] = datetime.now(timezone.utc).isoformat()
+        codex_auth.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        logger.debug("Codex token refreshed and saved to ~/.codex/auth.json")
+        return result["access_token"]
+
+    except Exception as exc:
+        logger.warning("Failed to read/refresh Codex token: %s", exc)
+        return None
+
+
 def _load_env() -> None:
     """Load ~/.vandelay/.env into os.environ so API keys are always available."""
     import os
@@ -77,11 +150,13 @@ def _get_model_from_config(provider: str, model_id: str, auth_method: str = "api
         return Claude(id=model_id, api_key=api_key) if api_key else Claude(id=model_id)
 
     if provider == "openai":
+        if auth_method == "codex":
+            from vandelay.models.openai_codex import CodexModel
+
+            return CodexModel(id=model_id)
+
         from agno.models.openai import OpenAIChat
 
-        if auth_method == "token":
-            token = os.environ.get("OPENAI_AUTH_TOKEN")
-            return OpenAIChat(id=model_id, api_key=token)
         return OpenAIChat(id=model_id)
 
     if provider == "google":

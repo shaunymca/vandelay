@@ -25,6 +25,7 @@ from vandelay.config.settings import Settings
 from vandelay.models.catalog import (
     fetch_ollama_models,
     fetch_provider_models,
+    get_codex_model_choices,
     get_model_choices,
     get_providers,
 )
@@ -101,10 +102,10 @@ def _configure_auth(provider: str) -> str:
     # Build auth method choices
     choices = []
 
-    if token_env_key:
+    if info.get("token_label"):
         choices.append(questionary.Choice(
-            title=f"{info['token_label']} [dim]({info['token_help']})[/dim]",
-            value="token",
+            title=f"{info['token_label']}",
+            value="codex" if not token_env_key else "token",
         ))
 
     if env_key:
@@ -122,6 +123,17 @@ def _configure_auth(provider: str) -> str:
 
     if auth_method is None or auth_method == "back":
         raise KeyboardInterrupt
+
+    if auth_method == "codex":
+        from pathlib import Path
+        codex_auth = Path.home() / ".codex" / "auth.json"
+        if codex_auth.exists():
+            console.print(f"  [green]✓[/green] Found credentials at {codex_auth}")
+            console.print("  [dim]Vandelay will read and auto-refresh this token at runtime.[/dim]")
+        else:
+            console.print(f"  [yellow]⚠[/yellow] {codex_auth} not found.")
+            console.print(f"  [dim]{info['token_help']}[/dim]")
+        return "codex"
 
     if auth_method == "token":
         console.print(f"  [dim]{info['token_help']}[/dim]")
@@ -146,6 +158,69 @@ def _configure_auth(provider: str) -> str:
         _write_env_key(env_key, value)
         console.print(f"  [green]✓[/green] {env_key} saved to ~/.vandelay/.env")
         return "api_key"
+
+
+def _ask_openai_auth_method() -> str:
+    """Ask whether the user wants an API key or ChatGPT subscription for OpenAI."""
+    method = questionary.select(
+        "OpenAI access method:",
+        choices=[
+            questionary.Choice(
+                title="API key  (pay-per-token, platform.openai.com/api-keys)",
+                value="api_key",
+            ),
+            questionary.Choice(
+                title="ChatGPT Plus/Pro subscription  (Codex OAuth, no API billing)",
+                value="codex",
+            ),
+        ],
+    ).ask()
+
+    if method is None:
+        raise KeyboardInterrupt
+
+    return method
+
+
+def _select_codex_model() -> str:
+    """Prompt user to pick from the Codex OAuth model catalog."""
+    catalog = get_codex_model_choices()
+    if not catalog:
+        model_id = questionary.text(
+            "Codex model ID:", default="gpt-5.1-codex-mini",
+        ).ask()
+        if model_id is None:
+            raise KeyboardInterrupt
+        return model_id
+
+    choices = []
+    for m in catalog:
+        suffix = " (recommended)" if m.tier == "codex" and m.id == "gpt-5.1-codex-mini" else ""
+        choices.append(questionary.Choice(title=f"{m.label}{suffix}", value=m.id))
+    choices.append(questionary.Choice(title="Other (type model ID)", value="_other"))
+
+    model_id = questionary.select("Choose a Codex model:", choices=choices).ask()
+    if model_id is None:
+        raise KeyboardInterrupt
+
+    if model_id == "_other":
+        model_id = questionary.text(
+            "Model ID:", default="gpt-5.1-codex-mini",
+        ).ask()
+        if model_id is None:
+            raise KeyboardInterrupt
+
+    # Verify ~/.codex/auth.json exists
+    codex_auth = Path.home() / ".codex" / "auth.json"
+    if codex_auth.exists():
+        console.print(f"  [green]✓[/green] Found Codex credentials at {codex_auth}")
+    else:
+        console.print(f"  [yellow]⚠[/yellow] {codex_auth} not found.")
+        console.print(
+            "  [dim]Run: npm install -g @openai/codex && codex login[/dim]"
+        )
+
+    return model_id
 
 
 def _select_safety_mode() -> str:
@@ -785,16 +860,30 @@ def run_config_menu(settings: Settings, exit_label: str | None = None) -> Settin
 
         elif section == "model":
             provider = _select_provider_only()
-            api_key = _configure_auth_quick(provider)
-            model_id = _select_model(provider, api_key=api_key)
-            auth_method = _configure_auth(provider)
+            if provider == "openai":
+                auth_method = _ask_openai_auth_method()
+                if auth_method == "codex":
+                    model_id = _select_codex_model()
+                else:
+                    api_key = _configure_auth_quick(provider)
+                    model_id = _select_model(provider, api_key=api_key)
+            else:
+                api_key = _configure_auth_quick(provider)
+                model_id = _select_model(provider, api_key=api_key)
+                auth_method = _configure_auth(provider)
             settings.model = ModelConfig(
                 provider=provider, model_id=model_id, auth_method=auth_method,
             )
             console.print(f"  [green]✓[/green] Model set to {provider} / {model_id}")
 
         elif section == "auth":
-            auth_method = _configure_auth(settings.model.provider)
+            if settings.model.provider == "openai":
+                auth_method = _ask_openai_auth_method()
+                if auth_method == "codex" and settings.model.auth_method != "codex":
+                    # Switching to Codex — prompt for a new model
+                    settings.model.model_id = _select_codex_model()
+            else:
+                auth_method = _configure_auth(settings.model.provider)
             settings.model.auth_method = auth_method
 
         elif section == "safety":
@@ -1736,9 +1825,18 @@ def run_onboarding() -> Settings:
         raise KeyboardInterrupt
     console.print()
 
-    # --- Step 2: API key (so we can fetch models from the provider) ---
+    # --- Step 2: Auth method + credentials ---
     api_key: str | None = None
-    if providers[provider].env_key:
+    auth_method = "api_key"
+
+    if provider == "openai":
+        console.print("[bold]Step 2:[/bold] OpenAI access method")
+        auth_method = _ask_openai_auth_method()
+        console.print()
+        if auth_method == "api_key":
+            api_key = _configure_auth_quick(provider)
+        # else: codex — credentials read from ~/.codex/auth.json at runtime
+    elif providers[provider].env_key:
         console.print("[bold]Step 2:[/bold] Paste your API key")
         api_key = _configure_auth_quick(provider)
     else:
@@ -1746,9 +1844,12 @@ def run_onboarding() -> Settings:
         console.print(f"  [dim]{providers[provider].api_key_help}[/dim]")
     console.print()
 
-    # --- Step 3: Choose model (live-fetched if API key available) ---
+    # --- Step 3: Choose model ---
     console.print("[bold]Step 3:[/bold] Choose a model")
-    model_id = _select_model(provider, api_key=api_key)
+    if auth_method == "codex":
+        model_id = _select_codex_model()
+    else:
+        model_id = _select_model(provider, api_key=api_key)
     console.print()
 
     # --- Smart defaults ---
@@ -1759,7 +1860,7 @@ def run_onboarding() -> Settings:
     settings = Settings(
         agent_name="Art",
         timezone=timezone,
-        model=ModelConfig(provider=provider, model_id=model_id, auth_method="api_key"),
+        model=ModelConfig(provider=provider, model_id=model_id, auth_method=auth_method),
         safety=SafetyConfig(mode="confirm"),
         channels=ChannelConfig(),
         heartbeat=HeartbeatConfig(timezone=timezone),

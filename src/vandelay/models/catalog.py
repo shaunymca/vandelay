@@ -47,10 +47,17 @@ _PROVIDERS: dict[str, ProviderInfo] = {
         env_key="OPENAI_API_KEY",
         api_key_help="Get one at: platform.openai.com/api-keys",
         models=[
+            # API key models
             ModelOption("gpt-4o", "GPT-4o", "recommended"),
             ModelOption("gpt-4.1", "GPT-4.1", "flagship"),
             ModelOption("gpt-4o-mini", "GPT-4o Mini", "fast"),
             ModelOption("o3-mini", "o3-mini (reasoning)", "flagship"),
+            # Codex OAuth models (shown only when auth_method == "codex")
+            ModelOption("gpt-5.3-codex", "GPT-5.3 Codex", "codex"),
+            ModelOption("gpt-5.1-codex-mini", "GPT-5.1 Codex Mini", "codex"),
+            ModelOption("gpt-5.2-codex", "GPT-5.2 Codex", "codex"),
+            ModelOption("gpt-5.1", "GPT-5.1", "codex"),
+            ModelOption("gpt-5.2", "GPT-5.2", "codex"),
         ],
     ),
     "google": ProviderInfo(
@@ -160,10 +167,21 @@ def get_provider(key: str) -> ProviderInfo | None:
     return _PROVIDERS.get(key)
 
 
+def get_codex_model_choices() -> list[ModelOption]:
+    """Return Codex OAuth models (ChatGPT Plus/Pro subscription)."""
+    info = _PROVIDERS.get("openai")
+    if not info:
+        return []
+    return [m for m in info.models if m.tier == "codex"]
+
+
 def get_model_choices(provider: str) -> list[ModelOption]:
-    """Return curated model list for a provider."""
+    """Return curated model list for a provider (excludes Codex OAuth models)."""
     info = _PROVIDERS.get(provider)
-    return list(info.models) if info else []
+    if not info:
+        return []
+    # Exclude codex-tier models from the regular list (use get_codex_model_choices())
+    return [m for m in info.models if m.tier != "codex"]
 
 
 # ---------------------------------------------------------------------------

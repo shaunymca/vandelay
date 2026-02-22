@@ -166,7 +166,7 @@ class AgentsTab(Widget):
     }
     .tool-name { width: 1fr; color: #c9d1d9; content-align: left middle; }
     .tool-remove { min-width: 8; margin-right: 1; }
-    #tools-empty {
+    .tools-empty {
         padding: 2 3;
         color: #8b949e;
         text-style: italic;
@@ -612,7 +612,7 @@ class AgentsTab(Widget):
         scroll = self.query_one("#tools-scroll", ScrollableContainer)
         scroll.remove_children()
         if not tools:
-            scroll.mount(Static("No tools enabled.", id="tools-empty"))
+            scroll.mount(Static("No tools enabled.", classes="tools-empty"))
         else:
             for t in tools:
                 self._mount_tool_row(scroll, t)
@@ -623,9 +623,9 @@ class AgentsTab(Widget):
 
         async def _do() -> None:
             await container.mount(row)
-            btn = Button("Remove", variant="error", classes="tool-remove")
-            btn.id = f"tool-remove-{tool}"
-            await row.mount(btn)
+            # Use name= (not id=) so re-mounting after remove_children() never
+            # causes DuplicateIds — name is not registered in the global registry.
+            await row.mount(Button("Remove", variant="error", classes="tool-remove", name=tool))
             await row.mount(Static(tool, classes="tool-name"))
 
         self.call_later(_do)
@@ -681,9 +681,10 @@ class AgentsTab(Widget):
             self._toggle_member()
         elif bid == "tool-add-btn":
             self._add_tool()
-        elif bid.startswith("tool-remove-"):
-            tool = bid[len("tool-remove-"):]
-            self._remove_tool(tool)
+        elif event.button.has_class("tool-remove"):
+            tool = event.button.name or ""
+            if tool:
+                self._remove_tool(tool)
 
     def _save_name(self) -> None:
         name = self.query_one("#name-input", Input).value.strip()
