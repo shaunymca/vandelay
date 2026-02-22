@@ -10,6 +10,7 @@ from typing import Literal
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
+from textual.widget import Widget
 from textual.widgets import Button, Static
 
 WORDMARK = """\
@@ -85,6 +86,20 @@ class VandelayHeader(Widget):
         margin-left: 1;
         min-width: 11;
         height: 3;
+        color: #ffffff;
+    }
+    #btn-quit {
+        dock: top;
+        width: 3;
+        height: 1;
+        background: transparent;
+        border: none;
+        color: #8b949e;
+        align: right top;
+    }
+    #btn-quit:hover {
+        color: #f85149;
+        background: transparent;
     }
     """
 
@@ -119,6 +134,7 @@ class VandelayHeader(Widget):
                 yield Button("Start",   id="btn-start",   variant="success")
                 yield Button("Restart", id="btn-restart", variant="warning")
                 yield Button("Stop",    id="btn-stop",    variant="error")
+            yield Button("✕", id="btn-quit")
 
     def on_mount(self) -> None:
         self._apply_state(self.server_state)
@@ -162,6 +178,9 @@ class VandelayHeader(Widget):
     # ── Button handlers ───────────────────────────────────────────────────
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-quit":
+            self.app.exit()
+            return
         handlers = {
             "btn-start":   self._do_start,
             "btn-restart": self._do_restart,

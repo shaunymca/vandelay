@@ -14,6 +14,7 @@ class VandelayApp(App[str | None]):
 
     CSS_PATH = Path(__file__).parent / "theme.tcss"
     TITLE = "Vandelay"
+    BINDINGS = [("quit", "Quit")]
 
     def compose(self) -> ComposeResult:
         # Nothing here — MainScreen owns all composition

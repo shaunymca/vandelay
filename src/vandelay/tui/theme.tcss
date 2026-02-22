@@ -68,15 +68,16 @@ ChatTab {
 
 #input-bar {
     dock: bottom;
-    height: 3;
-    padding: 0 1;
+    height: 5;
+    padding: 1 1;
     background: $surface;
 }
 
 #chat-input { width: 1fr; }
 
 #send-btn {
-    width: 12;
+    width: 16;
+    height: 3;
     background: #238636;
     color: #ffffff;
     border: none;
@@ -93,8 +94,10 @@ ChatTab {
     text-style: bold;
 }
 
-.msg-you   { color: $accent; text-style: bold; margin-top: 1; }
-.msg-agent { color: $text;   margin-left: 2; }
+.msg-you        { color: $accent;   text-style: bold; margin-top: 1; }
+.msg-agent-name { color: $success;  text-style: bold; margin-top: 1; }
+.msg-agent      { margin-left: 2; margin-bottom: 0; }
+.msg-agent Markdown { margin: 0; padding: 0; }
 .msg-tool  { color: $dim;    text-style: italic; margin-left: 2; }
 .msg-error { color: $danger; margin-left: 2; }
 .msg-system { color: $dim;   text-style: italic; margin-top: 1; }

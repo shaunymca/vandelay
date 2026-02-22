@@ -10,7 +10,7 @@ from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.message import Message
 from textual.widget import Widget
-from textual.widgets import Button, Input, Static
+from textual.widgets import Button, Input, Markdown, Static
 
 
 class _HRow(Widget):
@@ -93,11 +93,12 @@ class ChatTab(Widget):
         self._host = "127.0.0.1"
         self._port = 8000
         self._secret_key = ""
+        self._agent_name = "Agent"
         self._load_settings()
         self._session_id = ""
         self._ws = None
         self._ws_task: asyncio.Task | None = None
-        self._stream_widget: Static | None = None
+        self._stream_widget: Markdown | None = None
         self._stream_buf = ""
         self._tool_widget: Static | None = None
         self._connected = False
@@ -112,6 +113,7 @@ class ChatTab(Widget):
                 self._host = "127.0.0.1" if host == "0.0.0.0" else host
                 self._port = s.server.port
                 self._secret_key = s.server.secret_key or ""
+                self._agent_name = s.agent_name or "Agent"
         except Exception:
             pass
 
@@ -242,10 +244,17 @@ class ChatTab(Widget):
                 self._tool_widget.remove()
                 self._tool_widget = None
             self._stream_buf = ""
-            w = Static("", classes="msg-agent")
+            self._append(
+                Static(
+                    f"[bold #3fb950]{self._agent_name}[/bold #3fb950]",
+                    classes="msg-agent-name",
+                )
+            )
+            w = Markdown("", classes="msg-agent")
             self._append(w)
             self._stream_widget = w
         self._stream_buf += event.content
+        # Update fires async internally — use call_after_refresh to avoid flooding
         self._stream_widget.update(self._stream_buf)
         self._scroll_bottom()
 
