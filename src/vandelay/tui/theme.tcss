@@ -25,12 +25,11 @@ TabbedContent {
     height: 1fr;
 }
 
-TabbedContent ContentSwitcher {
-    height: 1fr;
-}
+/* Do NOT set ContentSwitcher height — Textual manages it internally.
+   Setting height:1fr here caused it to claim the full TabbedContent
+   height, overlapping with the Tabs bar and overflowing the screen. */
 
 TabPane {
-    height: 1fr;
     padding: 0;
 }
 
