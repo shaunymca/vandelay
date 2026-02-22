@@ -1,6 +1,10 @@
 # vandelay start
 
-Start the FastAPI server and open a terminal chat session.
+Start the FastAPI server (and optionally a terminal chat session).
+
+> **Typical workflow:** Run `vandelay` to open the TUI dashboard, then run
+> `vandelay start` in a separate terminal to bring the server online.
+> The TUI's Chat tab connects automatically once the server is running.
 
 ## Usage
 

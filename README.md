@@ -8,7 +8,7 @@ An always-on AI agent that works so you don't have to.
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-282%20passed-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-844%20passed-brightgreen.svg)]()
 [![Powered by Agno](https://img.shields.io/badge/powered%20by-Agno-red.svg)](https://github.com/agno-agi/agno)
 
 **[Documentation](https://shaunymca.github.io/vandelay/)** &bull; [Get Started](#get-started) &bull; [Features](#features)
@@ -28,7 +28,7 @@ You get a personal agent that:
 - Connects over Terminal, Telegram, WhatsApp, and WebSocket
 - Supports agent teams with a built-in Vandelay Expert specialist
 
-One command to install, one to onboard, one to start.
+One command to install, one to run.
 
 ---
 
@@ -55,10 +55,10 @@ One command to install, one to onboard, one to start.
 # Install
 uv tool install vandelay
 
-# Run the setup wizard
-vandelay onboard
+# Open the TUI dashboard (onboarding runs automatically on first launch)
+vandelay
 
-# Start the agent
+# Start the agent server (in a separate terminal, or install the daemon)
 vandelay start
 ```
 

@@ -13,14 +13,13 @@ Vandelay gives you a self-hosted AI agent that runs 24/7, with memory, tools, sc
 - **Multi-channel:** Terminal, Telegram, WhatsApp, WebSocket - same agent, shared memory
 - **Team mode:** Supervisor delegates to specialist agents with scoped tools
 - **Extensible:** 117 tools from Agno's ecosystem, plus custom tool authoring
-- **CLI-first:** One command to install, onboard, and start
+- **TUI dashboard:** Full command centre — chat, config, scheduler, agents, status in one place
 
 ## Quick Install
 
 ```bash
 uv tool install vandelay
-vandelay onboard
-vandelay start
+vandelay
 ```
 
 ## What's Inside

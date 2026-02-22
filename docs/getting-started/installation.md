@@ -39,10 +39,10 @@ uv tool install -e .
 
 ## Next Steps
 
-Once installed, run the interactive onboarding:
+Once installed, open the Vandelay TUI dashboard:
 
 ```bash
-vandelay onboard
+vandelay
 ```
 
-Or jump straight to the [Quickstart](quickstart.md).
+If this is your first time, the onboarding wizard will appear automatically to set up your provider and API key. See the [Quickstart](quickstart.md) for the full walkthrough.
