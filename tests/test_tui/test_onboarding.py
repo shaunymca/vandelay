@@ -383,9 +383,10 @@ class TestOnboardingIntegration:
                 )
 
                 # Navigate: step 0 (name) → step 1 (provider) → step 2 (key) → step 3 (model) → step 4 (tz)
+                # Step 3 (model) loads a Select widget with async events — use longer pause
                 for _ in range(4):
                     await pilot.click("#btn-next")
-                    await pilot.pause(0.1)
+                    await pilot.pause(0.3)
 
                 # Now on step 4 — "Finish" button should be visible
                 # Must query the active screen, not the default app DOM
