@@ -524,12 +524,14 @@ class AgentsTab(Widget):
             if agent == "leader":
                 provider = s.model.provider
                 model_id = s.model.model_id
+                auth_method = getattr(s.model, "auth_method", "api_key") or "api_key"
             else:
                 mc = self._get_or_create_member_config(agent or "")
                 provider = getattr(mc, "model_provider", "") or s.model.provider
                 model_id = getattr(mc, "model_id", "") or ""
+                auth_method = "api_key"
         except Exception:
-            provider, model_id = "", ""
+            provider, model_id, auth_method = "", "", "api_key"
 
         import contextlib
 
@@ -539,12 +541,12 @@ class AgentsTab(Widget):
             psel.value = provider
 
         # Update model select/input for this provider
-        self._update_model_options(provider, model_id)
+        self._update_model_options(provider, model_id, auth_method=auth_method)
         self.query_one("#model-inherit-note").display = agent != "leader"
         self._show("content-model")
 
-    def _update_model_options(self, provider: str, current: str = "") -> None:
-        from vandelay.models.catalog import get_model_choices
+    def _update_model_options(self, provider: str, current: str = "", auth_method: str = "api_key") -> None:
+        from vandelay.models.catalog import get_codex_model_choices, get_model_choices
 
         freeform = provider in _FREEFORM_PROVIDERS
 
@@ -558,7 +560,10 @@ class AgentsTab(Widget):
             if provider == "ollama":
                 self.run_worker(self._fetch_ollama_models)
         else:
-            model_options = get_model_choices(provider)
+            if auth_method == "codex":
+                model_options = get_codex_model_choices()
+            else:
+                model_options = get_model_choices(provider)
             if not model_options:
                 # Unknown provider — fall back to freeform
                 msel.display = False
@@ -592,7 +597,8 @@ class AgentsTab(Widget):
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.select.id == "provider-select":
             provider = str(event.value) if event.value is not None else ""
-            self._update_model_options(provider)
+            # When user manually changes provider, reset to api_key mode
+            self._update_model_options(provider, auth_method="api_key")
 
     # ── Tools panel ───────────────────────────────────────────────────────
 
