@@ -24,15 +24,16 @@ def _fmt_uptime(seconds: float) -> str:
 
 
 _METRICS: list[tuple[str, str]] = [
-    ("server",   "Server"),
-    ("agent",    "Agent"),
-    ("model",    "Model"),
-    ("safety",   "Safety mode"),
-    ("timezone", "Timezone"),
-    ("uptime",   "Uptime"),
-    ("version",  "Version"),
-    ("channels", "Channels"),
-    ("traces",   "Traces"),
+    ("server",    "Server"),
+    ("agent",     "Agent"),
+    ("model",     "Model"),
+    ("safety",    "Safety mode"),
+    ("timezone",  "Timezone"),
+    ("uptime",    "Uptime"),
+    ("version",   "Version"),
+    ("channels",  "Channels"),
+    ("traces",    "Traces"),
+    ("heartbeat", "Heartbeat"),
 ]
 
 
@@ -149,16 +150,31 @@ class StatusTab(Widget):
             mode = self._server_mode()
             server_str = f"[bold green]Running[/bold green]  ({mode})"
 
+            # Read heartbeat from local config (always accurate regardless of server state)
+            try:
+                from vandelay.config.settings import get_settings
+                hb = get_settings().heartbeat
+                if hb.enabled:
+                    hb_str = (
+                        f"[green]ON[/green]  every {hb.interval_minutes}min"
+                        f"  ·  {hb.active_hours_start}:00–{hb.active_hours_end}:00"
+                    )
+                else:
+                    hb_str = "[dim]off[/dim]"
+            except Exception:
+                hb_str = "—"
+
             updates: dict[str, str] = {
-                "server":   server_str,
-                "agent":    health.get("agent_name", "—"),
-                "model":    model_str or "—",
-                "safety":   status.get("safety_mode", "—"),
-                "timezone": status.get("timezone", "—"),
-                "uptime":   _fmt_uptime(health.get("uptime_seconds", 0)),
-                "version":  health.get("version", "—"),
-                "channels": channels_str,
-                "traces":   str(status.get("total_traces", 0)),
+                "server":    server_str,
+                "agent":     health.get("agent_name", "—"),
+                "model":     model_str or "—",
+                "safety":    status.get("safety_mode", "—"),
+                "timezone":  status.get("timezone", "—"),
+                "uptime":    _fmt_uptime(health.get("uptime_seconds", 0)),
+                "version":   health.get("version", "—"),
+                "channels":  channels_str,
+                "traces":    str(status.get("total_traces", 0)),
+                "heartbeat": hb_str,
             }
             for key, val in updates.items():
                 self.query_one(f"#val-{key}", Static).update(val)

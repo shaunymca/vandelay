@@ -2,48 +2,59 @@
 
 Get a running agent in under 5 minutes.
 
-## 1. Onboard
+## 1. Open the Dashboard
 
 ```bash
-vandelay onboard
+vandelay
 ```
 
-The interactive wizard asks three things:
+This opens the Vandelay TUI dashboard. On first launch, the onboarding wizard appears automatically and walks you through 5 steps:
 
-1. **LLM provider:** Pick from 10 providers (Anthropic, OpenAI, Google, Ollama, etc.)
-2. **Model:** Fetches available models from your provider in real time
-3. **API key:** Stored securely in `~/.vandelay/.env`
+1. **Agent name:** What to call your agent
+2. **LLM provider:** Pick from 10 providers (Anthropic, OpenAI, Google, Ollama, etc.)
+3. **API key / Auth:** Stored securely in `~/.vandelay/.env` (skipped for Ollama; OpenAI subscription uses OAuth)
+4. **Model:** Select the specific model to use (curated list per provider)
+5. **Timezone:** For scheduling and cron jobs
 
-This creates your config at `~/.vandelay/config.json` and workspace files at `~/.vandelay/workspace/`.
+Your config is saved to `~/.vandelay/config.json` and workspace files are created at `~/.vandelay/workspace/`.
 
-## 2. Start
+## 2. Start the Server
+
+Open a second terminal and start the agent server:
 
 ```bash
 vandelay start
 ```
 
-This launches the FastAPI server and drops you into a terminal chat session. You're now talking to your agent.
+This launches the FastAPI server and connects it to your agent. The TUI's Chat tab will show a green dot once connected.
 
-## 3. Try It Out
+For 24/7 operation, install the daemon instead:
+
+```bash
+vandelay daemon install
+vandelay daemon start
+```
+
+## 3. Chat
+
+Back in the TUI, the **Chat** tab is your primary interface. Try:
 
 ```
-You: What can you do?
-You: What tools do you have?
-You: Create a cron job that runs every morning at 8am to check the weather
+What can you do?
+What tools do you have?
+Create a cron job that runs every morning at 8am to check the weather
 ```
 
 ## What Just Happened?
 
 - The agent loaded your config, model, and workspace files
-- A team supervisor was created (team mode is on by default)
-- The Vandelay Expert member joined as your first team specialist
 - Memory and session history are being persisted to `~/.vandelay/data/vandelay.db`
-- Vandelay provides additional features that [Agno OS](https://os.agno.com), can easily view:
+- Vandelay provides additional features that [Agno OS](https://os.agno.com) can easily view:
     - **Tracing**: Every agent run, tool call, and model invocation is traced automatically
     - **Knowledge**: RAG pipeline for document search (enable via `vandelay config`)
     - **Chat**: Chat directly with your main agent and explore what it can do
-    - **Metrics**: Keep an eye on your token useage
-    - **Evaluations**: Measure the quality of your Agent
+    - **Metrics**: Keep an eye on your token usage
+    - **Evaluations**: Measure the quality of your agent
 
 ## Next Steps
 

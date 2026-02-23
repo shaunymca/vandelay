@@ -6,6 +6,17 @@ Set up cron jobs, heartbeat, and active hours for autonomous agent behavior.
 
 Cron jobs let the agent perform tasks on a schedule: checking email, updating spreadsheets, running reports, and more.
 
+### Creating via the TUI Scheduler Tab
+
+Open the TUI dashboard (`vandelay`) and go to the **Scheduler** tab → **Cron** sub-tab.
+
+- **Add:** Click `+ Add` to open the job editor. Fill in the name, cron expression (5-field standard format), command, and timezone.
+- **Edit:** Select a job row and click `✎ Edit`.
+- **Enable / Disable:** Select a job row and click `◉ Enable` or `◎ Disable` to toggle it without deleting.
+- **Delete:** Select a job row and click `✕ Delete`.
+
+The heartbeat job (if enabled) appears in the list but cannot be edited or deleted from this view — configure it in the **Heartbeat** sub-tab instead.
+
 ### Creating via Chat
 
 Ask your agent:
@@ -73,7 +84,22 @@ Jobs are persisted in `~/.vandelay/cron_jobs.json` and restored on startup.
 
 The heartbeat is a periodic check-in where the agent evaluates proactive tasks defined in `HEARTBEAT.md`.
 
-### Enabling
+### Configuring via the TUI
+
+Open the TUI dashboard (`vandelay`) and go to **Scheduler** → **Heartbeat** sub-tab:
+
+| Field | Description |
+|-------|-------------|
+| **Enable heartbeat** | Toggle on/off |
+| **Interval (minutes)** | How often the heartbeat fires within active hours |
+| **Active from / to** | 24-hour window during which the heartbeat is allowed to run |
+| **Timezone** | Timezone for the active hours window |
+
+Click **Save** to persist changes immediately to `~/.vandelay/config.json`.
+
+The current heartbeat status (on/off, interval, active window) is also visible at a glance on the **Status** tab.
+
+### Configuring via config.json
 
 ```json
 {

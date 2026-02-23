@@ -10,6 +10,7 @@ from typing import Literal
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
+from textual.widget import Widget
 from textual.widgets import Button, Static
 
 WORDMARK = """\
@@ -34,15 +35,18 @@ _LABEL: dict[str, str] = {
 }
 
 
-class VandelayHeader(Horizontal):
+class VandelayHeader(Widget):
     """Left: ASCII art + tagline + status dot. Right: server control buttons.
 
-    Extends Horizontal directly so the widget itself provides horizontal layout
-    without needing a nested container — avoids Textual 8 layout quirks.
+    Extends Widget (not Horizontal) so height: 9 is not overridden by
+    Horizontal.DEFAULT_CSS height: auto, which would cause TabbedContent's
+    1fr to get the full screen height instead of screen - header.
     """
 
     DEFAULT_CSS = """
     VandelayHeader {
+        layout: horizontal;
+        dock: top;
         background: #161b22;
         border-bottom: tall #30363d;
         height: 9;
@@ -82,6 +86,20 @@ class VandelayHeader(Horizontal):
         margin-left: 1;
         min-width: 11;
         height: 3;
+        color: #ffffff;
+    }
+    #btn-quit {
+        dock: top;
+        width: 3;
+        height: 1;
+        background: transparent;
+        border: none;
+        color: #8b949e;
+        align: right top;
+    }
+    #btn-quit:hover {
+        color: #f85149;
+        background: transparent;
     }
     """
 
@@ -116,6 +134,7 @@ class VandelayHeader(Horizontal):
                 yield Button("Start",   id="btn-start",   variant="success")
                 yield Button("Restart", id="btn-restart", variant="warning")
                 yield Button("Stop",    id="btn-stop",    variant="error")
+            yield Button("✕", id="btn-quit")
 
     def on_mount(self) -> None:
         self._apply_state(self.server_state)
@@ -159,6 +178,9 @@ class VandelayHeader(Horizontal):
     # ── Button handlers ───────────────────────────────────────────────────
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-quit":
+            self.app.exit()
+            return
         handlers = {
             "btn-start":   self._do_start,
             "btn-restart": self._do_restart,

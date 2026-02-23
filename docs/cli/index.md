@@ -1,6 +1,6 @@
 # CLI Reference
 
-Vandelay is managed entirely through the `vandelay` CLI.
+Vandelay is managed through the `vandelay` CLI. Running it with no arguments opens the TUI dashboard.
 
 ## Global Usage
 
@@ -8,12 +8,15 @@ Vandelay is managed entirely through the `vandelay` CLI.
 vandelay [command] [options]
 ```
 
+Running `vandelay` with no subcommand opens the **TUI dashboard** — the recommended entry point. The onboarding wizard launches automatically on first run if no config exists.
+
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| [`onboard`](onboard.md) | Interactive setup wizard |
-| [`start`](start.md) | Start the server and terminal chat |
+| *(no args)* | Open the TUI dashboard (onboards automatically on first run) |
+| [`onboard`](onboard.md) | CLI setup wizard (headless/scripted use) |
+| [`start`](start.md) | Start the agent server and terminal chat |
 | [`config`](config.md) | Interactive configuration editor |
 | [`tools`](tools.md) | Manage tools (enable, disable, list, search) |
 | [`cron`](cron.md) | Manage cron jobs |

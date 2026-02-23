@@ -43,9 +43,7 @@ class MainScreen(Screen):
             self.app.push_screen(FirstRunModal(), callback=self._on_first_run)
 
     def _on_first_run(self, result: str) -> None:
-        if result == "onboard":
-            # Exit TUI — run_tui() will handle onboarding in the clean terminal
-            self.app.exit("onboard")
-        else:
-            # Skip to Config tab so they can set things up manually
+        if result == "skip":
+            # User skipped onboarding — land on Config so they can set things up manually
             self.query_one(TabbedContent).active = "tab-config"
+        # "done" → wizard completed, stay on Chat tab (already the default)

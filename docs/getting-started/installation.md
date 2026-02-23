@@ -8,19 +8,7 @@
 
 ## Install Vandelay
 
-```bash
-uv tool install vandelay
-```
-
-This installs the `vandelay` CLI globally. Verify it works:
-
-```bash
-vandelay --version
-```
-
-### Install from Source
-
-For development or to run the latest code:
+Vandelay is currently distributed from source. Install via git:
 
 ```bash
 git clone https://github.com/shaunymca/vandelay.git
@@ -29,20 +17,28 @@ uv sync
 uv tool install -e .
 ```
 
+Verify it works:
+
+```bash
+vandelay --version
+```
+
+> **PyPI release coming soon.** Once published, installation will simplify to `uv tool install vandelay`.
+
 ## Platform Notes
 
 | Platform | Status | Notes |
 |----------|--------|-------|
 | Linux | Full support | Recommended for production. systemd daemon included. |
 | macOS | Full support | launchd daemon included. |
-| Windows | Development only | Daemon not supported. Use WSL for production. |
+| Windows | Full support | PID-file daemon included. WSL recommended for production. |
 
 ## Next Steps
 
-Once installed, run the interactive onboarding:
+Once installed, open the Vandelay TUI dashboard:
 
 ```bash
-vandelay onboard
+vandelay
 ```
 
-Or jump straight to the [Quickstart](quickstart.md).
+If this is your first time, the onboarding wizard will appear automatically to set up your provider and API key. See the [Quickstart](quickstart.md) for the full walkthrough.

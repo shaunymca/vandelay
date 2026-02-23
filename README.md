@@ -8,7 +8,7 @@ An always-on AI agent that works so you don't have to.
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-282%20passed-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-855%20passed-brightgreen.svg)]()
 [![Powered by Agno](https://img.shields.io/badge/powered%20by-Agno-red.svg)](https://github.com/agno-agi/agno)
 
 **[Documentation](https://shaunymca.github.io/vandelay/)** &bull; [Get Started](#get-started) &bull; [Features](#features)
@@ -28,7 +28,7 @@ You get a personal agent that:
 - Connects over Terminal, Telegram, WhatsApp, and WebSocket
 - Supports agent teams with a built-in Vandelay Expert specialist
 
-One command to install, one to onboard, one to start.
+One command to install, one to run.
 
 ---
 
@@ -36,15 +36,16 @@ One command to install, one to onboard, one to start.
 
 | Feature | Description |
 |---------|-------------|
+| **TUI Dashboard** | Full command centre — chat, config, agents, scheduler, and live status in one place |
 | **100+ Tools** | Enable any tool with `vandelay tools enable <slug>` |
 | **Persistent Memory** | SQLite-backed memory and session history that survives restarts |
 | **Multi-Channel** | Terminal, Telegram, WhatsApp, WebSocket - same agent, shared memory |
 | **Knowledge / RAG** | Add docs, PDFs, code - vector-searched and injected into context |
-| **Scheduler + Cron** | Natural-language cron jobs, heartbeat, active hours |
+| **Scheduler + Cron** | Natural-language cron jobs, heartbeat with active hours — managed from the TUI |
 | **Agent Teams** | Supervisor with specialist delegation and scoped tools |
 | **Browser Control** | Anti-detect Firefox via Camoufox for web automation |
 | **Shell Safety** | Trust / Confirm / Tiered modes, destructive commands always blocked |
-| **Daemon Service** | `vandelay daemon install` - systemd (Linux) or launchd (macOS) |
+| **Daemon Service** | `vandelay daemon install` - systemd (Linux), launchd (macOS), PID-file (Windows) |
 | **Self-Hosted First** | Your data stays on your server. No cloud lock-in. |
 
 ---
@@ -52,13 +53,16 @@ One command to install, one to onboard, one to start.
 ## Get Started
 
 ```bash
-# Install
-uv tool install vandelay
+# Install from source
+git clone https://github.com/shaunymca/vandelay.git
+cd vandelay
+uv sync
+uv tool install -e .
 
-# Run the setup wizard
-vandelay onboard
+# Open the TUI dashboard (onboarding runs automatically on first launch)
+vandelay
 
-# Start the agent
+# Start the agent server (in a separate terminal, or install the daemon)
 vandelay start
 ```
 

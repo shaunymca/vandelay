@@ -28,15 +28,8 @@ _MEMBER_SUBNAV: list[tuple[str, str, str]] = [
     ("tools",  "Tools",  "tools"),
 ]
 
-# Provider → common model IDs.  Ollama fetched at runtime; openrouter = text input.
-_PROVIDER_MODELS: dict[str, list[str]] = {
-    "anthropic":  ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
-    "openai":     ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini"],
-    "google":     ["gemini-2.0-flash", "gemini-2.0-flash-thinking", "gemini-1.5-pro", "gemini-1.5-flash"],  # noqa: E501
-    "ollama":     [],
-    "openrouter": [],
-}
-_FREEFORM_PROVIDERS = {"ollama", "openrouter"}   # use text input instead of Select
+# Providers that use a free-text input instead of a Select (too many / dynamic models).
+_FREEFORM_PROVIDERS = {"ollama", "openrouter"}
 
 
 class AgentsTab(Widget):
@@ -308,7 +301,10 @@ class AgentsTab(Widget):
                     with Vertical(id="model-body"):
                         yield Label("Provider", classes="field-label")
                         yield Select(
-                            [(p, p) for p in _PROVIDER_MODELS],
+                            [(p, p) for p in [
+                                "anthropic", "openai", "google", "ollama", "groq",
+                                "deepseek", "mistral", "together", "xai", "openrouter",
+                            ]],
                             id="provider-select",
                             allow_blank=False,
                         )
@@ -336,6 +332,8 @@ class AgentsTab(Widget):
                     )
 
     def on_mount(self) -> None:
+        self._pending_auth_method = "api_key"  # used by on_select_changed
+        self._pending_model_id = ""
         self._hide_all()
         self._populate_agent_list()
         self._hide_subnav()
@@ -528,28 +526,39 @@ class AgentsTab(Widget):
             if agent == "leader":
                 provider = s.model.provider
                 model_id = s.model.model_id
+                auth_method = getattr(s.model, "auth_method", "api_key") or "api_key"
             else:
                 mc = self._get_or_create_member_config(agent or "")
                 provider = getattr(mc, "model_provider", "") or s.model.provider
                 model_id = getattr(mc, "model_id", "") or ""
+                auth_method = "api_key"
         except Exception:
-            provider, model_id = "", ""
+            provider, model_id, auth_method = "", "", "api_key"
 
         import contextlib
 
-        # Set provider select
+        # Suppress on_select_changed while we do the programmatic set
+        self._pending_auth_method = auth_method
+        self._pending_model_id = model_id
+
         psel = self.query_one("#provider-select", Select)
         with contextlib.suppress(Exception):
             psel.value = provider
 
-        # Update model select/input for this provider
-        self._update_model_options(provider, model_id)
+        # Always call directly — Select.Changed won't fire if value didn't change
+        self._update_model_options(provider, model_id, auth_method=auth_method)
+
+        # Reset pending so future user-driven changes default to api_key
+        self._pending_auth_method = "api_key"
+        self._pending_model_id = ""
+
         self.query_one("#model-inherit-note").display = agent != "leader"
         self._show("content-model")
 
-    def _update_model_options(self, provider: str, current: str = "") -> None:
-        models = _PROVIDER_MODELS.get(provider, [])
-        freeform = provider in _FREEFORM_PROVIDERS or not models
+    def _update_model_options(self, provider: str, current: str = "", auth_method: str = "api_key") -> None:
+        from vandelay.models.catalog import get_codex_model_choices, get_model_choices
+
+        freeform = provider in _FREEFORM_PROVIDERS
 
         msel = self.query_one("#model-select", Select)
         minput = self.query_one("#model-input", Input)
@@ -558,15 +567,25 @@ class AgentsTab(Widget):
             msel.display = False
             minput.display = True
             minput.value = current
-            # Try fetching ollama models
             if provider == "ollama":
                 self.run_worker(self._fetch_ollama_models)
         else:
+            if auth_method == "codex":
+                model_options = get_codex_model_choices()
+            else:
+                model_options = get_model_choices(provider)
+            if not model_options:
+                # Unknown provider — fall back to freeform
+                msel.display = False
+                minput.display = True
+                minput.value = current
+                return
             msel.display = True
             minput.display = False
-            opts = [(m, m) for m in models]
+            opts = [(m.label, m.id) for m in model_options]
             msel.set_options(opts)
-            if current in models:
+            model_ids = [m.id for m in model_options]
+            if current in model_ids:
                 import contextlib
                 with contextlib.suppress(Exception):
                     msel.value = current
@@ -588,7 +607,12 @@ class AgentsTab(Widget):
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.select.id == "provider-select":
             provider = str(event.value) if event.value is not None else ""
-            self._update_model_options(provider)
+            auth_method = getattr(self, "_pending_auth_method", "api_key")
+            model_id = getattr(self, "_pending_model_id", "")
+            # Reset pending values so subsequent user-driven changes default to api_key
+            self._pending_auth_method = "api_key"
+            self._pending_model_id = ""
+            self._update_model_options(provider, model_id, auth_method=auth_method)
 
     # ── Tools panel ───────────────────────────────────────────────────────
 
