@@ -191,6 +191,42 @@ class TestApplySettings:
 
         assert mock_settings.timezone == "America/New_York"
 
+    def test_codex_auth_sets_codex_model_id(self):
+        """When auth_method=codex, model_id must be gpt-5.1-codex-mini, not gpt-4o."""
+        screen = self._make_screen(provider="openai", api_key="", auth_method="codex")
+        mock_settings = self._make_mock_settings()
+
+        with patch("vandelay.config.settings.Settings", return_value=mock_settings):
+            with patch("vandelay.cli.onboard._write_env_key"):
+                with patch("vandelay.workspace.manager.init_workspace"):
+                    screen._apply_settings()
+
+        assert mock_settings.model.model_id == "gpt-5.1-codex-mini"
+
+    def test_api_key_auth_sets_provider_default_model(self):
+        """When auth_method=api_key, model_id should be the provider default (gpt-4o for openai)."""
+        screen = self._make_screen(provider="openai", api_key="sk-test", auth_method="api_key")
+        mock_settings = self._make_mock_settings()
+
+        with patch("vandelay.config.settings.Settings", return_value=mock_settings):
+            with patch("vandelay.cli.onboard._write_env_key"):
+                with patch("vandelay.workspace.manager.init_workspace"):
+                    screen._apply_settings()
+
+        assert mock_settings.model.model_id == "gpt-4o"
+
+    def test_get_settings_cache_cleared_after_save(self):
+        """lru_cache on get_settings must be busted after onboarding saves."""
+        screen = self._make_screen()
+        mock_settings = self._make_mock_settings()
+
+        with patch("vandelay.config.settings.Settings", return_value=mock_settings):
+            with patch("vandelay.cli.onboard._write_env_key"):
+                with patch("vandelay.workspace.manager.init_workspace"):
+                    with patch("vandelay.config.settings.get_settings") as mock_gs:
+                        screen._apply_settings()
+                        mock_gs.cache_clear.assert_called_once()
+
 
 # ---------------------------------------------------------------------------
 # Ollama — API key step skipped

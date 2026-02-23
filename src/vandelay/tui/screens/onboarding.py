@@ -313,19 +313,30 @@ class OnboardingScreen(ModalScreen[None]):
 
     def _apply_settings(self) -> None:
         from vandelay.config.constants import MODEL_PROVIDERS
-        from vandelay.config.settings import Settings
+        from vandelay.config.settings import Settings, get_settings
         from vandelay.workspace.manager import init_workspace
+
+        info = MODEL_PROVIDERS[self._provider]
+
+        # Codex OAuth uses a different model ID than the standard provider default
+        if self._auth_method == "codex":
+            model_id = "gpt-5.1-codex-mini"
+        else:
+            model_id = info["default_model"]
 
         s = Settings()
         s.agent_name = self._agent_name
         s.model.provider = self._provider
-        s.model.model_id = MODEL_PROVIDERS[self._provider]["default_model"]
+        s.model.model_id = model_id
         s.model.auth_method = self._auth_method
         s.timezone = self._timezone
         s.save()
 
+        # Bust the lru_cache so the rest of the TUI picks up the new settings
+        get_settings.cache_clear()
+
         if self._api_key and self._auth_method == "api_key":
-            env_key = MODEL_PROVIDERS[self._provider].get("env_key")
+            env_key = info.get("env_key")
             if env_key:
                 from vandelay.cli.onboard import _write_env_key
 
