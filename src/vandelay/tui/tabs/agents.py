@@ -537,13 +537,21 @@ class AgentsTab(Widget):
 
         import contextlib
 
-        # Store pending values so on_select_changed picks them up correctly
+        # Suppress on_select_changed while we do the programmatic set
         self._pending_auth_method = auth_method
         self._pending_model_id = model_id
 
         psel = self.query_one("#provider-select", Select)
         with contextlib.suppress(Exception):
-            psel.value = provider  # fires on_select_changed asynchronously
+            psel.value = provider
+
+        # Always call directly — Select.Changed won't fire if value didn't change
+        self._update_model_options(provider, model_id, auth_method=auth_method)
+
+        # Reset pending so future user-driven changes default to api_key
+        self._pending_auth_method = "api_key"
+        self._pending_model_id = ""
+
         self.query_one("#model-inherit-note").display = agent != "leader"
         self._show("content-model")
 
