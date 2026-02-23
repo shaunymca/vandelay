@@ -332,7 +332,8 @@ class AgentsTab(Widget):
                     )
 
     def on_mount(self) -> None:
-        self._loading_model = False  # suppresses on_select_changed during _load_model
+        self._pending_auth_method = "api_key"  # used by on_select_changed
+        self._pending_model_id = ""
         self._hide_all()
         self._populate_agent_list()
         self._hide_subnav()
@@ -536,15 +537,13 @@ class AgentsTab(Widget):
 
         import contextlib
 
-        # Set provider select — suppress on_select_changed while loading
-        self._loading_model = True
+        # Store pending values so on_select_changed picks them up correctly
+        self._pending_auth_method = auth_method
+        self._pending_model_id = model_id
+
         psel = self.query_one("#provider-select", Select)
         with contextlib.suppress(Exception):
-            psel.value = provider
-        self._loading_model = False
-
-        # Update model select/input for this provider
-        self._update_model_options(provider, model_id, auth_method=auth_method)
+            psel.value = provider  # fires on_select_changed asynchronously
         self.query_one("#model-inherit-note").display = agent != "leader"
         self._show("content-model")
 
@@ -599,11 +598,13 @@ class AgentsTab(Widget):
 
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.select.id == "provider-select":
-            if getattr(self, "_loading_model", False):
-                return
             provider = str(event.value) if event.value is not None else ""
-            # When user manually changes provider, reset to api_key mode
-            self._update_model_options(provider, auth_method="api_key")
+            auth_method = getattr(self, "_pending_auth_method", "api_key")
+            model_id = getattr(self, "_pending_model_id", "")
+            # Reset pending values so subsequent user-driven changes default to api_key
+            self._pending_auth_method = "api_key"
+            self._pending_model_id = ""
+            self._update_model_options(provider, model_id, auth_method=auth_method)
 
     # ── Tools panel ───────────────────────────────────────────────────────
 
