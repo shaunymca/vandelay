@@ -332,6 +332,7 @@ class AgentsTab(Widget):
                     )
 
     def on_mount(self) -> None:
+        self._loading_model = False  # suppresses on_select_changed during _load_model
         self._hide_all()
         self._populate_agent_list()
         self._hide_subnav()
@@ -535,10 +536,12 @@ class AgentsTab(Widget):
 
         import contextlib
 
-        # Set provider select
+        # Set provider select — suppress on_select_changed while loading
+        self._loading_model = True
         psel = self.query_one("#provider-select", Select)
         with contextlib.suppress(Exception):
             psel.value = provider
+        self._loading_model = False
 
         # Update model select/input for this provider
         self._update_model_options(provider, model_id, auth_method=auth_method)
@@ -596,6 +599,8 @@ class AgentsTab(Widget):
 
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.select.id == "provider-select":
+            if getattr(self, "_loading_model", False):
+                return
             provider = str(event.value) if event.value is not None else ""
             # When user manually changes provider, reset to api_key mode
             self._update_model_options(provider, auth_method="api_key")
