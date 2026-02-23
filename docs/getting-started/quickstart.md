@@ -8,12 +8,13 @@ Get a running agent in under 5 minutes.
 vandelay
 ```
 
-This opens the Vandelay TUI dashboard. On first launch, the onboarding wizard appears automatically and asks for:
+This opens the Vandelay TUI dashboard. On first launch, the onboarding wizard appears automatically and walks you through 5 steps:
 
-1. **Agent name:** What to call your agent (default: Art)
+1. **Agent name:** What to call your agent
 2. **LLM provider:** Pick from 10 providers (Anthropic, OpenAI, Google, Ollama, etc.)
-3. **API key:** Stored securely in `~/.vandelay/.env` (skipped for Ollama)
-4. **Timezone:** For scheduling and cron jobs
+3. **API key / Auth:** Stored securely in `~/.vandelay/.env` (skipped for Ollama; OpenAI subscription uses OAuth)
+4. **Model:** Select the specific model to use (curated list per provider)
+5. **Timezone:** For scheduling and cron jobs
 
 Your config is saved to `~/.vandelay/config.json` and workspace files are created at `~/.vandelay/workspace/`.
 

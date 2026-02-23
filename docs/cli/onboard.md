@@ -23,10 +23,12 @@ For interactive use on a desktop or laptop, `vandelay` (no arguments) is the bet
 ## What It Does
 
 1. **Agent name:** Set what to call your agent
-2. **Model selection:** Pick from 10 LLM providers, with available models listed
-3. **API key:** Securely stored in `~/.vandelay/.env`
-4. **Config creation:** Writes `~/.vandelay/config.json` with sensible defaults
-5. **Workspace setup:** Creates 7 workspace markdown files in `~/.vandelay/workspace/`
+2. **Provider:** Pick from 10 LLM providers (Anthropic, OpenAI, Google, Ollama, etc.)
+3. **Auth / API key:** API key stored in `~/.vandelay/.env`; Ollama skips this step; OpenAI subscription uses OAuth
+4. **Model:** Select the specific model from a curated list for the chosen provider
+5. **Timezone:** Used for scheduling and cron jobs
+6. **Config creation:** Writes `~/.vandelay/config.json` with sensible defaults
+7. **Workspace setup:** Creates 7 workspace markdown files in `~/.vandelay/workspace/`
 
 ## Options
 

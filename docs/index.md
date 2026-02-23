@@ -29,10 +29,11 @@ vandelay
 
 | Feature | Description |
 |---------|-------------|
+| [TUI Dashboard](getting-started/quickstart.md) | Chat, config, agents, scheduler, and live status — all in one place |
 | [Agent Teams](concepts/teams.md) | Supervisor + specialist agents with tool-scoped delegation |
 | [Memory](concepts/memory.md) | Session history, agentic memory, workspace files |
 | [Knowledge/RAG](concepts/knowledge.md) | Document ingestion, vector search, embedder auto-resolution |
-| [Scheduling](guides/scheduling.md) | Cron jobs, heartbeat, active hours |
+| [Scheduling](guides/scheduling.md) | Cron jobs, heartbeat with active hours — configurable from the TUI |
 | [Channels](concepts/channels.md) | Terminal, Telegram, WhatsApp, WebSocket |
 | [Safety](concepts/safety.md) | Trust/confirm/tiered modes, blocked patterns, sandboxing |
 | [Browser Control](tools/built-in.md) | Anti-detect Firefox via Camoufox |

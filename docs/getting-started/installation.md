@@ -31,7 +31,7 @@ vandelay --version
 |----------|--------|-------|
 | Linux | Full support | Recommended for production. systemd daemon included. |
 | macOS | Full support | launchd daemon included. |
-| Windows | Development only | Daemon not supported. Use WSL for production. |
+| Windows | Full support | PID-file daemon included. WSL recommended for production. |
 
 ## Next Steps
 

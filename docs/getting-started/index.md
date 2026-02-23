@@ -6,7 +6,8 @@ Welcome to Vandelay. This section gets you from zero to a running agent in under
 
 Vandelay is an always-on AI agent platform built on [Agno](https://github.com/agno-agi/agno). It wraps Agno's agent framework with:
 
-- A CLI for configuration and management
+- A **TUI dashboard** — the primary interface for chat, config, agents, scheduler, and live status
+- A CLI for headless configuration and management
 - A FastAPI server for multi-channel access
 - A daemon for 24/7 operation with heartbeat and cron scheduling
 - Team mode for multi-agent coordination
