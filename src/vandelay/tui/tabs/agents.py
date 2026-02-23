@@ -28,15 +28,8 @@ _MEMBER_SUBNAV: list[tuple[str, str, str]] = [
     ("tools",  "Tools",  "tools"),
 ]
 
-# Provider → common model IDs.  Ollama fetched at runtime; openrouter = text input.
-_PROVIDER_MODELS: dict[str, list[str]] = {
-    "anthropic":  ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
-    "openai":     ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1", "o1-mini"],
-    "google":     ["gemini-2.0-flash", "gemini-2.0-flash-thinking", "gemini-1.5-pro", "gemini-1.5-flash"],  # noqa: E501
-    "ollama":     [],
-    "openrouter": [],
-}
-_FREEFORM_PROVIDERS = {"ollama", "openrouter"}   # use text input instead of Select
+# Providers that use a free-text input instead of a Select (too many / dynamic models).
+_FREEFORM_PROVIDERS = {"ollama", "openrouter"}
 
 
 class AgentsTab(Widget):
@@ -308,7 +301,10 @@ class AgentsTab(Widget):
                     with Vertical(id="model-body"):
                         yield Label("Provider", classes="field-label")
                         yield Select(
-                            [(p, p) for p in _PROVIDER_MODELS],
+                            [(p, p) for p in [
+                                "anthropic", "openai", "google", "ollama", "groq",
+                                "deepseek", "mistral", "together", "xai", "openrouter",
+                            ]],
                             id="provider-select",
                             allow_blank=False,
                         )
@@ -548,8 +544,9 @@ class AgentsTab(Widget):
         self._show("content-model")
 
     def _update_model_options(self, provider: str, current: str = "") -> None:
-        models = _PROVIDER_MODELS.get(provider, [])
-        freeform = provider in _FREEFORM_PROVIDERS or not models
+        from vandelay.models.catalog import get_model_choices
+
+        freeform = provider in _FREEFORM_PROVIDERS
 
         msel = self.query_one("#model-select", Select)
         minput = self.query_one("#model-input", Input)
@@ -558,15 +555,22 @@ class AgentsTab(Widget):
             msel.display = False
             minput.display = True
             minput.value = current
-            # Try fetching ollama models
             if provider == "ollama":
                 self.run_worker(self._fetch_ollama_models)
         else:
+            model_options = get_model_choices(provider)
+            if not model_options:
+                # Unknown provider — fall back to freeform
+                msel.display = False
+                minput.display = True
+                minput.value = current
+                return
             msel.display = True
             minput.display = False
-            opts = [(m, m) for m in models]
+            opts = [(m.label, m.id) for m in model_options]
             msel.set_options(opts)
-            if current in models:
+            model_ids = [m.id for m in model_options]
+            if current in model_ids:
                 import contextlib
                 with contextlib.suppress(Exception):
                     msel.value = current

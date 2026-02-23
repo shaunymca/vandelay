@@ -24,8 +24,9 @@ class TestStepNavigation:
         screen._provider = provider
         screen._agent_name = "Art"
         screen._api_key = ""
+        screen._model_id = ""
         screen._timezone = "UTC"
-        screen._total_steps = 4
+        screen._total_steps = 5
         return screen
 
     def _next_step(self, screen, step):
@@ -33,7 +34,7 @@ class TestStepNavigation:
         nxt = step + 1
         if nxt == 2 and screen._provider == "ollama":
             nxt = 3
-        return min(nxt, 3)
+        return min(nxt, 4)
 
     def _prev_step(self, screen, step):
         """Replicate OnboardingScreen._prev_step."""
@@ -51,9 +52,9 @@ class TestStepNavigation:
         screen._step = 2
         assert self._prev_step(screen, 2) == 1
 
-    def test_next_from_last_step_stays_at_3(self):
+    def test_next_from_last_step_stays_at_4(self):
         screen = self._make_screen()
-        assert self._next_step(screen, 3) == 3
+        assert self._next_step(screen, 4) == 4
 
     def test_back_from_first_step_stays_at_0(self):
         screen = self._make_screen()
@@ -61,7 +62,7 @@ class TestStepNavigation:
 
     def test_ollama_skips_step_2_on_next(self):
         screen = self._make_screen(provider="ollama")
-        # step 1 → should skip 2 → land on 3
+        # step 1 → should skip 2 → land on 3 (model)
         assert self._next_step(screen, 1) == 3
 
     def test_ollama_skips_step_2_on_back(self):
@@ -75,6 +76,16 @@ class TestStepNavigation:
             assert self._next_step(screen, 1) == 2, f"Failed for provider={provider}"
             assert self._prev_step(screen, 3) == 2, f"Failed for provider={provider}"
 
+    def test_model_step_is_step_3(self):
+        screen = self._make_screen()
+        # step 2 (auth/key) → step 3 (model)
+        assert self._next_step(screen, 2) == 3
+
+    def test_timezone_step_is_step_4(self):
+        screen = self._make_screen()
+        # step 3 (model) → step 4 (timezone)
+        assert self._next_step(screen, 3) == 4
+
 
 # ---------------------------------------------------------------------------
 # _apply_settings
@@ -84,7 +95,7 @@ class TestStepNavigation:
 class TestApplySettings:
     """Test _apply_settings by patching at the source module paths (imports are lazy inside method)."""
 
-    def _make_screen(self, provider="anthropic", api_key="test-key", auth_method="api_key"):
+    def _make_screen(self, provider="anthropic", api_key="test-key", auth_method="api_key", model_id=""):
         from vandelay.tui.screens.onboarding import OnboardingScreen
 
         screen = OnboardingScreen.__new__(OnboardingScreen)
@@ -92,6 +103,7 @@ class TestApplySettings:
         screen._provider = provider
         screen._auth_method = auth_method
         screen._api_key = api_key
+        screen._model_id = model_id
         screen._timezone = "America/New_York"
         return screen
 
@@ -370,12 +382,12 @@ class TestOnboardingIntegration:
                     f"Expected OnboardingScreen after clicking Onboard, got {type(app.screen).__name__}"
                 )
 
-                # Navigate: step 0 (name) → step 1 (provider) → step 2 (key) → step 3 (tz)
-                for _ in range(3):
+                # Navigate: step 0 (name) → step 1 (provider) → step 2 (key) → step 3 (model) → step 4 (tz)
+                for _ in range(4):
                     await pilot.click("#btn-next")
                     await pilot.pause(0.1)
 
-                # Now on step 3 — "Finish" button should be visible
+                # Now on step 4 — "Finish" button should be visible
                 # Must query the active screen, not the default app DOM
                 finish_btn = app.screen.query_one("#btn-finish")
                 assert finish_btn.display, "Finish button should be visible on last step"

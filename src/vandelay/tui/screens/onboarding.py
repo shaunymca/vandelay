@@ -8,7 +8,7 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widget import Widget
-from textual.widgets import Button, ContentSwitcher, Input, Label, RadioButton, RadioSet, Static
+from textual.widgets import Button, ContentSwitcher, Input, Label, RadioButton, RadioSet, Select, Static
 
 
 class _HRow(Widget):
@@ -43,10 +43,11 @@ class OnboardingScreen(ModalScreen[None]):
         self._provider = _DEFAULT_PROVIDER
         self._auth_method = "api_key"   # "api_key" | "codex"
         self._api_key = ""
+        self._model_id = ""
         self._timezone = _detect_tz()
 
-        # Number of real steps — step 2 (API key) may be skipped for Ollama
-        self._total_steps = 4  # 0-indexed: 0,1,2,3
+        # Steps: 0=Name, 1=Provider, 2=Auth/Key (skipped for Ollama), 3=Model, 4=Timezone
+        self._total_steps = 5
 
     # ------------------------------------------------------------------ #
     # Compose                                                              #
@@ -98,7 +99,13 @@ class OnboardingScreen(ModalScreen[None]):
                         yield Static("", id="codex-status")
                         yield Static("", id="codex-hint", classes="onboard-hint")
 
-                # Step 3 — Timezone
+                # Step 3 — Model selection
+                with Vertical(id="step-model", classes="onboard-step"):
+                    yield Label("Select model:", id="model-step-label", classes="onboard-q")
+                    yield Select([], id="select-model", allow_blank=True)
+                    yield Static("", id="model-hint", classes="onboard-hint")
+
+                # Step 4 — Timezone
                 with Vertical(id="step-tz", classes="onboard-step"):
                     yield Label("Your timezone:", classes="onboard-q")
                     yield Input(
@@ -153,7 +160,7 @@ class OnboardingScreen(ModalScreen[None]):
         nxt = step + 1
         if nxt == 2 and self._provider == "ollama":
             nxt = 3
-        return min(nxt, 3)
+        return min(nxt, 4)
 
     def _prev_step(self, step: int) -> int:
         """Return previous real step index (skip step 2 for Ollama)."""
@@ -164,25 +171,31 @@ class OnboardingScreen(ModalScreen[None]):
 
     def _refresh_step(self) -> None:
         """Switch content pane and update nav buttons."""
-        pane_ids = ["step-name", "step-provider", "step-key", "step-tz"]
+        pane_ids = ["step-name", "step-provider", "step-key", "step-model", "step-tz"]
         self.query_one("#onboard-switcher", ContentSwitcher).current = pane_ids[self._step]
 
-        # Step label
+        # Step label (account for skipped step 2 in Ollama display count)
+        display_step = self._step + 1
+        display_total = self._total_steps
+        if self._provider == "ollama" and self._step >= 3:
+            display_step -= 1
+            display_total -= 1
         self.query_one("#onboard-step-label", Static).update(
-            f"  Step {self._step + 1} of {self._total_steps}"
+            f"  Step {display_step} of {display_total}"
         )
 
         # Nav buttons
-        is_last = self._step == 3 or (self._step == 2 and self._provider != "ollama" and False)
-        real_last = self._step == 3
+        real_last = self._step == 4
 
         self.query_one("#btn-back", Button).display = self._step > 0
         self.query_one("#btn-next", Button).display = not real_last
         self.query_one("#btn-finish", Button).display = real_last
 
-        # Populate dynamic labels for step 2
+        # Populate dynamic content for steps 2 and 3
         if self._step == 2:
             self._update_key_step()
+        elif self._step == 3:
+            self._update_model_step()
 
         self.query_one("#onboard-error", Static).update("")
 
@@ -247,6 +260,34 @@ class OnboardingScreen(ModalScreen[None]):
                 )
                 self.query_one("#codex-hint", Static).update(f"  {token_help}" if token_help else "")
 
+    def _update_model_step(self) -> None:
+        """Populate the model Select for the current provider + auth method."""
+        from vandelay.models.catalog import get_codex_model_choices, get_model_choices
+
+        if self._auth_method == "codex":
+            models = get_codex_model_choices()
+            label = "Select Codex model:"
+        else:
+            models = get_model_choices(self._provider)
+            label = "Select model:"
+
+        self.query_one("#model-step-label", Label).update(label)
+
+        opts = [(m.label, m.id) for m in models]
+        sel = self.query_one("#select-model", Select)
+        sel.set_options(opts)
+
+        # Restore previous selection or default to first
+        model_ids = [m.id for m in models]
+        if self._model_id in model_ids:
+            sel.value = self._model_id
+        elif models:
+            sel.value = models[0].id
+            self._model_id = models[0].id
+
+        hint = f"  {len(models)} model(s) available" if models else ""
+        self.query_one("#model-hint", Static).update(hint)
+
     def on_radio_set_changed(self, event: RadioSet.Changed) -> None:
         if event.radio_set.id == "radio-auth":
             # Index 0 = codex, Index 1 = api_key
@@ -287,6 +328,14 @@ class OnboardingScreen(ModalScreen[None]):
                 self._api_key = self.query_one("#input-key", Input).value.strip()
 
         elif self._step == 3:
+            try:
+                val = self.query_one("#select-model", Select).value
+                if val is not None and val is not Select.BLANK:
+                    self._model_id = str(val)
+            except Exception:
+                pass
+
+        elif self._step == 4:
             tz = self.query_one("#input-tz", Input).value.strip() or "UTC"
             self._timezone = tz
 
@@ -318,8 +367,10 @@ class OnboardingScreen(ModalScreen[None]):
 
         info = MODEL_PROVIDERS[self._provider]
 
-        # Codex OAuth uses a different model ID than the standard provider default
-        if self._auth_method == "codex":
+        # Use model selected in wizard; fall back to provider default if somehow empty
+        if self._model_id:
+            model_id = self._model_id
+        elif self._auth_method == "codex":
             model_id = "gpt-5.1-codex-mini"
         else:
             model_id = info["default_model"]

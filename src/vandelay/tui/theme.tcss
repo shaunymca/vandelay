@@ -321,6 +321,7 @@ OnboardingScreen {
 .onboard-step { height: 100%; }
 .onboard-q { text-style: bold; margin-bottom: 1; }
 .onboard-hint { color: $dim; }
+#select-model { width: 100%; margin-bottom: 1; }
 
 #onboard-error { color: $danger; height: 1; }
 
