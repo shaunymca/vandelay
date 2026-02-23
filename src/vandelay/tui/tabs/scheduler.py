@@ -11,8 +11,10 @@ from typing import cast
 from textual.app import ComposeResult
 from textual.screen import ModalScreen
 from textual.widget import Widget
+from textual.containers import Horizontal, Vertical
 from textual.widgets import (
     Button,
+    Checkbox,
     DataTable,
     Input,
     Label,
@@ -294,6 +296,22 @@ class SchedulerTab(Widget):
                     yield Button("Edit", id="btn-edit-task", variant="default")
                     yield Button("Clear Completed", id="btn-clear", variant="warning")
                 yield DataTable(id="task-table", cursor_type="row")
+            with TabPane("Heartbeat", id="pane-heartbeat"):
+                with Vertical(id="hb-form"):
+                    yield Checkbox("Enable heartbeat", id="hb-enabled")
+                    with Horizontal(classes="hb-field-row"):
+                        yield Label("Interval (minutes):", classes="hb-label")
+                        yield Input("30", id="hb-interval", type="integer")
+                    with Horizontal(classes="hb-field-row"):
+                        yield Label("Active from (24h):", classes="hb-label")
+                        yield Input("8", id="hb-start", type="integer")
+                        yield Label("to", classes="hb-to")
+                        yield Input("22", id="hb-end", type="integer")
+                    with Horizontal(classes="hb-field-row"):
+                        yield Label("Timezone:", classes="hb-label")
+                        yield Select(_TIMEZONES, id="hb-tz", allow_blank=False)
+                    yield Static("", id="hb-error", classes="hb-error")
+                    yield Button("Save", id="btn-hb-save", variant="primary")
 
     def on_mount(self) -> None:
         self._init_store()
@@ -301,6 +319,7 @@ class SchedulerTab(Widget):
         self._build_task_table()
         self._update_button_state()
         self._update_task_button_state()
+        self._load_heartbeat()
 
     # ------------------------------------------------------------------
     # Store
@@ -420,6 +439,8 @@ class SchedulerTab(Widget):
             self._edit_task()
         elif btn_id == "btn-clear":
             self._clear_completed()
+        elif btn_id == "btn-hb-save":
+            self._save_heartbeat()
 
     # ------------------------------------------------------------------
     # Cron CRUD actions
@@ -503,6 +524,67 @@ class SchedulerTab(Widget):
             self._update_task_button_state()
 
         self.app.push_screen(TaskEditModal(task), callback=_on_result)
+
+    # ------------------------------------------------------------------
+    # Heartbeat settings
+    # ------------------------------------------------------------------
+
+    def _load_heartbeat(self) -> None:
+        try:
+            from vandelay.config.settings import Settings, get_settings
+
+            if not Settings.config_exists():
+                return
+            hb = get_settings().heartbeat
+            self.query_one("#hb-enabled", Checkbox).value = hb.enabled
+            self.query_one("#hb-interval", Input).value = str(hb.interval_minutes)
+            self.query_one("#hb-start", Input).value = str(hb.active_hours_start)
+            self.query_one("#hb-end", Input).value = str(hb.active_hours_end)
+            tz = hb.timezone or "UTC"
+            tz_ids = [t[0] for t in _TIMEZONES]
+            sel = self.query_one("#hb-tz", Select)
+            if tz in tz_ids:
+                sel.value = tz
+        except Exception as exc:
+            logger.warning("Could not load heartbeat config: %s", exc)
+
+    def _save_heartbeat(self) -> None:
+        error = self.query_one("#hb-error", Static)
+        error.update("")
+        try:
+            enabled = self.query_one("#hb-enabled", Checkbox).value
+            interval = int(self.query_one("#hb-interval", Input).value.strip() or "30")
+            start = int(self.query_one("#hb-start", Input).value.strip() or "8")
+            end = int(self.query_one("#hb-end", Input).value.strip() or "22")
+            tz_val = self.query_one("#hb-tz", Select).value
+            tz = str(tz_val) if tz_val and tz_val is not Select.BLANK else "UTC"
+        except ValueError as exc:
+            error.update(f"[red]Invalid value: {exc}[/red]")
+            return
+
+        if not (0 <= start <= 23 and 0 <= end <= 23):
+            error.update("[red]Hours must be 0–23.[/red]")
+            return
+        if start >= end:
+            error.update("[red]Start must be before end.[/red]")
+            return
+        if interval < 1:
+            error.update("[red]Interval must be at least 1 minute.[/red]")
+            return
+
+        try:
+            from vandelay.config.settings import get_settings
+
+            s = get_settings()
+            s.heartbeat.enabled = enabled
+            s.heartbeat.interval_minutes = interval
+            s.heartbeat.active_hours_start = start
+            s.heartbeat.active_hours_end = end
+            s.heartbeat.timezone = tz
+            s.save()
+            self.app.notify("Heartbeat settings saved.", severity="information", timeout=3)
+        except Exception as exc:
+            error.update(f"[red]Save failed: {exc}[/red]")
 
     def _clear_completed(self) -> None:
         from vandelay.config.constants import TASK_QUEUE_FILE

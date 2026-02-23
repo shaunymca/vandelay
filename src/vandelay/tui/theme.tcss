@@ -211,6 +211,33 @@ SchedulerTab { height: 1fr; }
 #cron-table { height: 1fr; }
 #task-table { height: 1fr; }
 
+/* ── Heartbeat form ──────────────────────────────── */
+#hb-form {
+    padding: 2 3;
+    height: auto;
+}
+.hb-field-row {
+    height: 3;
+    margin-bottom: 1;
+    align: left middle;
+}
+.hb-label {
+    width: 22;
+    color: #8b949e;
+}
+.hb-to {
+    width: 4;
+    padding: 0 1;
+    color: #8b949e;
+}
+#hb-interval { width: 10; }
+#hb-start    { width: 8; }
+#hb-end      { width: 8; }
+#hb-tz       { width: 36; }
+#hb-enabled  { margin-bottom: 2; }
+.hb-error    { color: $error; height: 1; margin-bottom: 1; }
+#btn-hb-save { margin-top: 1; }
+
 /* ── Cron job modal ──────────────────────────────── */
 CronJobModal { align: center middle; }
 

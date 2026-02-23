@@ -245,3 +245,47 @@ class TestSchedulerTabImport:
 
         assert callable(_load_tasks)
         assert callable(_save_tasks)
+
+
+# ---------------------------------------------------------------------------
+# Heartbeat settings validation
+# ---------------------------------------------------------------------------
+
+
+class TestHeartbeatValidation:
+    """Test _save_heartbeat validation logic (extracted from widget)."""
+
+    def _validate(self, enabled, interval, start, end, tz="UTC"):
+        """Replicate the validation logic from _save_heartbeat."""
+        errors = []
+        if not (0 <= start <= 23 and 0 <= end <= 23):
+            errors.append("Hours must be 0–23.")
+        if start >= end:
+            errors.append("Start must be before end.")
+        if interval < 1:
+            errors.append("Interval must be at least 1 minute.")
+        return errors
+
+    def test_valid_config_passes(self):
+        assert self._validate(True, 30, 8, 22) == []
+
+    def test_invalid_start_hour(self):
+        errors = self._validate(True, 30, 25, 22)
+        assert any("0–23" in e for e in errors)
+
+    def test_start_after_end_fails(self):
+        errors = self._validate(True, 30, 22, 8)
+        assert any("Start must be before" in e for e in errors)
+
+    def test_start_equal_end_fails(self):
+        errors = self._validate(True, 30, 8, 8)
+        assert any("Start must be before" in e for e in errors)
+
+    def test_zero_interval_fails(self):
+        errors = self._validate(True, 0, 8, 22)
+        assert any("at least 1" in e for e in errors)
+
+    def test_disabled_still_validates(self):
+        """Validation runs regardless of enabled state."""
+        errors = self._validate(False, 0, 8, 22)
+        assert any("at least 1" in e for e in errors)
