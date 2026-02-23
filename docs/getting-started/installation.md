@@ -8,19 +8,7 @@
 
 ## Install Vandelay
 
-```bash
-uv tool install vandelay
-```
-
-This installs the `vandelay` CLI globally. Verify it works:
-
-```bash
-vandelay --version
-```
-
-### Install from Source
-
-For development or to run the latest code:
+Vandelay is currently distributed from source. Install via git:
 
 ```bash
 git clone https://github.com/shaunymca/vandelay.git
@@ -28,6 +16,14 @@ cd vandelay
 uv sync
 uv tool install -e .
 ```
+
+Verify it works:
+
+```bash
+vandelay --version
+```
+
+> **PyPI release coming soon.** Once published, installation will simplify to `uv tool install vandelay`.
 
 ## Platform Notes
 

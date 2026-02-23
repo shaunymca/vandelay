@@ -18,7 +18,10 @@ Vandelay gives you a self-hosted AI agent that runs 24/7, with memory, tools, sc
 ## Quick Install
 
 ```bash
-uv tool install vandelay
+git clone https://github.com/shaunymca/vandelay.git
+cd vandelay
+uv sync
+uv tool install -e .
 vandelay
 ```
 

@@ -52,8 +52,11 @@ One command to install, one to run.
 ## Get Started
 
 ```bash
-# Install
-uv tool install vandelay
+# Install from source
+git clone https://github.com/shaunymca/vandelay.git
+cd vandelay
+uv sync
+uv tool install -e .
 
 # Open the TUI dashboard (onboarding runs automatically on first launch)
 vandelay
