@@ -246,6 +246,16 @@ class TestSchedulerTabImport:
         assert callable(_load_tasks)
         assert callable(_save_tasks)
 
+    def test_task_edit_modal_stores_dict_not_overwritten(self):
+        """Regression: _task_data must not collide with Textual's internal _task attribute."""
+        from vandelay.tui.tabs.scheduler import TaskEditModal
+
+        task = {"id": "abc123", "status": "pending", "command": "hello", "created_at": "2025-01-01"}
+        modal = TaskEditModal(task)
+        # _task_data should be our dict, not an asyncio Task
+        assert isinstance(modal._task_data, dict)
+        assert modal._task_data.get("id") == "abc123"
+
 
 # ---------------------------------------------------------------------------
 # Heartbeat settings validation

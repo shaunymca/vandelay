@@ -215,13 +215,13 @@ class TaskEditModal(ModalScreen):
 
     def __init__(self, task: dict) -> None:
         super().__init__()
-        self._task = task
+        self._task_data = task
         self._original_json = json.dumps(task, indent=2, default=str)
 
     def compose(self) -> ComposeResult:
         from textual.containers import Horizontal, Vertical
 
-        tid = str(self._task.get("id", ""))[:8]
+        tid = str(self._task_data.get("id", ""))[:8]
         with Vertical(id="task-modal-container"):
             yield Label(f"Edit Task  #{tid}", id="task-modal-title")
             yield TextArea(
