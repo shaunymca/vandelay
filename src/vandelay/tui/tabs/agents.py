@@ -40,6 +40,10 @@ _FREEFORM_PROVIDERS = {"ollama", "openrouter"}
 class AddAgentModal(ModalScreen):
     """Modal for adding a new team member.
 
+    Three fields: name, role (short description), instructions (full prompt).
+    A template picker pre-fills role + instructions; the user can always edit
+    before saving.
+
     Dismisses with the new agent slug (str) on confirm, or None on cancel.
     """
 
@@ -49,8 +53,8 @@ class AddAgentModal(ModalScreen):
         background: #161b22;
         border: tall #58a6ff;
         padding: 2 4;
-        width: 56;
-        height: auto;
+        width: 70;
+        height: 36;
         layout: vertical;
     }
     #add-agent-title {
@@ -61,35 +65,42 @@ class AddAgentModal(ModalScreen):
         width: 100%;
     }
     .add-agent-label { color: #c9d1d9; margin-top: 1; }
-    #add-agent-error { color: #f85149; height: auto; }
+    .add-agent-hint { color: #8b949e; margin-bottom: 1; }
+    #add-agent-instructions { height: 10; margin-top: 0; }
+    #add-agent-error { color: #f85149; height: 1; }
     #add-agent-buttons {
         layout: horizontal;
-        align: center middle;
+        align: right middle;
         height: auto;
         width: 100%;
-        margin-top: 2;
+        margin-top: 1;
     }
-    #add-agent-buttons Button { margin: 0 1; min-width: 14; }
+    #add-agent-buttons Button { margin-left: 1; min-width: 14; }
     """
 
     def compose(self) -> ComposeResult:
         from vandelay.agents.templates import STARTER_TEMPLATES
 
-        template_options = [("(blank — start from scratch)", "")] + [
-            (f"{t.name}  —  {t.role[:50]}", slug)
+        template_options = [("(none — write your own)", "")] + [
+            (f"{t.name}  —  {t.role[:48]}", slug)
             for slug, t in STARTER_TEMPLATES.items()
         ]
 
         with Vertical(id="add-agent-container"):
             yield Label("Add Agent", id="add-agent-title")
-            yield Label("Agent name:", classes="add-agent-label")
+            yield Label("Name:", classes="add-agent-label")
             yield Input(placeholder="e.g. researcher", id="add-agent-name")
-            yield Label("Start from template:", classes="add-agent-label")
+            yield Label("Role (short description):", classes="add-agent-label")
+            yield Input(placeholder="e.g. Research analyst for competitive intelligence", id="add-agent-role")
+            yield Label("Starter template:", classes="add-agent-label")
+            yield Static("Selecting a template pre-fills the instructions below.", classes="add-agent-hint")
             yield Select(template_options, id="add-agent-template", allow_blank=False)
+            yield Label("Instructions (prompt):", classes="add-agent-label")
+            yield TextArea("", id="add-agent-instructions", language="markdown")
             yield Static("", id="add-agent-error")
             with Horizontal(id="add-agent-buttons"):
                 yield Button("Cancel", id="btn-cancel", variant="default")
-                yield Button("Add", id="btn-add", variant="primary")
+                yield Button("Add Agent", id="btn-add", variant="primary")
 
     def on_mount(self) -> None:
         self.query_one("#add-agent-name", Input).focus()
@@ -98,6 +109,25 @@ class AddAgentModal(ModalScreen):
         if event.key == "escape":
             self.dismiss(None)
 
+    def on_select_changed(self, event: Select.Changed) -> None:
+        if event.select.id != "add-agent-template":
+            return
+        from vandelay.agents.templates import STARTER_TEMPLATES, get_template_content
+        slug = str(event.value) if event.value else ""
+        if slug and slug in STARTER_TEMPLATES:
+            t = STARTER_TEMPLATES[slug]
+            # Pre-fill role if it's still empty
+            role_input = self.query_one("#add-agent-role", Input)
+            if not role_input.value.strip():
+                role_input.value = t.role
+            # Always pre-fill instructions from template
+            self.query_one("#add-agent-instructions", TextArea).load_text(
+                get_template_content(slug)
+            )
+        elif not slug:
+            # Cleared — wipe instructions if they came from a template
+            self.query_one("#add-agent-instructions", TextArea).load_text("")
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-cancel":
             self.dismiss(None)
@@ -105,13 +135,14 @@ class AddAgentModal(ModalScreen):
             self._confirm()
 
     def _confirm(self) -> None:
-        from vandelay.agents.templates import STARTER_TEMPLATES
         from vandelay.config.constants import MEMBERS_DIR
         from vandelay.config.models import MemberConfig
-        from vandelay.config.settings import Settings, get_settings
+        from vandelay.config.settings import get_settings
 
         error = self.query_one("#add-agent-error", Static)
         name = self.query_one("#add-agent-name", Input).value.strip()
+        role = self.query_one("#add-agent-role", Input).value.strip()
+        instructions = self.query_one("#add-agent-instructions", TextArea).text.strip()
 
         if not name:
             error.update("[red]Name is required.[/red]")
@@ -119,7 +150,7 @@ class AddAgentModal(ModalScreen):
 
         slug = name.lower().replace(" ", "-")
 
-        # Check for duplicates
+        # Duplicate check
         try:
             s = get_settings()
             existing = [
@@ -132,25 +163,17 @@ class AddAgentModal(ModalScreen):
         except Exception:
             pass
 
-        # Create the member file
+        # Write instructions file
         MEMBERS_DIR.mkdir(parents=True, exist_ok=True)
         member_file = MEMBERS_DIR / f"{slug}.md"
+        if not instructions:
+            instructions = f"# {name}\n\nYou are {name}, a specialist agent.\n"
+        member_file.write_text(instructions + "\n", encoding="utf-8")
 
-        template_sel = self.query_one("#add-agent-template", Select)
-        template_slug = str(template_sel.value) if template_sel.value else ""
-
-        if template_slug and template_slug in STARTER_TEMPLATES:
-            from vandelay.agents.templates import get_template_content
-            content = get_template_content(template_slug)
-        else:
-            content = f"# {name}\n\nYou are {name}, a specialist agent.\n"
-
-        member_file.write_text(content, encoding="utf-8")
-
-        # Add to settings
+        # Add MemberConfig to settings
         try:
             s = get_settings()
-            mc = MemberConfig(name=slug, instructions_file=f"{slug}.md")
+            mc = MemberConfig(name=slug, role=role, instructions_file=f"{slug}.md")
             s.team.members.append(mc)
             s.save()
             get_settings.cache_clear()
