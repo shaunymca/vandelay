@@ -385,6 +385,173 @@ class TestSendDocument:
         assert any("sendDocument" in u for u in urls)
 
 
+class TestSendPhoto:
+    @pytest.mark.asyncio
+    async def test_send_photo(self, adapter, tmp_path):
+        """_send_photo posts multipart to sendPhoto endpoint."""
+        img_file = tmp_path / "photo.jpg"
+        img_file.write_bytes(b"\xff\xd8\xff" + b"\x00" * 10)  # minimal JPEG header
+
+        with patch("vandelay.channels.telegram.httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock()
+
+            await adapter._send_photo("12345", str(img_file), caption="My photo")
+
+        mock_client.post.assert_called_once()
+        call_args = mock_client.post.call_args
+        assert "sendPhoto" in call_args[0][0]
+        assert call_args[1]["data"]["chat_id"] == "12345"
+        assert call_args[1]["data"]["caption"] == "My photo"
+
+    @pytest.mark.asyncio
+    async def test_send_photo_file_not_found(self, adapter):
+        """_send_photo logs error and returns if file doesn't exist."""
+        with patch("vandelay.channels.telegram.httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+
+            await adapter._send_photo("12345", "/nonexistent/photo.jpg")
+
+        mock_client.post.assert_not_called()
+
+
+class TestIsImage:
+    def test_jpeg_is_image(self, tmp_path):
+        f = tmp_path / "photo.jpg"
+        f.write_bytes(b"\x00")
+        assert TelegramAdapter._is_image(str(f)) is True
+
+    def test_jpeg_extension_is_image(self, tmp_path):
+        f = tmp_path / "photo.jpeg"
+        f.write_bytes(b"\x00")
+        assert TelegramAdapter._is_image(str(f)) is True
+
+    def test_png_is_image(self, tmp_path):
+        f = tmp_path / "image.png"
+        f.write_bytes(b"\x00")
+        assert TelegramAdapter._is_image(str(f)) is True
+
+    def test_gif_is_image(self, tmp_path):
+        f = tmp_path / "anim.gif"
+        f.write_bytes(b"\x00")
+        assert TelegramAdapter._is_image(str(f)) is True
+
+    def test_webp_is_image(self, tmp_path):
+        f = tmp_path / "modern.webp"
+        f.write_bytes(b"\x00")
+        assert TelegramAdapter._is_image(str(f)) is True
+
+    def test_csv_not_image(self, tmp_path):
+        f = tmp_path / "data.csv"
+        f.write_text("a,b")
+        assert TelegramAdapter._is_image(str(f)) is False
+
+    def test_pdf_not_image(self, tmp_path):
+        f = tmp_path / "report.pdf"
+        f.write_bytes(b"%PDF")
+        assert TelegramAdapter._is_image(str(f)) is False
+
+    def test_log_not_image(self, tmp_path):
+        f = tmp_path / "app.log"
+        f.write_text("log")
+        assert TelegramAdapter._is_image(str(f)) is False
+
+
+class TestSendRoutesImageVsDocument:
+    @pytest.mark.asyncio
+    async def test_image_attachment_uses_send_photo(self, adapter, tmp_path):
+        """Image attachments (.jpg) must use sendPhoto, not sendDocument."""
+        from vandelay.channels.base import Attachment, OutgoingMessage
+
+        img_file = tmp_path / "result.png"
+        img_file.write_bytes(b"\x89PNG" + b"\x00" * 10)
+
+        msg = OutgoingMessage(
+            text="Here's your image",
+            session_id="tg:12345",
+            channel="telegram",
+            attachments=[Attachment(path=str(img_file), caption="Chart")],
+        )
+
+        with patch("vandelay.channels.telegram.httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock()
+
+            await adapter.send(msg)
+
+        calls = mock_client.post.call_args_list
+        urls = [c[0][0] for c in calls]
+        assert any("sendPhoto" in u for u in urls), f"Expected sendPhoto in {urls}"
+        assert not any("sendDocument" in u for u in urls), f"sendDocument should not be used for images"
+
+    @pytest.mark.asyncio
+    async def test_non_image_attachment_uses_send_document(self, adapter, tmp_path):
+        """Non-image attachments (.csv) must use sendDocument."""
+        from vandelay.channels.base import Attachment, OutgoingMessage
+
+        csv_file = tmp_path / "data.csv"
+        csv_file.write_text("a,b\n1,2")
+
+        msg = OutgoingMessage(
+            text="Here's the data",
+            session_id="tg:12345",
+            channel="telegram",
+            attachments=[Attachment(path=str(csv_file), caption="Report")],
+        )
+
+        with patch("vandelay.channels.telegram.httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock()
+
+            await adapter.send(msg)
+
+        calls = mock_client.post.call_args_list
+        urls = [c[0][0] for c in calls]
+        assert any("sendDocument" in u for u in urls), f"Expected sendDocument in {urls}"
+        assert not any("sendPhoto" in u for u in urls), f"sendPhoto should not be used for non-images"
+
+    @pytest.mark.asyncio
+    async def test_mixed_attachments_routed_correctly(self, adapter, tmp_path):
+        """Multiple attachments: images to sendPhoto, others to sendDocument."""
+        from vandelay.channels.base import Attachment, OutgoingMessage
+
+        img_file = tmp_path / "chart.jpg"
+        img_file.write_bytes(b"\xff\xd8\xff")
+        csv_file = tmp_path / "data.csv"
+        csv_file.write_text("a,b")
+
+        msg = OutgoingMessage(
+            text="",
+            session_id="tg:12345",
+            channel="telegram",
+            attachments=[
+                Attachment(path=str(img_file)),
+                Attachment(path=str(csv_file)),
+            ],
+        )
+
+        with patch("vandelay.channels.telegram.httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock()
+
+            await adapter.send(msg)
+
+        calls = mock_client.post.call_args_list
+        urls = [c[0][0] for c in calls]
+        assert any("sendPhoto" in u for u in urls)
+        assert any("sendDocument" in u for u in urls)
+
+
 class TestStripMarkdown:
     def test_headers(self):
         assert TelegramAdapter._strip_markdown("## Heading") == "Heading"
