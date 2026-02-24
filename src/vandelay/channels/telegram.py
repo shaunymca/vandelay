@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import mimetypes
 import re
 from typing import TYPE_CHECKING, Any
 
@@ -172,9 +173,10 @@ class TelegramAdapter(ChannelAdapter):
             await self._send_text(chat_id, message.text)
 
         for att in message.attachments:
-            await self._send_document(
-                chat_id, att.path, att.caption, att.filename
-            )
+            if self._is_image(att.path):
+                await self._send_photo(chat_id, att.path, att.caption)
+            else:
+                await self._send_document(chat_id, att.path, att.caption, att.filename)
 
     @staticmethod
     def _strip_markdown(text: str) -> str:
@@ -239,6 +241,46 @@ class TelegramAdapter(ChannelAdapter):
                     )
             except Exception as exc:
                 logger.error("Telegram sendDocument failed: %s", exc)
+
+    _IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif"})
+
+    @staticmethod
+    def _is_image(path: str) -> bool:
+        """Return True if the file at *path* is an image type Telegram can render inline."""
+        import os
+
+        ext = os.path.splitext(path)[1].lower()
+        if ext in TelegramAdapter._IMAGE_EXTENSIONS:
+            return True
+        mime, _ = mimetypes.guess_type(path)
+        return bool(mime and mime.startswith("image/"))
+
+    async def _send_photo(
+        self, chat_id: str, path: str, caption: str = ""
+    ) -> None:
+        """Send an image via Telegram Bot API's sendPhoto endpoint (renders inline)."""
+        import os
+
+        if not os.path.isfile(path):
+            logger.error("Cannot send photo — file not found: %s", path)
+            return
+
+        caption = self._strip_markdown(caption) if caption else ""
+
+        async with httpx.AsyncClient() as client:
+            try:
+                with open(path, "rb") as f:
+                    files = {"photo": (os.path.basename(path), f)}
+                    data: dict[str, str] = {"chat_id": chat_id}
+                    if caption:
+                        data["caption"] = caption
+                    await client.post(
+                        f"{TELEGRAM_API}/bot{self.bot_token}/sendPhoto",
+                        data=data,
+                        files=files,
+                    )
+            except Exception as exc:
+                logger.error("Telegram sendPhoto failed: %s", exc)
 
     async def _send_typing(self, chat_id: str) -> None:
         """Send 'typing...' chat action so the user knows we're working."""
