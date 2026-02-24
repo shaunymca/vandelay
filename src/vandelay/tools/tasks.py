@@ -66,6 +66,8 @@ class TaskQueueTools(Toolkit):
         task = AgentTask(
             title=title,
             description=description,
+            status=TaskStatus.IN_PROGRESS,
+            started_at=datetime.now(UTC),
             priority=priority,
             owner=owner,
             due_at=parsed_due,
