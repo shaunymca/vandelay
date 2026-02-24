@@ -322,6 +322,46 @@ class TestSend:
         assert call_args[1]["json"]["text"] == "Hi!"
 
 
+class TestSendNotificationSessionId:
+    @pytest.mark.asyncio
+    async def test_notification_session_id_falls_back_to_stored_chat_id(self, adapter):
+        """session_id='notification' (used by notify_user/send_file tools) must fall
+        back to adapter.chat_id, not pass the literal string to Telegram."""
+        from vandelay.channels.base import OutgoingMessage
+
+        msg = OutgoingMessage(text="Hello!", session_id="notification", channel="telegram")
+
+        with patch("vandelay.channels.telegram.httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock()
+
+            await adapter.send(msg)
+
+        mock_client.post.assert_called_once()
+        call_args = mock_client.post.call_args
+        assert call_args[1]["json"]["chat_id"] == "12345"  # adapter.chat_id
+
+    @pytest.mark.asyncio
+    async def test_tg_prefixed_session_id_uses_embedded_chat_id(self, adapter):
+        """session_id='tg:99999' must use 99999, not fall back to stored chat_id."""
+        from vandelay.channels.base import OutgoingMessage
+
+        msg = OutgoingMessage(text="Hi", session_id="tg:99999", channel="telegram")
+
+        with patch("vandelay.channels.telegram.httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock()
+
+            await adapter.send(msg)
+
+        call_args = mock_client.post.call_args
+        assert call_args[1]["json"]["chat_id"] == "99999"
+
+
 class TestSendDocument:
     @pytest.mark.asyncio
     async def test_send_document(self, adapter, tmp_path):

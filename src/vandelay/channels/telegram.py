@@ -163,7 +163,9 @@ class TelegramAdapter(ChannelAdapter):
         # Extract numeric chat_id — handles both "tg:123" and "tg:123:thread:foo"
         raw_id = message.session_id.removeprefix("tg:")
         chat_id = raw_id.split(":")[0] if ":" in raw_id else raw_id
-        if not chat_id:
+        # Telegram chat_ids are numeric; non-numeric values (e.g. "notification")
+        # mean no real chat was embedded — fall back to the stored chat_id.
+        if not chat_id or not chat_id.lstrip("-").isdigit():
             chat_id = self.chat_id
         if not chat_id:
             logger.warning("No chat_id for outbound Telegram message")
