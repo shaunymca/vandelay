@@ -274,11 +274,16 @@ class TelegramAdapter(ChannelAdapter):
                     data: dict[str, str] = {"chat_id": chat_id}
                     if caption:
                         data["caption"] = caption
-                    await client.post(
+                    resp = await client.post(
                         f"{TELEGRAM_API}/bot{self.bot_token}/sendPhoto",
                         data=data,
                         files=files,
                     )
+                    result = resp.json()
+                    if not result.get("ok"):
+                        logger.error("Telegram sendPhoto failed: %s", result)
+                    else:
+                        logger.info("Telegram sendPhoto OK: %s", os.path.basename(path))
             except Exception as exc:
                 logger.error("Telegram sendPhoto failed: %s", exc)
 
