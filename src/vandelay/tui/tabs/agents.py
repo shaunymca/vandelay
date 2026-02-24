@@ -54,7 +54,7 @@ class AddAgentModal(ModalScreen):
         border: tall #58a6ff;
         padding: 2 4;
         width: 70;
-        height: 36;
+        height: 44;
         layout: vertical;
     }
     #add-agent-title {
@@ -65,13 +65,12 @@ class AddAgentModal(ModalScreen):
         width: 100%;
     }
     .add-agent-label { color: #c9d1d9; margin-top: 1; }
-    .add-agent-hint { color: #8b949e; margin-bottom: 1; }
-    #add-agent-instructions { height: 10; margin-top: 0; }
+    #add-agent-instructions { height: 8; margin-top: 0; }
     #add-agent-error { color: #f85149; height: 1; }
     #add-agent-buttons {
         layout: horizontal;
         align: right middle;
-        height: auto;
+        height: 3;
         width: 100%;
         margin-top: 1;
     }
@@ -88,13 +87,12 @@ class AddAgentModal(ModalScreen):
 
         with Vertical(id="add-agent-container"):
             yield Label("Add Agent", id="add-agent-title")
+            yield Label("Starter template:", classes="add-agent-label")
+            yield Select(template_options, id="add-agent-template", allow_blank=False)
             yield Label("Name:", classes="add-agent-label")
             yield Input(placeholder="e.g. researcher", id="add-agent-name")
             yield Label("Role (short description):", classes="add-agent-label")
             yield Input(placeholder="e.g. Research analyst for competitive intelligence", id="add-agent-role")
-            yield Label("Starter template:", classes="add-agent-label")
-            yield Static("Selecting a template pre-fills the instructions below.", classes="add-agent-hint")
-            yield Select(template_options, id="add-agent-template", allow_blank=False)
             yield Label("Instructions (prompt):", classes="add-agent-label")
             yield TextArea("", id="add-agent-instructions", language="markdown")
             yield Static("", id="add-agent-error")
@@ -116,7 +114,11 @@ class AddAgentModal(ModalScreen):
         slug = str(event.value) if event.value else ""
         if slug and slug in STARTER_TEMPLATES:
             t = STARTER_TEMPLATES[slug]
-            # Pre-fill role if it's still empty
+            # Pre-fill name if still empty
+            name_input = self.query_one("#add-agent-name", Input)
+            if not name_input.value.strip():
+                name_input.value = t.name.lower().replace(" ", "-")
+            # Pre-fill role if still empty
             role_input = self.query_one("#add-agent-role", Input)
             if not role_input.value.strip():
                 role_input.value = t.role
@@ -125,7 +127,6 @@ class AddAgentModal(ModalScreen):
                 get_template_content(slug)
             )
         elif not slug:
-            # Cleared — wipe instructions if they came from a template
             self.query_one("#add-agent-instructions", TextArea).load_text("")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
