@@ -171,28 +171,30 @@ class TestClearCompleted:
     def _make_task_queue(self, tmp_path: Path) -> Path:
         path = tmp_path / "task_queue.json"
         tasks = [
-            {"id": "aaa", "status": "done", "command": "old task", "created_at": "2025-01-01"},
-            {"id": "bbb", "status": "failed", "command": "broke", "created_at": "2025-01-02"},
-            {"id": "ccc", "status": "pending", "command": "still going", "created_at": "2025-01-03"},
-            {"id": "ddd", "status": "running", "command": "in progress", "created_at": "2025-01-04"},
+            {"id": "aaa", "status": "completed", "title": "old task", "created_at": "2025-01-01"},
+            {"id": "bbb", "status": "failed", "title": "broke", "created_at": "2025-01-02"},
+            {"id": "ccc", "status": "cancelled", "title": "dropped", "created_at": "2025-01-03"},
+            {"id": "ddd", "status": "pending", "title": "still going", "created_at": "2025-01-04"},
+            {"id": "eee", "status": "in_progress", "title": "running now", "created_at": "2025-01-05"},
         ]
         path.write_text(json.dumps(tasks), encoding="utf-8")
         return path
 
-    def test_clear_removes_done_and_failed(self, tmp_path):
+    def test_clear_removes_completed_failed_cancelled(self, tmp_path):
         from vandelay.tui.tabs.scheduler import _load_tasks, _save_tasks
 
         path = self._make_task_queue(tmp_path)
         tasks = _load_tasks(path)
-        remaining = [t for t in tasks if t.get("status") not in {"done", "failed"}]
+        remaining = [t for t in tasks if t.get("status") not in {"completed", "failed", "cancelled"}]
         _save_tasks(path, remaining)
 
         reloaded = _load_tasks(path)
         statuses = [t["status"] for t in reloaded]
-        assert "done" not in statuses
+        assert "completed" not in statuses
         assert "failed" not in statuses
+        assert "cancelled" not in statuses
         assert "pending" in statuses
-        assert "running" in statuses
+        assert "in_progress" in statuses
         assert len(reloaded) == 2
 
     def test_clear_empty_queue_is_safe(self, tmp_path):
@@ -200,7 +202,7 @@ class TestClearCompleted:
 
         path = tmp_path / "task_queue.json"
         tasks = _load_tasks(path)  # file doesn't exist
-        remaining = [t for t in tasks if t.get("status") not in {"done", "failed"}]
+        remaining = [t for t in tasks if t.get("status") not in {"completed", "failed", "cancelled"}]
         _save_tasks(path, remaining)
 
         reloaded = _load_tasks(path)
@@ -211,13 +213,14 @@ class TestClearCompleted:
 
         path = tmp_path / "task_queue.json"
         tasks = [
-            {"id": "x", "status": "done", "command": "a", "created_at": "2025-01-01"},
-            {"id": "y", "status": "failed", "command": "b", "created_at": "2025-01-02"},
+            {"id": "x", "status": "completed", "title": "a", "created_at": "2025-01-01"},
+            {"id": "y", "status": "failed", "title": "b", "created_at": "2025-01-02"},
+            {"id": "z", "status": "cancelled", "title": "c", "created_at": "2025-01-03"},
         ]
         path.write_text(json.dumps(tasks), encoding="utf-8")
 
         loaded = _load_tasks(path)
-        remaining = [t for t in loaded if t.get("status") not in {"done", "failed"}]
+        remaining = [t for t in loaded if t.get("status") not in {"completed", "failed", "cancelled"}]
         _save_tasks(path, remaining)
 
         reloaded = _load_tasks(path)

@@ -383,10 +383,10 @@ class SchedulerTab(Widget):
         tasks = _load_tasks(TASK_QUEUE_FILE)
         for t in tasks:
             tid = str(t.get("id", ""))[:8]
-            created = t.get("created_at", "—")
+            created = str(t.get("created_at", "—"))[:19]
             status = t.get("status", "—")
-            cmd = str(t.get("command", ""))[:40]
-            table.add_row(tid, created, status, cmd, key=str(t.get("id", "")))
+            title = str(t.get("title", t.get("command", "")))[:40]
+            table.add_row(tid, created, status, title, key=str(t.get("id", "")))
 
     # ------------------------------------------------------------------
     # Button state
@@ -590,7 +590,7 @@ class SchedulerTab(Widget):
         from vandelay.config.constants import TASK_QUEUE_FILE
 
         tasks = _load_tasks(TASK_QUEUE_FILE)
-        remaining = [t for t in tasks if t.get("status") not in {"done", "failed"}]
+        remaining = [t for t in tasks if t.get("status") not in {"completed", "failed", "cancelled"}]
         _save_tasks(TASK_QUEUE_FILE, remaining)
         self._selected_task_id = None
         self._build_task_table()

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from textual.app import ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
+from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import Button, Input, Label, ListItem, ListView, Select, Static, TextArea
 
@@ -30,6 +31,134 @@ _MEMBER_SUBNAV: list[tuple[str, str, str]] = [
 
 # Providers that use a free-text input instead of a Select (too many / dynamic models).
 _FREEFORM_PROVIDERS = {"ollama", "openrouter"}
+
+
+# ---------------------------------------------------------------------------
+# Add Agent modal
+# ---------------------------------------------------------------------------
+
+class AddAgentModal(ModalScreen):
+    """Modal for adding a new team member.
+
+    Dismisses with the new agent slug (str) on confirm, or None on cancel.
+    """
+
+    DEFAULT_CSS = """
+    AddAgentModal { align: center middle; }
+    #add-agent-container {
+        background: #161b22;
+        border: tall #58a6ff;
+        padding: 2 4;
+        width: 56;
+        height: auto;
+        layout: vertical;
+    }
+    #add-agent-title {
+        text-style: bold;
+        color: #58a6ff;
+        margin-bottom: 1;
+        text-align: center;
+        width: 100%;
+    }
+    .add-agent-label { color: #c9d1d9; margin-top: 1; }
+    #add-agent-error { color: #f85149; height: auto; }
+    #add-agent-buttons {
+        layout: horizontal;
+        align: center middle;
+        height: auto;
+        width: 100%;
+        margin-top: 2;
+    }
+    #add-agent-buttons Button { margin: 0 1; min-width: 14; }
+    """
+
+    def compose(self) -> ComposeResult:
+        from vandelay.agents.templates import STARTER_TEMPLATES
+
+        template_options = [("(blank — start from scratch)", "")] + [
+            (f"{t.name}  —  {t.role[:50]}", slug)
+            for slug, t in STARTER_TEMPLATES.items()
+        ]
+
+        with Vertical(id="add-agent-container"):
+            yield Label("Add Agent", id="add-agent-title")
+            yield Label("Agent name:", classes="add-agent-label")
+            yield Input(placeholder="e.g. researcher", id="add-agent-name")
+            yield Label("Start from template:", classes="add-agent-label")
+            yield Select(template_options, id="add-agent-template", allow_blank=False)
+            yield Static("", id="add-agent-error")
+            with Horizontal(id="add-agent-buttons"):
+                yield Button("Cancel", id="btn-cancel", variant="default")
+                yield Button("Add", id="btn-add", variant="primary")
+
+    def on_mount(self) -> None:
+        self.query_one("#add-agent-name", Input).focus()
+
+    def on_key(self, event) -> None:
+        if event.key == "escape":
+            self.dismiss(None)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-cancel":
+            self.dismiss(None)
+        elif event.button.id == "btn-add":
+            self._confirm()
+
+    def _confirm(self) -> None:
+        from vandelay.agents.templates import STARTER_TEMPLATES
+        from vandelay.config.constants import MEMBERS_DIR
+        from vandelay.config.models import MemberConfig
+        from vandelay.config.settings import Settings, get_settings
+
+        error = self.query_one("#add-agent-error", Static)
+        name = self.query_one("#add-agent-name", Input).value.strip()
+
+        if not name:
+            error.update("[red]Name is required.[/red]")
+            return
+
+        slug = name.lower().replace(" ", "-")
+
+        # Check for duplicates
+        try:
+            s = get_settings()
+            existing = [
+                (m if isinstance(m, str) else m.name).lower()
+                for m in s.team.members
+            ]
+            if slug in existing or name.lower() in existing:
+                error.update("[red]An agent with that name already exists.[/red]")
+                return
+        except Exception:
+            pass
+
+        # Create the member file
+        MEMBERS_DIR.mkdir(parents=True, exist_ok=True)
+        member_file = MEMBERS_DIR / f"{slug}.md"
+
+        template_sel = self.query_one("#add-agent-template", Select)
+        template_slug = str(template_sel.value) if template_sel.value else ""
+
+        if template_slug and template_slug in STARTER_TEMPLATES:
+            from vandelay.agents.templates import get_template_content
+            content = get_template_content(template_slug)
+        else:
+            content = f"# {name}\n\nYou are {name}, a specialist agent.\n"
+
+        member_file.write_text(content, encoding="utf-8")
+
+        # Add to settings
+        try:
+            s = get_settings()
+            mc = MemberConfig(name=slug, instructions_file=f"{slug}.md")
+            s.team.members.append(mc)
+            s.save()
+            get_settings.cache_clear()
+        except Exception as exc:
+            error.update(f"[red]Failed to save: {exc}[/red]")
+            return
+
+        self.dismiss(slug)
 
 
 class AgentsTab(Widget):
@@ -265,7 +394,7 @@ class AgentsTab(Widget):
             # ── Left column ──────────────────────────────────────────────
             with Vertical(id="agents-left"):
                 yield Static("Agents", id="agents-left-title")
-                yield Button("+ Add Agent", id="add-agent-btn", variant="default", disabled=True)
+                yield Button("+ Add Agent", id="add-agent-btn", variant="default")
                 yield ListView(id="agents-list")
 
             # ── Middle column ─────────────────────────────────────────────
@@ -697,7 +826,9 @@ class AgentsTab(Widget):
     def on_button_pressed(self, event: Button.Pressed) -> None:  # noqa: PLR0912
         bid = event.button.id or ""
 
-        if bid == "name-save":
+        if bid == "add-agent-btn":
+            self._add_agent()
+        elif bid == "name-save":
             self._save_name()
         elif bid == "model-save":
             self._save_model()
@@ -709,6 +840,14 @@ class AgentsTab(Widget):
             tool = event.button.name or ""
             if tool:
                 self._remove_tool(tool)
+
+    def _add_agent(self) -> None:
+        def _on_result(slug: str | None) -> None:
+            if slug:
+                self._populate_agent_list()
+                self.app.notify(f"Agent '{slug}' added.", severity="information", timeout=3)
+
+        self.app.push_screen(AddAgentModal(), callback=_on_result)
 
     def _save_name(self) -> None:
         name = self.query_one("#name-input", Input).value.strip()
