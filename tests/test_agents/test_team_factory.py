@@ -262,8 +262,12 @@ class TestCreateTeam:
             create_team(settings)
 
         call_kwargs = mock_team_cls.call_args[1]
-        # ToolManagementTools + WorkspaceTools + MemberManagementTools
-        assert len(call_kwargs["tools"]) == 3
+        # The leader now receives management tools + any user-enabled tools.
+        # With no enabled_tools in this test, we get at least the 3 management toolkits.
+        tool_type_names = [type(t).__name__ for t in call_kwargs["tools"]]
+        assert "ToolManagementTools" in tool_type_names
+        assert "WorkspaceTools" in tool_type_names
+        assert "MemberManagementTools" in tool_type_names
 
 
 class TestMemberMemoryScoping:

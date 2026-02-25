@@ -440,12 +440,14 @@ def build_team_leader_prompt(
     workspace_dir: Path | None = None,
     settings: Settings | None = None,
 ) -> str:
-    """Assemble a slim system prompt for the team leader.
+    """Assemble the system prompt for the team leader.
 
+    The leader now receives the same user-enabled tools as solo mode so it can
+    execute tasks directly without being forced to delegate everything.
     Compared to ``build_system_prompt()``, this:
-    - Skips TOOLS.md and the tool catalog (members handle tool execution)
+    - Includes TOOLS.md so the leader knows its own tools
     - Uses a slim AGENTS.md (workspace, safety, style only — no delegation)
-    - Adds a dynamic member roster generated from config
+    - Adds a dynamic member roster so the leader knows when to delegate
     """
     sections: list[str] = []
 
@@ -468,7 +470,12 @@ def build_team_leader_prompt(
     if agents_slim:
         sections.append(agents_slim)
 
-    # Dynamic member roster (instead of TOOLS.md + catalog)
+    # TOOLS.md — same as solo mode so the leader knows its own tool list
+    tools_content = get_template_content("TOOLS.md", workspace_dir)
+    if tools_content:
+        sections.append(tools_content)
+
+    # Dynamic member roster — tells the leader when to delegate vs act directly
     if settings is not None:
         roster = _build_member_roster(settings)
         if roster:

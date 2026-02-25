@@ -541,13 +541,19 @@ def create_team(
         )
         members.append(agent)
 
-    # Supervisor keeps tool management and workspace tools
+    # Supervisor gets the same user-enabled tools as solo mode so it can
+    # execute tasks directly (e.g. shell commands during heartbeat) without
+    # being forced to delegate everything. It will still delegate to members
+    # when appropriate per its instructions, but won't be blocked when it
+    # needs to act directly.
+    leader_tools: list = _get_tools(settings)
+
     tool_mgmt = ToolManagementTools(
         settings=settings,
         reload_callback=reload_callback,
     )
     workspace_tools = WorkspaceTools(settings=settings, db=db)
-    leader_tools: list = [tool_mgmt, workspace_tools]
+    leader_tools.extend([tool_mgmt, workspace_tools])
 
     # Member management tools for the leader
     from vandelay.tools.member_management import MemberManagementTools

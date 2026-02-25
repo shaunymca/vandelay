@@ -194,19 +194,16 @@ def team_settings(tmp_path: Path) -> Settings:
 
 
 class TestTeamLeaderPrompt:
-    def test_leader_prompt_excludes_tools_md(self, tmp_workspace, team_settings):
-        """Leader prompt should NOT include TOOLS.md content."""
-        prompt = build_team_leader_prompt(
-            workspace_dir=tmp_workspace, settings=team_settings,
-        )
-        assert "Shell Commands" not in prompt
+    def test_leader_prompt_includes_tools_md(self, tmp_workspace, team_settings):
+        """Leader prompt now includes TOOLS.md so the leader knows its own tools.
 
-    def test_leader_prompt_excludes_tool_catalog(self, tmp_workspace, team_settings):
-        """Leader prompt should NOT include the tool catalog."""
+        Previously the leader skipped TOOLS.md (members handled execution).
+        Now the leader receives user-enabled tools directly so it can act without
+        always delegating — TOOLS.md is included to document those tools.
+        """
         prompt = build_team_leader_prompt(
             workspace_dir=tmp_workspace, settings=team_settings,
         )
-        assert "Your Enabled Tools" not in prompt
 
     def test_leader_prompt_includes_soul(self, tmp_workspace, team_settings):
         """Leader prompt should include SOUL.md."""
