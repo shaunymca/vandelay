@@ -553,9 +553,9 @@ class SchedulerTab(Widget):
             self.query_one("#hb-start", Input).value = str(hb.active_hours_start)
             self.query_one("#hb-end", Input).value = str(hb.active_hours_end)
             tz = hb.timezone or "UTC"
-            tz_ids = [t[0] for t in _TIMEZONES]
+            tz_values = [t[1] for t in _TIMEZONES]
             sel = self.query_one("#hb-tz", Select)
-            if tz in tz_ids:
+            if tz in tz_values:
                 sel.value = tz
         except Exception as exc:
             logger.warning("Could not load heartbeat config: %s", exc)
