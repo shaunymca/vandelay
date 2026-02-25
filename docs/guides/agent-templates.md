@@ -2,6 +2,8 @@
 
 Vandelay ships with 14 starter templates for common agent roles. Use them as-is or as a starting point for custom members.
 
+> **TUI**: Go to **Agents** tab → **Members** → **+ Add Agent** → enable "Start from template?" to browse and apply templates visually.
+
 ## Available Templates
 
 | Template | Role | Default Tools |
@@ -22,6 +24,10 @@ Vandelay ships with 14 starter templates for common agent roles. Use them as-is 
 | Project Manager | Roadmap, task tracking, sprints | file, googlesheets |
 
 ## Using a Template
+
+### Via TUI
+
+Open the TUI (`vandelay`), go to the **Agents** tab, click **+ Add Agent** under Members. Toggle "Start from template?" and pick a template from the list. The template file is copied to `~/.vandelay/members/<slug>.md` and the member is added to your team config.
 
 ### Via CLI
 

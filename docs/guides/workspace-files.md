@@ -1,6 +1,6 @@
 # Workspace Files
 
-Vandelay assembles the agent's system prompt from seven markdown files in `~/.vandelay/workspace/`. Each file controls a different aspect of agent behavior.
+Vandelay assembles the agent's system prompt from six markdown files in `~/.vandelay/workspace/`. Each file controls a different aspect of agent behavior.
 
 ## File Reference
 
@@ -53,14 +53,6 @@ One-time startup instructions.
 - Use this for a welcome message, initial setup tasks, or anything the agent should do exactly once
 - To run bootstrap again (e.g. after a fresh install), copy the default template back: `cp $(python -c "import vandelay; print(vandelay.__file__.replace('__init__.py',''))")workspace/templates/BOOTSTRAP.md ~/.vandelay/workspace/BOOTSTRAP.md`
 
-### MEMORY.md
-
-Persistent notes maintained by the agent.
-
-- The agent reads and writes to this file
-- Stores important context, decisions, action items
-- Included in the system prompt every run
-
 ## Editing
 
 Edit any file directly:
@@ -76,3 +68,9 @@ Changes take effect on the next agent reload (automatic when using `WorkspaceToo
 ## Default Templates
 
 On first `vandelay onboard`, default templates are written for each file. These provide a reasonable starting point that you can customize over time.
+
+If a workspace file exists but is empty, Vandelay automatically falls back to the shipped default template — so template updates propagate without requiring you to delete your file.
+
+## Memory
+
+The agent's persistent memory is stored in the database (`~/.vandelay/data/vandelay.db`), not in a workspace file. To view or clear memories, use the **Memory** tab in the TUI or the `vandelay memory` CLI commands.

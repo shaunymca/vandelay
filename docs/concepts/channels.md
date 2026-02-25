@@ -8,7 +8,7 @@ Vandelay is channel-agnostic: the same agent handles messages from any source wi
 |---------|-----------|-------|
 | **Terminal** | CLI chat session | Built-in, always available |
 | **Telegram** | Bot via BotFather | [Telegram Setup guide](../guides/telegram-setup.md) |
-| **WhatsApp - Untsted** | Cloud API webhook | Config + Meta developer account |
+| **WhatsApp** | Cloud API webhook | Config + Meta developer account |
 | **WebSocket** | Real-time connection | Built-in, available at `/ws` |
 
 ## How It Works

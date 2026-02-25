@@ -54,15 +54,16 @@ APScheduler-backed cron engine. Jobs are persisted to `cron_jobs.json` and resto
 
 ### Workspace
 
-Seven markdown files that compose the agent's system prompt:
+Six markdown files that compose the agent's system prompt:
 
 - `SOUL.md`: Core personality and behavior
 - `USER.md`: User preferences and context
 - `AGENTS.md`: Team delegation rules
 - `TOOLS.md`: Tool usage guidance
-- `HEARTBEAT.md`: Proactive task definitions
-- `BOOTSTRAP.md`: Startup instructions
-- `MEMORY.md`: Persistent notes
+- `HEARTBEAT.md`: Proactive task checklist
+- `BOOTSTRAP.md`: One-time startup instructions
+
+Agent memory is stored in the database, not in a workspace file.
 
 ## Data Flow
 
