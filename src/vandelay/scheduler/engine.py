@@ -209,9 +209,20 @@ class SchedulerEngine:
 
         logger.info("Executing job %s (%s): %s", job_id, job.name, job.command)
 
+        # Heartbeat runs use a unique session ID per invocation so each run
+        # starts with a clean history — state is tracked via memory/heartbeat-state.json,
+        # not session replay. Other cron jobs keep a stable session ID so the agent
+        # can reference prior run context.
+        if job.job_type == JobType.HEARTBEAT:
+            # Use milliseconds to ensure uniqueness even when called twice in quick succession
+            run_ts = int(datetime.now(UTC).timestamp() * 1000)
+            session_id = f"scheduler-{job.id}-{run_ts}"
+        else:
+            session_id = f"scheduler-{job.id}"
+
         message = IncomingMessage(
             text=job.command,
-            session_id=f"scheduler-{job.id}",
+            session_id=session_id,
             user_id=self._settings.user_id or "default",
             channel="scheduler",
         )

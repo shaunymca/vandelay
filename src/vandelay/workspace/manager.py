@@ -44,11 +44,18 @@ def init_workspace(workspace_dir: Path | None = None) -> Path:
 
 
 def get_template_content(name: str, workspace_dir: Path | None = None) -> str:
-    """Read a workspace template file. Falls back to the shipped default."""
+    """Read a workspace template file. Falls back to the shipped default.
+
+    If the user's file exists but is empty, the shipped template is used so
+    that template updates propagate without requiring users to delete their file.
+    """
     ws = workspace_dir or WORKSPACE_DIR
     user_file = ws / name
     if user_file.exists():
-        return user_file.read_text(encoding="utf-8")
+        content = user_file.read_text(encoding="utf-8")
+        if content.strip():
+            return content
+        # File exists but is empty — fall through to shipped template
 
     default_file = _TEMPLATES_DIR / name
     if default_file.exists():
