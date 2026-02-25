@@ -18,6 +18,8 @@ from textual.widgets import (
     TextArea,
 )
 
+from vandelay.config.constants import COMMON_TIMEZONES as _TIMEZONES
+
 _SECTIONS: list[tuple[str, str]] = [
     ("general",   "General"),
     ("server",    "Server"),
@@ -163,9 +165,8 @@ class ConfigTab(Widget):
                             placeholder="your@email.com or any identifier",
                         )
                         yield Label("Timezone", classes="field-label")
-                        yield Input(
-                            id="general-timezone", classes="field-input",
-                            placeholder="UTC",
+                        yield Select(
+                            _TIMEZONES, id="general-timezone", allow_blank=False,
                         )
 
                 # ── Server ───────────────────────────────────────────────
@@ -274,9 +275,8 @@ class ConfigTab(Widget):
                             placeholder="22",
                         )
                         yield Label("Timezone", classes="field-label")
-                        yield Input(
-                            id="heartbeat-timezone", classes="field-input",
-                            placeholder="UTC",
+                        yield Select(
+                            _TIMEZONES, id="heartbeat-timezone", allow_blank=False,
                         )
 
                 # ── Channels ─────────────────────────────────────────────
@@ -405,7 +405,8 @@ class ConfigTab(Widget):
 
         if key == "general":
             self.query_one("#general-user-id", Input).value = s.user_id or ""
-            self.query_one("#general-timezone", Input).value = s.timezone or ""
+            with contextlib.suppress(Exception):
+                self.query_one("#general-timezone", Select).value = s.timezone or "UTC"
 
         elif key == "server":
             self.query_one("#server-host", Input).value = s.server.host or ""
@@ -447,7 +448,10 @@ class ConfigTab(Widget):
                 s.heartbeat.active_hours_start
             )
             self.query_one("#heartbeat-end", Input).value = str(s.heartbeat.active_hours_end)
-            self.query_one("#heartbeat-timezone", Input).value = s.heartbeat.timezone or ""
+            with contextlib.suppress(Exception):
+                self.query_one("#heartbeat-timezone", Select).value = (
+                    s.heartbeat.timezone or "UTC"
+                )
 
         elif key == "channels":
             self.query_one("#telegram-enabled", Switch).value = s.channels.telegram_enabled
@@ -615,7 +619,8 @@ class ConfigTab(Widget):
 
     def _save_general(self, s) -> None:  # noqa: ANN001
         s.user_id = self.query_one("#general-user-id", Input).value.strip()
-        s.timezone = self.query_one("#general-timezone", Input).value.strip() or "UTC"
+        tz_val = self.query_one("#general-timezone", Select).value
+        s.timezone = str(tz_val) if tz_val else "UTC"
 
     def _save_server(self, s) -> None:  # noqa: ANN001
         s.server.host = self.query_one("#server-host", Input).value.strip() or "0.0.0.0"
@@ -678,9 +683,9 @@ class ConfigTab(Widget):
         end = self.query_one("#heartbeat-end", Input).value.strip()
         if end.isdigit():
             s.heartbeat.active_hours_end = int(end)
-        tz = self.query_one("#heartbeat-timezone", Input).value.strip()
-        if tz:
-            s.heartbeat.timezone = tz
+        tz_val = self.query_one("#heartbeat-timezone", Select).value
+        if tz_val:
+            s.heartbeat.timezone = str(tz_val)
 
     def _save_channels(self, s) -> None:  # noqa: ANN001
         from vandelay.config.env_utils import write_env_key
