@@ -254,21 +254,7 @@ def _select_timezone(default: str = "UTC") -> str:
     # Try to detect system timezone
     detected = _detect_system_timezone()
 
-    common_timezones = [
-        "US/Eastern",
-        "US/Central",
-        "US/Mountain",
-        "US/Pacific",
-        "Europe/London",
-        "Europe/Berlin",
-        "Europe/Paris",
-        "Asia/Tokyo",
-        "Asia/Shanghai",
-        "Asia/Kolkata",
-        "Australia/Sydney",
-        "Pacific/Auckland",
-        "UTC",
-    ]
+    from vandelay.config.constants import COMMON_TIMEZONES
 
     # Build choices — put detected timezone first if found
     choices = []
@@ -278,9 +264,9 @@ def _select_timezone(default: str = "UTC") -> str:
             value=detected,
         ))
 
-    for tz in common_timezones:
-        if tz != detected:  # Don't duplicate detected
-            choices.append(questionary.Choice(title=tz, value=tz))
+    for label, value in COMMON_TIMEZONES:
+        if value != detected:  # Don't duplicate detected
+            choices.append(questionary.Choice(title=label, value=value))
 
     choices.append(questionary.Choice(title="Other (type manually)", value="_other"))
 

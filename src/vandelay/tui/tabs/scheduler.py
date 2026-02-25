@@ -25,60 +25,7 @@ from textual.widgets import (
     TextArea,
 )
 
-# Common IANA timezones shown in the dropdown (ordered by region)
-_TIMEZONES: list[tuple[str, str]] = [
-    # UTC / Universal
-    ("UTC", "UTC"),
-    # Americas
-    ("America/New_York (ET)", "America/New_York"),
-    ("America/Chicago (CT)", "America/Chicago"),
-    ("America/Denver (MT)", "America/Denver"),
-    ("America/Los_Angeles (PT)", "America/Los_Angeles"),
-    ("America/Anchorage (AK)", "America/Anchorage"),
-    ("Pacific/Honolulu (HI)", "Pacific/Honolulu"),
-    ("America/Toronto", "America/Toronto"),
-    ("America/Vancouver", "America/Vancouver"),
-    ("America/Sao_Paulo", "America/Sao_Paulo"),
-    ("America/Argentina/Buenos_Aires", "America/Argentina/Buenos_Aires"),
-    ("America/Mexico_City", "America/Mexico_City"),
-    # Europe
-    ("Europe/London (GMT/BST)", "Europe/London"),
-    ("Europe/Dublin", "Europe/Dublin"),
-    ("Europe/Lisbon", "Europe/Lisbon"),
-    ("Europe/Paris (CET)", "Europe/Paris"),
-    ("Europe/Berlin", "Europe/Berlin"),
-    ("Europe/Amsterdam", "Europe/Amsterdam"),
-    ("Europe/Madrid", "Europe/Madrid"),
-    ("Europe/Rome", "Europe/Rome"),
-    ("Europe/Stockholm", "Europe/Stockholm"),
-    ("Europe/Warsaw", "Europe/Warsaw"),
-    ("Europe/Helsinki", "Europe/Helsinki"),
-    ("Europe/Athens", "Europe/Athens"),
-    ("Europe/Moscow", "Europe/Moscow"),
-    # Africa / Middle East
-    ("Africa/Cairo", "Africa/Cairo"),
-    ("Africa/Johannesburg", "Africa/Johannesburg"),
-    ("Africa/Lagos", "Africa/Lagos"),
-    ("Asia/Dubai", "Asia/Dubai"),
-    ("Asia/Riyadh", "Asia/Riyadh"),
-    # Asia
-    ("Asia/Kolkata (IST)", "Asia/Kolkata"),
-    ("Asia/Karachi", "Asia/Karachi"),
-    ("Asia/Dhaka", "Asia/Dhaka"),
-    ("Asia/Bangkok", "Asia/Bangkok"),
-    ("Asia/Singapore", "Asia/Singapore"),
-    ("Asia/Shanghai (CST)", "Asia/Shanghai"),
-    ("Asia/Hong_Kong", "Asia/Hong_Kong"),
-    ("Asia/Taipei", "Asia/Taipei"),
-    ("Asia/Seoul", "Asia/Seoul"),
-    ("Asia/Tokyo (JST)", "Asia/Tokyo"),
-    # Oceania
-    ("Australia/Perth", "Australia/Perth"),
-    ("Australia/Adelaide", "Australia/Adelaide"),
-    ("Australia/Sydney (AEST)", "Australia/Sydney"),
-    ("Australia/Brisbane", "Australia/Brisbane"),
-    ("Pacific/Auckland", "Pacific/Auckland"),
-]
+from vandelay.config.constants import COMMON_TIMEZONES as _TIMEZONES
 
 logger = logging.getLogger("vandelay.tui.scheduler")
 
