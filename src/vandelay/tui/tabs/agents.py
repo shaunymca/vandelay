@@ -747,9 +747,14 @@ class AgentsTab(Widget):
                 auth_method = getattr(s.model, "auth_method", "api_key") or "api_key"
             else:
                 mc = self._get_or_create_member_config(agent or "")
-                provider = getattr(mc, "model_provider", "") or s.model.provider
+                member_provider = getattr(mc, "model_provider", "") or ""
+                provider = member_provider or s.model.provider
                 model_id = getattr(mc, "model_id", "") or ""
-                auth_method = "api_key"
+                # Inherit leader's auth_method when the member uses the same provider
+                if not member_provider or member_provider == s.model.provider:
+                    auth_method = getattr(s.model, "auth_method", "api_key") or "api_key"
+                else:
+                    auth_method = "api_key"
         except Exception:
             provider, model_id, auth_method = "", "", "api_key"
 
