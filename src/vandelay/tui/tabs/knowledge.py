@@ -5,7 +5,10 @@ from __future__ import annotations
 from textual.app import ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.widget import Widget
-from textual.widgets import Button, Input, Label, Static, Switch
+from textual.widgets import Button, Input, Label, SelectionList, Static, Switch
+
+# Sentinel value used for the shared (all-agents) collection
+_SHARED = "__shared__"
 
 
 class KnowledgeTab(Widget):
@@ -58,6 +61,7 @@ class KnowledgeTab(Widget):
     #btn-kb-refresh-status { min-width: 18; height: 3; margin-bottom: 1; }
     #btn-kb-refresh-corpus { min-width: 20; height: 3; margin-bottom: 1; }
     #btn-kb-clear { min-width: 18; height: 3; margin-bottom: 1; }
+    #kb-member-list { height: auto; max-height: 8; margin-bottom: 1; }
     """
 
     def compose(self) -> ComposeResult:
@@ -95,6 +99,11 @@ class KnowledgeTab(Widget):
                         classes="field-input",
                     )
                     yield Button("Add", id="btn-kb-add", variant="success")
+                yield Label("Add to knowledge base of:", classes="field-label")
+                yield SelectionList(
+                    ("Shared (all agents)", _SHARED, True),
+                    id="kb-member-list",
+                )
 
                 yield Static("Corpus", classes="kb-heading")
                 yield Label(
@@ -126,7 +135,25 @@ class KnowledgeTab(Widget):
             from vandelay.config.settings import get_settings
             s = get_settings()
             self.query_one("#kb-enabled", Switch).value = s.knowledge.enabled
+        self._populate_member_list()
         self._refresh_status()
+
+    def _populate_member_list(self) -> None:
+        """Rebuild the SelectionList with shared + current team members."""
+        import contextlib
+        with contextlib.suppress(Exception):
+            from vandelay.config.settings import get_settings
+            s = get_settings()
+            members = [
+                m if isinstance(m, str) else m.name
+                for m in s.team.members
+            ]
+            sl = self.query_one("#kb-member-list", SelectionList)
+            sl.clear_options()
+            # Shared is always first and selected by default
+            sl.add_option(("Shared (all agents)", _SHARED, True))
+            for slug in members:
+                sl.add_option((slug, slug, True))
 
     # ── Status refresh ────────────────────────────────────────────────────
 
@@ -186,6 +213,20 @@ class KnowledgeTab(Widget):
         except Exception as exc:
             self.app.notify(f"Save failed: {exc}", severity="error")
 
+    def _selected_targets(self) -> list[str | None]:
+        """Return list of member_name values to add to.
+
+        None = shared collection, str = member slug.
+        """
+        import contextlib
+        targets: list[str | None] = []
+        with contextlib.suppress(Exception):
+            sl = self.query_one("#kb-member-list", SelectionList)
+            for val in sl.selected:
+                targets.append(None if val == _SHARED else str(val))
+        # Default to shared if nothing selected
+        return targets or [None]
+
     async def _do_add(self) -> None:
         import asyncio
         from pathlib import Path
@@ -197,6 +238,12 @@ class KnowledgeTab(Widget):
         if not target.exists():
             self.query_one("#kb-result", Static).update(f"[red]Path not found: {target}[/red]")
             return
+
+        targets = self._selected_targets()
+        if not targets:
+            self.query_one("#kb-result", Static).update("[red]Select at least one target.[/red]")
+            return
+
         self.query_one("#kb-result", Static).update("[dim]Adding…[/dim]")
         try:
             loop = asyncio.get_event_loop()
@@ -216,13 +263,19 @@ class KnowledgeTab(Widget):
                 if not files:
                     exts = ", ".join(sorted(SUPPORTED_EXTENSIONS))
                     return f"No supported files found. Supported: {exts}"
-                knowledge, _ = _ensure_knowledge()
-                added = 0
-                for f in files:
-                    docs = _load_documents(f)
-                    knowledge.load(documents=docs, upsert=True)
-                    added += len(docs)
-                return f"Added {added} document(s) from {len(files)} file(s)."
+                total_added = 0
+                for member_name in targets:
+                    knowledge, _ = _ensure_knowledge(member_name=member_name)
+                    for f in files:
+                        docs = _load_documents(f)
+                        knowledge.load(documents=docs, upsert=True)
+                        total_added += len(docs)
+                label = (
+                    f"{len(targets)} collection(s)"
+                    if len(targets) > 1
+                    else ("shared" if targets[0] is None else targets[0])
+                )
+                return f"Added {total_added} document(s) from {len(files)} file(s) to {label}."
 
             msg = await loop.run_in_executor(None, _add)
             self.query_one("#kb-result", Static).update(f"[green]{msg}[/green]")

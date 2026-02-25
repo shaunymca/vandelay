@@ -1,4 +1,4 @@
-"""Tests for AgentsTab team mode panel."""
+"""Tests for AgentsTab team mode panel and model inheritance."""
 
 from __future__ import annotations
 
@@ -206,3 +206,111 @@ class TestSaveTeam:
         mock_app.notify.assert_called_once()
         call_kwargs = mock_app.notify.call_args
         assert call_kwargs[1].get("severity") == "error"
+
+
+class TestMemberModelAuthInheritance:
+    """Member model panel inherits leader's auth_method when using the same provider."""
+
+    def _make_tab(self):
+        from vandelay.tui.tabs.agents import AgentsTab
+        tab = AgentsTab.__new__(AgentsTab)
+        tab._selected_agent = "cto"
+        tab._selected_section = "model"
+        tab._selected_type = "model"
+        tab._pending_auth_method = "api_key"
+        tab._pending_model_id = ""
+        return tab
+
+    def _make_settings(self, provider="openai", auth_method="codex"):
+        s = MagicMock()
+        s.model.provider = provider
+        s.model.model_id = "gpt-5.1-codex-mini"
+        s.model.auth_method = auth_method
+        s.team.members = []
+        return s
+
+    def test_member_inherits_codex_auth_when_same_provider(self):
+        """Member with no provider override should inherit leader's codex auth_method."""
+        tab = self._make_tab()
+        s = self._make_settings(provider="openai", auth_method="codex")
+
+        # Member has no provider override
+        tab._get_or_create_member_config = lambda slug: None
+        tab._settings = lambda: s
+        tab._update_model_options = MagicMock()
+        tab._show = MagicMock()
+
+        mock_psel = MagicMock()
+        mock_inherit = MagicMock()
+
+        def mock_query_one(sel, cls=None):
+            if "provider-select" in sel:
+                return mock_psel
+            if "model-inherit-note" in sel:
+                return mock_inherit
+            return MagicMock()
+
+        tab.query_one = mock_query_one
+
+        tab._load_model("cto")
+
+        # auth_method passed to _update_model_options should be "codex"
+        call_kwargs = tab._update_model_options.call_args
+        assert call_kwargs[1].get("auth_method") == "codex"
+
+    def test_member_uses_api_key_when_different_provider(self):
+        """Member with a different provider should use api_key, not inherit codex."""
+        tab = self._make_tab()
+        s = self._make_settings(provider="openai", auth_method="codex")
+
+        mc = MagicMock()
+        mc.model_provider = "anthropic"
+        mc.model_id = "claude-sonnet-4-5"
+        tab._get_or_create_member_config = lambda slug: mc
+        tab._settings = lambda: s
+        tab._update_model_options = MagicMock()
+        tab._show = MagicMock()
+
+        mock_psel = MagicMock()
+        mock_inherit = MagicMock()
+
+        def mock_query_one(sel, cls=None):
+            if "provider-select" in sel:
+                return mock_psel
+            if "model-inherit-note" in sel:
+                return mock_inherit
+            return MagicMock()
+
+        tab.query_one = mock_query_one
+
+        tab._load_model("cto")
+
+        call_kwargs = tab._update_model_options.call_args
+        assert call_kwargs[1].get("auth_method") == "api_key"
+
+    def test_member_inherits_api_key_when_leader_uses_api_key(self):
+        """Member with same provider as leader using api_key inherits api_key."""
+        tab = self._make_tab()
+        s = self._make_settings(provider="anthropic", auth_method="api_key")
+
+        tab._get_or_create_member_config = lambda slug: None
+        tab._settings = lambda: s
+        tab._update_model_options = MagicMock()
+        tab._show = MagicMock()
+
+        mock_psel = MagicMock()
+        mock_inherit = MagicMock()
+
+        def mock_query_one(sel, cls=None):
+            if "provider-select" in sel:
+                return mock_psel
+            if "model-inherit-note" in sel:
+                return mock_inherit
+            return MagicMock()
+
+        tab.query_one = mock_query_one
+
+        tab._load_model("cto")
+
+        call_kwargs = tab._update_model_options.call_args
+        assert call_kwargs[1].get("auth_method") == "api_key"
