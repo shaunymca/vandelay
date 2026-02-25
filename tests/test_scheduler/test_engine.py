@@ -181,6 +181,59 @@ async def test_start_stop(engine: SchedulerEngine):
 
 
 @pytest.mark.asyncio
+async def test_heartbeat_execute_uses_unique_session_id(engine: SchedulerEngine, mock_chat_service):
+    """Heartbeat jobs use a unique session_id per invocation to prevent history bleed.
+
+    Bug: Previously heartbeat always used session_id="scheduler-__heartbeat__",
+    accumulating history across runs. Old runs (with PM delegation) replayed,
+    causing the agent to delegate again. Fix: each heartbeat run gets a unique
+    timestamp-based session ID.
+    """
+    from vandelay.scheduler.engine import HEARTBEAT_JOB_ID, HEARTBEAT_COMMAND
+    from vandelay.scheduler.models import JobType
+
+    hb = CronJob(
+        id=HEARTBEAT_JOB_ID,
+        name="Heartbeat",
+        cron_expression="*/30 * * * *",
+        command=HEARTBEAT_COMMAND,
+        job_type=JobType.HEARTBEAT,
+    )
+    engine._store.add(hb)
+
+    await engine._execute_job(HEARTBEAT_JOB_ID)
+    await engine._execute_job(HEARTBEAT_JOB_ID)
+
+    assert mock_chat_service.run.call_count == 2
+
+    session_id_1 = mock_chat_service.run.call_args_list[0][0][0].session_id
+    session_id_2 = mock_chat_service.run.call_args_list[1][0][0].session_id
+
+    # Each run gets its own unique session ID
+    assert session_id_1 != session_id_2
+    # Both start with the heartbeat prefix
+    assert session_id_1.startswith("scheduler-__heartbeat__-")
+    assert session_id_2.startswith("scheduler-__heartbeat__-")
+
+
+@pytest.mark.asyncio
+async def test_non_heartbeat_job_uses_stable_session_id(engine: SchedulerEngine, mock_chat_service):
+    """Regular cron jobs reuse a stable session ID so the agent can reference prior context."""
+    job = CronJob(name="MyJob", cron_expression="0 * * * *", command="do work")
+    engine.add_job(job)
+
+    await engine._execute_job(job.id)
+    await engine._execute_job(job.id)
+
+    session_id_1 = mock_chat_service.run.call_args_list[0][0][0].session_id
+    session_id_2 = mock_chat_service.run.call_args_list[1][0][0].session_id
+
+    # Same session ID across runs for non-heartbeat jobs
+    assert session_id_1 == session_id_2
+    assert session_id_1 == f"scheduler-{job.id}"
+
+
+@pytest.mark.asyncio
 async def test_start_loads_enabled_jobs(engine: SchedulerEngine):
     """start() should register all enabled jobs."""
     engine.add_job(CronJob(name="A", cron_expression="0 * * * *", command="a"))
