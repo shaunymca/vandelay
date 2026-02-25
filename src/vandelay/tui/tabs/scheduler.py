@@ -398,8 +398,14 @@ class SchedulerTab(Widget):
         editable = job is not None and not is_heartbeat
 
         self.query_one("#btn-edit", Button).disabled = not editable
-        self.query_one("#btn-toggle", Button).disabled = job is None
         self.query_one("#btn-delete", Button).disabled = not editable
+
+        toggle = self.query_one("#btn-toggle", Button)
+        toggle.disabled = job is None
+        if job is not None:
+            toggle.label = "Disable" if job.enabled else "Enable"
+        else:
+            toggle.label = "Enable / Disable"
 
     def _selected_job(self):
         if not self._store or not self._selected_job_id:
