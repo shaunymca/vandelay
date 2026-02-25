@@ -298,7 +298,7 @@ class SchedulerTab(Widget):
                 yield DataTable(id="task-table", cursor_type="row")
             with TabPane("Heartbeat", id="pane-heartbeat"):
                 with Vertical(id="hb-form"):
-                    yield Checkbox("Enable heartbeat", id="hb-enabled")
+                    yield Checkbox("Enable heartbeat", id="hb-enabled", value=False)
                     with Horizontal(classes="hb-field-row"):
                         yield Label("Interval (minutes):", classes="hb-label")
                         yield Input("30", id="hb-interval", type="integer")
@@ -429,6 +429,10 @@ class SchedulerTab(Widget):
         if event.data_table.id == "task-table":
             self._edit_task()
 
+    def on_checkbox_changed(self, event: Checkbox.Changed) -> None:
+        if event.checkbox.id == "hb-enabled":
+            event.checkbox.label = "Disable heartbeat" if event.value else "Enable heartbeat"
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         btn_id = event.button.id
         if btn_id == "btn-add":
@@ -542,7 +546,9 @@ class SchedulerTab(Widget):
             if not Settings.config_exists():
                 return
             hb = get_settings().heartbeat
-            self.query_one("#hb-enabled", Checkbox).value = hb.enabled
+            cb = self.query_one("#hb-enabled", Checkbox)
+            cb.value = hb.enabled
+            cb.label = "Disable heartbeat" if hb.enabled else "Enable heartbeat"
             self.query_one("#hb-interval", Input).value = str(hb.interval_minutes)
             self.query_one("#hb-start", Input).value = str(hb.active_hours_start)
             self.query_one("#hb-end", Input).value = str(hb.active_hours_end)
