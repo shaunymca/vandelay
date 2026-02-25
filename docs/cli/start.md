@@ -25,7 +25,8 @@ vandelay start
 
 | Flag | Description |
 |------|-------------|
-| `--no-terminal` | Start server only, no interactive chat |
+| `--server`, `-s` | Server only — no interactive terminal chat (for headless/daemon deployments) |
+| `--watch`, `-w` | Auto-restart on file changes (watches src, config, and workspace files) |
 
 ## Environment Variables
 
@@ -33,4 +34,4 @@ vandelay start
 |----------|--------|
 | `VANDELAY_HOST` | Override server bind address |
 | `VANDELAY_PORT` | Override server port |
-| `VANDELAY_AUTO_RESTART=1` | Enable file-watcher auto-restart on code changes |
+| `VANDELAY_AUTO_ONBOARD=1` | Run headless onboarding automatically if no config exists (PaaS use) |

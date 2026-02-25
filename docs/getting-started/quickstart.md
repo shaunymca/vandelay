@@ -18,17 +18,21 @@ This opens the Vandelay TUI dashboard. On first launch, the onboarding wizard ap
 
 Your config is saved to `~/.vandelay/config.json` and workspace files are created at `~/.vandelay/workspace/`.
 
+> Already configured? The TUI opens directly on the Chat tab — no wizard needed.
+
+
+
 ## 2. Start the Server
 
 Open a second terminal and start the agent server:
 
 ```bash
-vandelay start
+vandelay start --server
 ```
 
-This launches the FastAPI server and connects it to your agent. The TUI's Chat tab will show a green dot once connected.
+This launches the FastAPI server. The TUI's Chat tab will connect automatically once the server is running.
 
-For 24/7 operation, install the daemon instead:
+For 24/7 operation, install the daemon instead — it starts automatically on login/reboot:
 
 ```bash
 vandelay daemon install

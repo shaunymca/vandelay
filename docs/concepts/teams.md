@@ -18,9 +18,11 @@ Team Supervisor (leader)
 
 The supervisor receives all messages, decides which specialist should handle the task, and delegates accordingly. Each member has scoped tools: they can only use what's assigned to them.
 
+The team leader also has direct access to all user-enabled tools (same as solo mode), so it can act without delegating when appropriate — for example, running shell commands during heartbeat checks.
+
 ## Enabling Team Mode
 
-Team mode is **on by default in coordinate mode**. You can toggle it:
+Team mode is **on by default in coordinate mode**. You can toggle it and change the mode in the TUI **Agents** tab → **Team** section, or via the CLI:
 
 ```bash
 vandelay config  # → Team → Enable/Disable

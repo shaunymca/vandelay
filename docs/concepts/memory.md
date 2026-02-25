@@ -18,9 +18,9 @@ Agno's built-in memory system (`update_memory_on_run=True`) automatically extrac
 
 ### 3. Workspace Files
 
-The `MEMORY.md` workspace file acts as a scratchpad the agent can read and write to. It's included in the system prompt and persists across sessions.
+The agent's workspace (`~/.vandelay/workspace/`) contains markdown files that shape its behavior and context. These are loaded into the system prompt at startup.
 
-See [Workspace Files](../guides/workspace-files.md) for details on all 7 workspace files.
+See [Workspace Files](../guides/workspace-files.md) for the full reference.
 
 ## Storage
 

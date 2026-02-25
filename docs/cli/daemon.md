@@ -20,7 +20,7 @@ vandelay daemon install
 
 - **Linux**: Creates a systemd user unit (`~/.config/systemd/user/vandelay.service`)
 - **macOS**: Creates a launchd plist (`~/Library/LaunchAgents/com.vandelay.agent.plist`)
-- **Windows**: Not supported (use WSL)
+- **Windows**: Creates a PID file at `~/.vandelay/vandelay.pid` and launches a detached background process
 
 ### `uninstall`
 
@@ -59,7 +59,7 @@ vandelay daemon logs --follow  # Tail logs
 
 ## How It Works
 
-The daemon runs `vandelay start --no-terminal` as a background service. It:
+The daemon runs `vandelay start --server` as a background service. It:
 
 - Starts the FastAPI server
 - Processes messages from all channels
