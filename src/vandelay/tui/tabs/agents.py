@@ -9,7 +9,7 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.screen import ModalScreen
 from textual.widget import Widget
-from textual.widgets import Button, Input, Label, ListItem, ListView, Select, Static, TextArea
+from textual.widgets import Button, Input, Label, ListItem, ListView, Select, Static, Switch, TextArea
 
 # Workspace prompt files in system-prompt order.
 _LEADER_PROMPT_FILES = [
@@ -20,7 +20,15 @@ _LEADER_SUBNAV: list[tuple[str, str, str]] = [
     ("name", "Name", "name"),
     *[(f.lower().replace(".", "_"), f, "file") for f in _LEADER_PROMPT_FILES],
     ("model", "Model", "model"),
+    ("team", "Team", "team"),
     ("tools", "Tools", "tools"),
+]
+
+_TEAM_MODES = [
+    ("coordinate", "coordinate"),
+    ("route",      "route"),
+    ("broadcast",  "broadcast"),
+    ("tasks",      "tasks"),
 ]
 
 _MEMBER_SUBNAV: list[tuple[str, str, str]] = [
@@ -292,6 +300,11 @@ class AgentsTab(Widget):
     .field-input { margin-bottom: 1; }
     .hint { color: #8b949e; height: 1; text-style: italic; }
 
+    /* team panel */
+    #content-team { height: 1fr; }
+    #team-body { height: 1fr; padding: 1 3; }
+    .mode-hint { color: #8b949e; height: 3; text-style: italic; }
+
     /* tools panel */
     #content-tools { height: 1fr; }
     #tools-add-row {
@@ -474,6 +487,26 @@ class AgentsTab(Widget):
                             classes="hint",
                         )
 
+                # Team panel
+                with Vertical(id="content-team"):
+                    with Horizontal(classes="save-top"):
+                        yield Static("Team", classes="panel-title")
+                        yield Button("Save", id="team-save", variant="primary")
+                    with Vertical(id="team-body"):
+                        yield Label("Team enabled", classes="field-label")
+                        yield Switch(id="team-enabled")
+                        yield Label("Team mode", classes="field-label")
+                        yield Select(
+                            _TEAM_MODES, id="team-mode-select", allow_blank=False,
+                        )
+                        yield Label(
+                            "coordinate — leader picks the best member per message\n"
+                            "route      — whole conversation goes to one member\n"
+                            "broadcast  — message sent to all members simultaneously\n"
+                            "tasks      — leader decomposes into subtasks and delegates",
+                            classes="mode-hint",
+                        )
+
                 # Tools panel
                 with Vertical(id="content-tools"):
                     with Horizontal(id="tools-add-row"):
@@ -498,7 +531,8 @@ class AgentsTab(Widget):
     # ── Visibility ────────────────────────────────────────────────────────
 
     _PANELS = (
-        "content-empty", "content-file", "content-name", "content-model", "content-tools"
+        "content-empty", "content-file", "content-name", "content-model",
+        "content-team", "content-tools",
     )
 
     def _hide_all(self) -> None:
@@ -604,6 +638,8 @@ class AgentsTab(Widget):
             self._load_file(key, agent)
         elif ctype == "model":
             self._load_model(agent)
+        elif ctype == "team":
+            self._load_team()
         elif ctype == "tools":
             self._load_tools(agent)
 
@@ -670,6 +706,35 @@ class AgentsTab(Widget):
             name = ""
         self.query_one("#name-input", Input).value = name or ""
         self._show("content-name")
+
+    # ── Team panel ────────────────────────────────────────────────────────
+
+    def _load_team(self) -> None:
+        import contextlib
+        try:
+            s = self._settings()
+            self.query_one("#team-enabled", Switch).value = s.team.enabled
+            with contextlib.suppress(Exception):
+                self.query_one("#team-mode-select", Select).value = s.team.mode or "coordinate"
+        except Exception:
+            pass
+        self._show("content-team")
+
+    def _save_team(self) -> None:
+        import contextlib
+        try:
+            s = self._settings()
+            s.team.enabled = self.query_one("#team-enabled", Switch).value
+            mode_val = self.query_one("#team-mode-select", Select).value
+            if mode_val:
+                s.team.mode = str(mode_val)
+            s.save()
+            with contextlib.suppress(Exception):
+                from vandelay.config.settings import get_settings
+                get_settings.cache_clear()
+            self.app.notify("Team settings saved.", severity="information", timeout=3)
+        except Exception as exc:
+            self.app.notify(f"Save failed: {exc}", severity="error")
 
     # ── Model panel ───────────────────────────────────────────────────────
 
@@ -856,6 +921,8 @@ class AgentsTab(Widget):
             self._save_name()
         elif bid == "model-save":
             self._save_model()
+        elif bid == "team-save":
+            self._save_team()
         elif bid == "toggle-btn":
             self._toggle_member()
         elif bid == "tool-add-btn":
