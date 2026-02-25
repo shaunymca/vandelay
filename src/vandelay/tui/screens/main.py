@@ -9,6 +9,8 @@ from textual.widgets import TabbedContent, TabPane
 from vandelay.tui.tabs.agents import AgentsTab
 from vandelay.tui.tabs.chat import ChatTab
 from vandelay.tui.tabs.config import ConfigTab
+from vandelay.tui.tabs.knowledge import KnowledgeTab
+from vandelay.tui.tabs.memory import MemoryTab
 from vandelay.tui.tabs.scheduler import SchedulerTab
 from vandelay.tui.tabs.status import StatusTab
 from vandelay.tui.tabs.workspace import WorkspaceTab
@@ -16,7 +18,7 @@ from vandelay.tui.widgets.header import VandelayHeader
 
 
 class MainScreen(Screen):
-    """Main screen: header + six tabs."""
+    """Main screen: header + eight tabs."""
 
     def compose(self) -> ComposeResult:
         yield VandelayHeader()
@@ -31,6 +33,10 @@ class MainScreen(Screen):
                 yield AgentsTab()
             with TabPane("Scheduler", id="tab-scheduler"):
                 yield SchedulerTab()
+            with TabPane("Knowledge", id="tab-knowledge"):
+                yield KnowledgeTab()
+            with TabPane("Memory", id="tab-memory"):
+                yield MemoryTab()
             with TabPane("Workspace", id="tab-workspace"):
                 yield WorkspaceTab()
 

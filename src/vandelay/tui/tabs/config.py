@@ -106,6 +106,22 @@ class ConfigTab(Widget):
 
     #safety-allowed { height: 8; margin-bottom: 1; }
     #safety-blocked { height: 8; margin-bottom: 1; }
+
+    /* daemon section */
+    .section-subheading {
+        height: 1;
+        color: #c9d1d9;
+        text-style: bold;
+        margin-top: 2;
+        margin-bottom: 1;
+    }
+    #daemon-status { height: 1; color: #8b949e; margin-bottom: 1; }
+    #daemon-btn-row { height: 3; margin-bottom: 1; }
+    #daemon-btn-row Button { min-width: 16; margin-right: 1; height: 3; }
+    #btn-update { min-width: 20; height: 3; margin-bottom: 1; }
+    #btn-refresh-logs { min-width: 16; height: 3; margin-bottom: 1; }
+    #log-container { height: 12; border: tall #30363d; background: #0d1117; margin-top: 1; }
+    #log-content { padding: 1; color: #8b949e; }
     """
 
     def __init__(self) -> None:
@@ -168,6 +184,15 @@ class ConfigTab(Widget):
                         yield Select(
                             _TIMEZONES, id="general-timezone", allow_blank=False,
                         )
+                        yield Label("Workspace Directory", classes="field-label")
+                        yield Input(
+                            id="general-workspace-dir", classes="field-input",
+                            placeholder="~/.vandelay/workspace",
+                        )
+                        yield Label(
+                            "[dim]Leave blank to use the default path.[/dim]",
+                            classes="hint",
+                        )
 
                 # ── Server ───────────────────────────────────────────────
                 with Vertical(id="panel-server", classes="section-panel"):
@@ -190,10 +215,29 @@ class ConfigTab(Widget):
                             id="server-secret-key", classes="field-input",
                             password=True, placeholder="leave blank to keep existing",
                         )
+                        yield Label("Database URL", classes="field-label")
+                        yield Input(
+                            id="server-db-url", classes="field-input",
+                            placeholder="leave blank for SQLite (default)",
+                        )
+                        yield Label(
+                            "[dim]PostgreSQL: postgresql://user:pass@host:5432/dbname[/dim]",
+                            classes="hint-wrap",
+                        )
                         yield Label(
                             "[dim]Restart required to apply server changes.[/dim]",
                             classes="hint",
                         )
+                        yield Static("Daemon", classes="section-subheading")
+                        yield Static("", id="daemon-status")
+                        with Horizontal(id="daemon-btn-row"):
+                            yield Button("Install Service", id="btn-daemon-install", variant="success")
+                            yield Button("Uninstall", id="btn-daemon-uninstall", variant="error")
+                        yield Button("Update Vandelay", id="btn-update", variant="default")
+                        yield Static("Daemon Logs", classes="section-subheading")
+                        yield Button("Refresh Logs", id="btn-refresh-logs", variant="default")
+                        with ScrollableContainer(id="log-container"):
+                            yield Static("", id="log-content")
 
                 # ── Knowledge ────────────────────────────────────────────
                 with Vertical(id="panel-knowledge", classes="section-panel"):
@@ -407,10 +451,14 @@ class ConfigTab(Widget):
             self.query_one("#general-user-id", Input).value = s.user_id or ""
             with contextlib.suppress(Exception):
                 self.query_one("#general-timezone", Select).value = s.timezone or "UTC"
+            self.query_one("#general-workspace-dir", Input).value = s.workspace_dir or ""
 
         elif key == "server":
             self.query_one("#server-host", Input).value = s.server.host or ""
             self.query_one("#server-port", Input).value = str(s.server.port)
+            self.query_one("#server-db-url", Input).value = s.db_url or ""
+            self._refresh_daemon_status()
+            self._refresh_logs()
 
         elif key == "knowledge":
             self.query_one("#knowledge-enabled", Switch).value = s.knowledge.enabled
@@ -602,6 +650,113 @@ class ConfigTab(Widget):
         if bid.startswith("save-"):
             key = bid[5:].replace("-", "_")
             self._save_section(key)
+        elif bid == "btn-daemon-install":
+            self.run_worker(self._do_daemon_install(), exclusive=True)
+        elif bid == "btn-daemon-uninstall":
+            self.run_worker(self._do_daemon_uninstall(), exclusive=True)
+        elif bid == "btn-update":
+            self.run_worker(self._do_update(), exclusive=True)
+        elif bid == "btn-refresh-logs":
+            self._refresh_logs()
+
+    # ── Daemon helpers ────────────────────────────────────────────────────
+
+    def _refresh_daemon_status(self) -> None:
+        import contextlib
+        with contextlib.suppress(Exception):
+            from vandelay.cli.daemon import is_daemon_running
+            running = is_daemon_running()
+            label = "[bold green]Running[/bold green]" if running else "[dim]Not running[/dim]"
+            self.query_one("#daemon-status", Static).update(label)
+
+    def _refresh_logs(self) -> None:
+        import contextlib
+        with contextlib.suppress(Exception):
+            from vandelay.config.constants import LOGS_DIR
+            log_file = LOGS_DIR / "vandelay.log"
+            if log_file.exists():
+                lines = log_file.read_text(encoding="utf-8", errors="replace").splitlines()
+                tail = "\n".join(lines[-60:]) if len(lines) > 60 else "\n".join(lines)
+                self.query_one("#log-content", Static).update(tail or "[dim](empty)[/dim]")
+            else:
+                self.query_one("#log-content", Static).update("[dim]No log file yet.[/dim]")
+
+    async def _do_daemon_install(self) -> None:
+        import asyncio
+        self.app.notify("Installing daemon service…", severity="information", timeout=3)
+        try:
+            loop = asyncio.get_event_loop()
+            from vandelay.cli.daemon import install_daemon_service
+            ok = await loop.run_in_executor(None, install_daemon_service)
+            if ok:
+                self.app.notify("Daemon service installed.", severity="information", timeout=4)
+            else:
+                self.app.notify(
+                    "Install not supported on this platform or failed — check logs.",
+                    severity="warning", timeout=5,
+                )
+        except Exception as exc:
+            self.app.notify(f"Install failed: {exc}", severity="error")
+        self._refresh_daemon_status()
+
+    async def _do_daemon_uninstall(self) -> None:
+        import asyncio
+        import sys
+        self.app.notify("Uninstalling daemon service…", severity="information", timeout=3)
+        try:
+            loop = asyncio.get_event_loop()
+
+            def _uninstall() -> None:
+                plat = sys.platform
+                if plat == "linux":
+                    from vandelay.cli.daemon import _systemd_uninstall
+                    _systemd_uninstall()
+                elif plat == "darwin":
+                    from vandelay.cli.daemon import _launchd_uninstall
+                    _launchd_uninstall()
+                else:
+                    raise RuntimeError("Daemon service uninstall not supported on Windows.")
+
+            await loop.run_in_executor(None, _uninstall)
+            self.app.notify("Daemon service uninstalled.", severity="information", timeout=4)
+        except Exception as exc:
+            self.app.notify(f"Uninstall failed: {exc}", severity="error")
+        self._refresh_daemon_status()
+
+    async def _do_update(self) -> None:
+        import asyncio
+        import subprocess
+        from pathlib import Path
+        self.app.notify("Running vandelay update…", severity="information", timeout=3)
+        try:
+            loop = asyncio.get_event_loop()
+
+            def _run_update() -> str:
+                repo_root: Path | None = None
+                for parent in Path(__file__).parents:
+                    if (parent / ".git").exists():
+                        repo_root = parent
+                        break
+                if repo_root is None:
+                    return "Not a git repo — cannot update automatically."
+                r1 = subprocess.run(
+                    ["git", "-C", str(repo_root), "pull"],
+                    capture_output=True, text=True,
+                )
+                if r1.returncode != 0:
+                    return f"git pull failed: {r1.stderr.strip()}"
+                r2 = subprocess.run(
+                    ["uv", "sync"], cwd=str(repo_root),
+                    capture_output=True, text=True,
+                )
+                if r2.returncode != 0:
+                    return f"uv sync failed: {r2.stderr.strip()}"
+                return r1.stdout.strip() or "Already up to date."
+
+            result = await loop.run_in_executor(None, _run_update)
+            self.app.notify(f"Update complete: {result}", severity="information", timeout=6)
+        except Exception as exc:
+            self.app.notify(f"Update failed: {exc}", severity="error")
 
     # ── Saving ────────────────────────────────────────────────────────────
 
@@ -621,6 +776,9 @@ class ConfigTab(Widget):
         s.user_id = self.query_one("#general-user-id", Input).value.strip()
         tz_val = self.query_one("#general-timezone", Select).value
         s.timezone = str(tz_val) if tz_val else "UTC"
+        ws = self.query_one("#general-workspace-dir", Input).value.strip()
+        if ws:
+            s.workspace_dir = ws
 
     def _save_server(self, s) -> None:  # noqa: ANN001
         s.server.host = self.query_one("#server-host", Input).value.strip() or "0.0.0.0"
@@ -631,6 +789,7 @@ class ConfigTab(Widget):
         if secret:
             from vandelay.config.env_utils import write_env_key
             write_env_key("VANDELAY_SECRET_KEY", secret)
+        s.db_url = self.query_one("#server-db-url", Input).value.strip()
 
     def _save_knowledge(self, s) -> None:  # noqa: ANN001
         s.knowledge.enabled = self.query_one("#knowledge-enabled", Switch).value
